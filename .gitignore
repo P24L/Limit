@@ -1,0 +1,131 @@
+# Build
+build/
+DerivedData/
+
+# Xcode
+*.xcworkspace
+!default.xcworkspace
+*.xcuserstate
+*.xcuserdata/
+*.moved-aside
+*.xcscmblueprint
+
+# Local configuration files
+Local.xcconfig
+
+# Swift Package Manager
+.swiftpm
+.build/
+Packages/
+Package.resolved
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/screenshots
+fastlane/test_output
+fastlane/tmp
+
+# Firebase
+GoogleService-Info.plist
+
+# Tuples (např. Xcode Cloud)
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# User-specific files
+*.DS_Store
+*.env
+*.log
+
+# Temporary
+*.tmp
+*.swp
+*.swo
+
+# XCPlayground
+timeline.xctimeline
+playground.xcworkspace
+
+# Preview cache
+.swiftpm/xcode/preview/
+
+# SwiftPM Xcode project
+.xcodeproj/
+
+# User credentials and certificates
+*.keychain
+*.p12
+*.mobileprovision
+*.cer
+*.pem
+
+# Build artifacts
+*.ipa
+*.dSYM.zip
+*.app.dSYM
+
+# Xcode user data (additional)
+*.xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
