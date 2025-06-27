@@ -16,6 +16,12 @@ jobs:
     - name: Select Xcode
       run: sudo xcode-select -switch /Applications/Xcode_15.2.app
       
+    - name: Clean Xcode project
+      run: |
+        # Remove user-specific files that might cause issues
+        rm -rf Limit.xcodeproj/xcuserdata/
+        rm -rf Limit.xcodeproj/project.xcworkspace/xcuserdata/
+        
     - name: Build for iOS Simulator
       run: |
         xcodebuild clean build \
@@ -25,7 +31,8 @@ jobs:
           -configuration Debug \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_ALLOWED=NO \
+          DEVELOPMENT_TEAM=""
           
     - name: Build for iOS Device
       run: |
@@ -36,7 +43,8 @@ jobs:
           -configuration Release \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_ALLOWED=NO \
+          DEVELOPMENT_TEAM=""
           
   test:
     runs-on: macos-latest
@@ -48,6 +56,12 @@ jobs:
     - name: Select Xcode
       run: sudo xcode-select -switch /Applications/Xcode_15.2.app
       
+    - name: Clean Xcode project
+      run: |
+        # Remove user-specific files that might cause issues
+        rm -rf Limit.xcodeproj/xcuserdata/
+        rm -rf Limit.xcodeproj/project.xcworkspace/xcuserdata/
+      
     - name: Run Tests
       run: |
         xcodebuild test \
@@ -57,4 +71,5 @@ jobs:
           -configuration Debug \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO 
+          CODE_SIGNING_ALLOWED=NO \
+          DEVELOPMENT_TEAM="" 

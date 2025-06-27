@@ -32,8 +32,8 @@
 - [x] Instrukce pro instalaci a build
 - [x] Technologie a závislosti
 
-### 4. **Konfigurace projektu** ⚠️ POTŘEBUJE MANUÁLNÍ ÚPRAVY
-- [ ] **Změnit Bundle ID** - aktuálně `P24L.Limit`, doporučuji `com.github.zdenekindra.limit`
+### 4. **Konfigurace projektu** ✅ HOTOVO
+- [x] **Změnit Bundle ID** - ponecháno `P24L.Limit` (odpovídá GitHub username)
 - [x] **Aktualizovat Development Team** v project.pbxproj - ✅ HOTOVO pomocí Local.xcconfig
 - [x] **Přidat MIT licenci** - připraveno
 
@@ -53,9 +53,10 @@
 - [x] **CI/CD workflow** - GitHub Actions
 
 ### 7. **Build a deployment** ⚠️ POTŘEBUJE MANUÁLNÍ ÚPRAVY
-- [ ] **Test build** - otestovat build na čistém prostředí
+- [x] **Test build** - ✅ HOTOVO lokálně
 - [ ] **Archive preparation** - připravit pro distribuci
 - [ ] **Code signing** - nastavit pro open source
+- [ ] **CI/CD fix** - opravit GitHub Actions workflow
 
 ### 8. **Uživatelské prostředí** ✅ HOTOVO
 - [x] **Přeložit UI texty** - všechny UI texty přeloženy do angličtiny
@@ -110,9 +111,10 @@
 
 ### GitHub příprava:
 1. **Repository setup**:
-   - Vytvořit nový repository na GitHub
-   - Push kódu (pouze poslední commit bez historie)
-   - Nastavit repository jako public
+   - ✅ Vytvořit nový repository na GitHub
+   - ✅ Push kódu (čistá historie s initial commit)
+   - ✅ Nastavit repository jako public
+   - ⚠️ **CI/CD workflow** - potřebuje opravu
 
 2. **Releases**:
    - Vytvořit první release s tagem v1.0.0
