@@ -114,12 +114,18 @@
    - ✅ Vytvořit nový repository na GitHub
    - ✅ Push kódu (čistá historie s initial commit)
    - ✅ Nastavit repository jako public
-   - ⚠️ **CI/CD workflow** - potřebuje opravu
+   - ✅ **CI/CD workflow** - vypnuté pro teď
 
 2. **Releases**:
-   - Vytvořit první release s tagem v1.0.0
-   - Přidat release notes
-   - Upload build artifacts (volitelně)
+   - [ ] Vytvořit první release s tagem v1.0.0
+   - [ ] Přidat release notes z CHANGELOG.md
+   - [ ] Upload build artifacts (volitelně)
+   - [ ] Přidat screenshoty do README.md
+
+3. **Oznámení projektu**:
+   - [ ] Bluesky komunita
+   - [ ] iOS vývojáři
+   - [ ] Open source komunita
 
 ## 🎉 HOTOVO ✅
 - ✅ Odstranění citlivých údajů

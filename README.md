@@ -4,14 +4,23 @@ A modern, native iOS client for the Bluesky social network built with SwiftUI an
 
 ## 📱 Screenshots
 
-<!-- TODO: Add screenshots here -->
+<!-- Add your screenshots here -->
 <!-- 
-- Main timeline view
-- Post detail view  
-- Profile view
-- Settings view
-- Dark mode screenshots
+To add screenshots:
+1. Take screenshots in Xcode simulator (Cmd+Shift+4)
+2. Save them to screenshots/ folder
+3. Update these placeholders with actual image paths
 -->
+
+![Timeline View](Images/Img1.png) 
+![Timeline View - Lists](Images/Img4.png)
+*Main timeline and lists with posts and interactions*
+
+![Profile View](Images/Img2.png)  
+*User profile with posts and following*
+
+![Favorites View](Images/Img3.png)  
+*Save posts and links locally*
 
 ## ✨ Features
 
