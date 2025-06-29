@@ -50,7 +50,6 @@ struct TimelinePostList: View {
                         .onAppear {
                             Task {
                                 await feed.loadOlderTimeline()
-                                print("jsem tu")
                                 NotificationCenter.default.post(name: .didLoadOlderPosts, object: nil)
                             }
                         }
@@ -60,7 +59,6 @@ struct TimelinePostList: View {
             }
             .onScrollPhaseChange { old, new in
                 isScrolling = new != .idle
-                print("Scroll phase changed from \(old) → \(new)")
                 if new == .tracking || new == .interacting {
                     // Hide or show topbar based on scroll direction preference and scroll phase
                     isTopbarHidden = true
@@ -72,9 +70,8 @@ struct TimelinePostList: View {
                 guard !isRestoringScrollPosition else { return }
                 if let firstID = visibleIDs.first {
                     topVisibleID = firstID
-                    UserDefaults.standard.set(firstID, forKey: "LastTopVisiblePostID")
+                    TimelinePositionManager.shared.saveTimelinePosition(firstID)
                     DevLogger.shared.log("ATTimelineView_experimental.swift - onScrollTargetVisibilityChange - saving position \(firstID)")
-                    print("New top visible ID: \(firstID)")
                     if let index = posts.firstIndex(where: { $0.uri == firstID }) {
                         newPostsAboveCount = index
                     } else {
@@ -84,7 +81,7 @@ struct TimelinePostList: View {
             }
             .task {
                 if isRestoringScrollPosition {
-                    if let savedID = UserDefaults.standard.string(forKey: "LastTopVisiblePostID") {
+                    if let savedID = TimelinePositionManager.shared.getTimelinePosition() {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                             withAnimation {
                                 proxy.scrollTo(savedID, anchor: .top)

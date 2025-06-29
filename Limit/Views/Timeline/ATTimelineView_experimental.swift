@@ -55,8 +55,7 @@ struct ATTimelineView_experimental: View {
         }
         .refreshable {
             if selectedIndex == 0 {
-                var savedTopID: String? = nil
-                savedTopID = UserDefaults.standard.string(forKey: "LastTopVisiblePostID")
+                let savedTopID = TimelinePositionManager.shared.getTimelinePosition()
                 await feed.refreshTimeline()
                 viewState = .posts(feed.postTimeline)
                 if let id = savedTopID {
@@ -69,8 +68,7 @@ struct ATTimelineView_experimental: View {
         .onChange(of: scenePhase) { _, newPhase in
             if selectedIndex == 0 && newPhase == .active && Date().timeIntervalSince(lastRefresh) > 60 {
                 Task {
-                    var savedTopID: String? = nil
-                    savedTopID = UserDefaults.standard.string(forKey: "LastTopVisiblePostID")
+                    let savedTopID = TimelinePositionManager.shared.getTimelinePosition()
                     await feed.refreshTimeline()
                     lastRefresh = .now
                     viewState = .posts(feed.postTimeline)
@@ -125,13 +123,13 @@ struct ATTimelineView_experimental: View {
 
                     Button {
                         Task {
-                            // Ulož topVisibleID z UserDefaults před refresh
-                            let savedTopID = UserDefaults.standard.string(forKey: "LastTopVisiblePostID")
-                            await feed.refreshTimeline()
-                            viewState = .posts(feed.postTimeline)
-                            // Po refreshi obnov scrollovací pozici pokud je ID známo
-                            if let id = savedTopID {
-                                NotificationCenter.default.post(name: .restoreScrollToID, object: id)
+                            if selectedIndex == 0 {
+                                let savedTopID = TimelinePositionManager.shared.getTimelinePosition()
+                                await feed.refreshTimeline()
+                                viewState = .posts(feed.postTimeline)
+                                if let id = savedTopID {
+                                    NotificationCenter.default.post(name: .restoreScrollToID, object: id)
+                                }
                             }
                         }
                     } label: {
@@ -209,6 +207,7 @@ struct ATTimelineView_experimental: View {
 
 extension Notification.Name {
     static let restoreScrollToID = Notification.Name("RestoreScrollToID")
+    static let restoreListScrollToID = Notification.Name("RestoreListScrollToID")
     static let didLoadOlderPosts = Notification.Name("DidLoadOlderPosts")
 }
 
