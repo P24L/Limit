@@ -11,8 +11,34 @@ import Foundation
 import SwiftData
 import SwiftUI
 
+enum TimelineContentSource {
+    case list(AppBskyLexicon.Graph.ListViewDefinition)
+    case feed(AppBskyLexicon.Feed.GeneratorViewDefinition)
+    
+    var displayName: String {
+        switch self {
+        case .list(let list): return list.name
+        case .feed(let feed): return feed.displayName
+        }
+    }
+    
+    var uri: String {
+        switch self {
+        case .list(let list): return list.uri
+        case .feed(let feed): return feed.feedURI
+        }
+    }
+    
+    var sourceType: String {
+        switch self {
+        case .list: return "list"
+        case .feed: return "feed"
+        }
+    }
+}
+
 struct ListTimelineView: View {
-    let list: AppBskyLexicon.Graph.ListViewDefinition
+    let source: TimelineContentSource
     @Environment(BlueskyClient.self) private var client
     // Pro budoucí rozšíření lze přidat bindingy jako u TimelinePostList
     // @Binding var newPostsAboveCount: Int
@@ -40,7 +66,6 @@ struct ListTimelineView: View {
                         LazyVStack {
                             Color.clear
                                 .frame(height: 60)
-                                .id("top")
                             ForEach(posts) { post in
                                 PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil)
                                     .id(post.uri)
@@ -53,7 +78,7 @@ struct ListTimelineView: View {
                         guard !isRestoringScrollPosition else { return }
                         if let firstID = visibleIDs.first {
                             topVisibleID = firstID
-                            TimelinePositionManager.shared.saveListPosition(firstID, for: list.uri)
+                            TimelinePositionManager.shared.saveListPosition(firstID, for: source.uri)
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: .restoreListScrollToID)) { notification in
@@ -69,32 +94,39 @@ struct ListTimelineView: View {
                 }
             }
         }
-        .task {
-            if posts.isEmpty { 
-                await loadListFeed() 
-                // Fallback timeout - pokud se za 2 sekundy nepodaří obnovit pozici, povol ukládání
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    if isRestoringScrollPosition {
-                        isRestoringScrollPosition = false
-                    }
+        .task(id: source.uri) {
+            await loadContent() 
+            // Fallback timeout - pokud se za 2 sekundy nepodaří obnovit pozici, povol ukládání
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                if isRestoringScrollPosition {
+                    isRestoringScrollPosition = false
                 }
             }
         }
     }
 
-    private func loadListFeed() async {
+    private func loadContent() async {
         guard !isLoading else { return }
         isLoading = true
         defer { 
             isLoading = false
         }
         do {
-            let output = try await client.protoClient?.getListFeed(from: list.uri, limit: 50)
-            let wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            let wrappers: [TimelinePostWrapper]
+            
+            switch source {
+            case .list(let list):
+                let output = try await client.protoClient?.getListFeed(from: list.uri, limit: 50)
+                wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            case .feed(let feed):
+                let output = try await client.protoClient?.getFeed(by: feed.feedURI, limit: 50)
+                wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            }
+            
             await MainActor.run {
                 self.posts = wrappers
                 // Po načtení postů obnov pozici pokud existuje
-                if let savedID = TimelinePositionManager.shared.getListPosition(for: list.uri) {
+                if let savedID = TimelinePositionManager.shared.getListPosition(for: source.uri) {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         NotificationCenter.default.post(name: .restoreListScrollToID, object: savedID)
                     }

@@ -98,6 +98,11 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             isAuthenticated = true
             let logHandle = self.currentUser?.handle ?? "unknown user"
             DevLogger.shared.log("BlueskyClient.swift - Login successful for \(logHandle)")
+            if let atProtoClient = protoClient {
+                DevLogger.shared.log("BlueskyClient.swift - ProtoClient initialized successfully")
+            } else {
+                DevLogger.shared.log("BlueskyClient.swift - ProtoClient initialization failed")
+            }
         } catch {
             // On error, set error message and update state
             self.isAuthenticated = false
@@ -335,8 +340,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - 1 - getting my followers")
             let followers = try await protoClient.getFollows(from: myDID, limit: maxFollowersToExpand)
 
-            DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - 2 - exploring followers and followees network")
-
             var relatedAccounts = Set<String>()
 
             try await withThrowingTaskGroup(of: Set<String>.self) { group in
@@ -348,7 +351,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                             result.formUnion(theirFollows.follows.map { $0.actorDID })
                             let theirFollowers = try await protoClient.getFollowers(by: follower.actorDID, limit: maxFollowersPerUser)
                             result.formUnion(theirFollowers.followers.map { $0.actorDID })
-                            DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - 2a - actor:\(follower.displayName ?? follower.actorHandle), followers:\(theirFollowers.followers.count), their followees: \(theirFollows.follows.count)")
                         } catch {
                             DevLogger.shared.log("fetchHotPostIDs - error for \(follower.actorDID): \(error)")
                         }
@@ -361,14 +363,10 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                 }
             }
 
-            DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - 2A - got \(relatedAccounts.count) accounts, getting posts")
-
             let sampledAccounts = Array(relatedAccounts.shuffled().prefix(sampleAccountsCount))
 
             var scoredPosts: [ScoredPost] = []
             let now = Date()
-
-            DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - 3 - got \(sampledAccounts.count) accounts, getting posts")
 
             try await withThrowingTaskGroup(of: [ScoredPost].self) { group in
                 let concurrentLimit = 20
@@ -411,8 +409,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                     activeTasks -= 1
                 }
             }
-
-            DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - 4 - got posts, count: \(scoredPosts.count)")
 
             let weightedPosts = scoredPosts.flatMap { post in
                 let clampedScore = max(1, min(post.score, 20))

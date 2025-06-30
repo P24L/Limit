@@ -25,6 +25,7 @@ To add screenshots:
 ## ✨ Features
 
 - **Modern Timeline**: Infinite scrolling timeline with real-time updates
+- **Lists & Feeds Support**: Browse your lists and custom feeds seamlessly
 - **Smart Caching**: Intelligent post caching for offline reading
 - **Thread View**: Full conversation threading support
 - **Profile Management**: View and manage user profiles
@@ -136,6 +137,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔄 Version History
 
+- **v1.1.0** - Lists & Feeds Support
+  - Browse user-created lists and custom feeds
+  - Unified timeline picker for Timeline/Lists/Feeds
+  - Position management for lists and feeds
+  - Seamless content switching
+  
 - **v1.0.0** - Initial release
   - Basic timeline functionality
   - User authentication

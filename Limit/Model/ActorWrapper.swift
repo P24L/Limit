@@ -232,7 +232,7 @@ class ActorWrapper {
                     limit: limit,
                     cursor: feedGeneratorsLastCursor
                 )
-                feedGeneratorsLastCursor = output.cursor
+                feedGeneratorsLastCursor = output.cursor                
                 await MainActor.run {
                     for feedGenerator in output.feeds {
                         self.feedGenerators.append(feedGenerator)

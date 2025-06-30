@@ -24,7 +24,7 @@ struct ATTimelineView_experimental: View {
         case loading
         case error(Error)
         case posts([TimelinePostWrapper])
-        case list(AppBskyLexicon.Graph.ListViewDefinition)
+        case content(TimelineContentSource)
     }
 
     @State private var viewState: ViewState = .loading
@@ -49,8 +49,8 @@ struct ATTimelineView_experimental: View {
                 }
                 await feed.refreshTimeline()
                 viewState = .posts(feed.postTimeline)
-            } else if let list = currentUser.lists[safe: selectedIndex - 1] {
-                viewState = .list(list)
+            } else {
+                viewState = getSelectedContent()
             }
         }
         .refreshable {
@@ -61,8 +61,8 @@ struct ATTimelineView_experimental: View {
                 if let id = savedTopID {
                     NotificationCenter.default.post(name: .restoreScrollToID, object: id)
                 }
-            } else if let list = currentUser.lists[safe: selectedIndex - 1] {
-                viewState = .list(list)
+            } else {
+                viewState = getSelectedContent()
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -77,17 +77,35 @@ struct ATTimelineView_experimental: View {
                     }
                 }
             } else if selectedIndex > 0 && newPhase == .active {
-                if let list = currentUser.lists[safe: selectedIndex - 1] {
-                    viewState = .list(list)
-                }
+                viewState = getSelectedContent()
             }
         }
         .onChange(of: selectedIndex) { _, newValue in
             if newValue == 0 {
                 viewState = .posts(feed.postTimeline)
-            } else if let list = currentUser.lists[safe: newValue - 1] {
-                viewState = .list(list)
+            } else {
+                viewState = getSelectedContent()
             }
+        }
+    }
+    
+    // MARK: Helper Functions
+    private func getSelectedContent() -> ViewState {
+        guard selectedIndex > 0 else { return .loading }
+        
+        if selectedIndex <= currentUser.lists.count {
+            // Lists (index 1...lists.count)
+            guard let list = currentUser.lists[safe: selectedIndex - 1] else {
+                return .loading
+            }
+            return .content(.list(list))
+        } else {
+            // Feeds (index lists.count+1...lists.count+feeds.count)
+            let feedIndex = selectedIndex - currentUser.lists.count - 1
+            guard let feed = currentUser.feeds[safe: feedIndex] else {
+                return .loading
+            }
+            return .content(.feed(feed))
         }
     }
     
@@ -130,6 +148,8 @@ struct ATTimelineView_experimental: View {
                                 if let id = savedTopID {
                                     NotificationCenter.default.post(name: .restoreScrollToID, object: id)
                                 }
+                            } else {
+                                viewState = getSelectedContent()
                             }
                         }
                     } label: {
@@ -154,8 +174,14 @@ struct ATTimelineView_experimental: View {
             // Dropdown Picker na střed
             Picker("", selection: $selectedIndex) {
                 Text("Timeline").tag(0)
-                ForEach(Array(currentUser.lists.enumerated()), id: \ .offset) { idx, list in
+                // Lists
+                ForEach(Array(currentUser.lists.enumerated()), id: \.offset) { idx, list in
                     Text(list.name).tag(idx + 1)
+                }
+                
+                // Feeds
+                ForEach(Array(currentUser.feeds.enumerated()), id: \.offset) { idx, feed in
+                    Text(feed.displayName).tag(currentUser.lists.count + idx + 1)
                 }
             }
             .pickerStyle(.menu)
@@ -199,8 +225,8 @@ struct ATTimelineView_experimental: View {
             .task {
                 client.prepareHotPostCacheInBackground()
             }
-        case .list(let list):
-            ListTimelineView(list: list)
+        case .content(let source):
+            ListTimelineView(source: source)
         }
     }
 }

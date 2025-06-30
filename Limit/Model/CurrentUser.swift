@@ -16,6 +16,7 @@ class CurrentUser {
     var displayName: String = ""
     var avatarURL: URL? = nil
     var lists: [AppBskyLexicon.Graph.ListViewDefinition] = []
+    var feeds: [AppBskyLexicon.Feed.GeneratorViewDefinition] = []
     private var listsLastCursor: String? = nil
     
     // Volá se po přihlášení nebo na refresh
@@ -30,6 +31,7 @@ class CurrentUser {
             self.avatarURL = profile.avatarImageURL
         }
         await refreshLists(client: client)
+        await refreshFeeds(client: client)
 
     }
     
@@ -55,7 +57,35 @@ class CurrentUser {
                 self.lists = output.lists
             }
         } catch {
-            DevLogger.shared.log("CurrentUser - refreshLists se nepovedl")
+            DevLogger.shared.log("CurrentUser - refreshLists unsucessfull")
+        }
+    }
+
+    func refreshFeeds(client: BlueskyClient, limit: Int = 50) async {
+        guard let protoClient = await client.protoClient else { return }
+        do {
+            var feed_uris: [String] = []
+            let userPreferences = try await protoClient.getPreferences()
+            for pref in userPreferences.preferences {
+                switch pref {
+                case .savedFeedsVersion2(let savedV2):
+                    for item in savedV2.items {
+                        if item.feedType == .feed && item.isPinned {
+                            feed_uris.append(item.value)
+                        }
+                    }
+                default:
+                    break
+                }
+            }
+            if !feed_uris.isEmpty {
+                let feedGenerators = try await protoClient.getFeedGenerators(by: feed_uris)
+                feeds = feedGenerators.feeds
+                DevLogger.shared.log("CurrentUser - refreshFeeds - add feeds, count: \(feeds.count)")
+            }
+
+        } catch {
+            DevLogger.shared.log("CurrentUser - refreshFeeds unsucessfull")
         }
     }
     
