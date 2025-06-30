@@ -37,18 +37,19 @@ struct ZoomableScrollView<Content: View>: UIViewRepresentable {
         hostedView.view.backgroundColor = .clear
         scrollView.addSubview(hostedView.view)
         context.coordinator.scrollView = scrollView
+        context.coordinator.hostedView = hostedView.view
 
         let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDoubleTap(_:)))
         doubleTap.numberOfTapsRequired = 2
         scrollView.addGestureRecognizer(doubleTap)
 
         NSLayoutConstraint.activate([
-            hostedView.view.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            hostedView.view.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            hostedView.view.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            hostedView.view.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            hostedView.view.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
-            hostedView.view.heightAnchor.constraint(equalTo: scrollView.heightAnchor)
+            hostedView.view.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            hostedView.view.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            hostedView.view.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            hostedView.view.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            hostedView.view.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+            hostedView.view.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor)
         ])
 
         return scrollView
@@ -67,10 +68,27 @@ struct ZoomableScrollView<Content: View>: UIViewRepresentable {
 
     class Coordinator: NSObject, UIScrollViewDelegate {
         weak var scrollView: UIScrollView?
+        weak var hostedView: UIView?
         var lastResetTrigger: Int = 0
 
         func viewForZooming(in scrollView: UIScrollView) -> UIView? {
-            return scrollView.subviews.first
+            return hostedView
+        }
+        
+        func scrollViewDidZoom(_ scrollView: UIScrollView) {
+            centerContent(in: scrollView)
+        }
+        
+        private func centerContent(in scrollView: UIScrollView) {
+            guard let hostedView = hostedView else { return }
+            
+            let offsetX = max((scrollView.bounds.width - scrollView.contentSize.width) * 0.5, 0)
+            let offsetY = max((scrollView.bounds.height - scrollView.contentSize.height) * 0.5, 0)
+            
+            hostedView.center = CGPoint(
+                x: scrollView.contentSize.width * 0.5 + offsetX,
+                y: scrollView.contentSize.height * 0.5 + offsetY
+            )
         }
 
         @objc func handleDoubleTap(_ recognizer: UITapGestureRecognizer) {
@@ -160,7 +178,7 @@ struct ImageGalleryView: View {
                         }
                     }
             )
-            .onChange(of: selectedIndex) { _ in
+            .onChange(of: selectedIndex) {
                 zoomResetCounter += 1
             }
         }
@@ -177,7 +195,7 @@ struct FullScreenImageView: View {
 
     @State private var currentImage: ImageDisplayData
     @State private var scrollPosition: ImageDisplayData?
-    @GestureState private var zoom: CGFloat = 1.0
+    @State private var zoom: CGFloat = 1.0
 
     init(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID, onDismiss: @escaping () -> Void) {
         self.images = images
@@ -189,40 +207,41 @@ struct FullScreenImageView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
-                    ForEach(images, id: \.url) { image in
-                        let isCurrent = currentImage.url == image.url
-                        let transitionID = isCurrent ? image.url : nil
-                        WebImage(url: image.url)
-                            .resizable()
-                            .scaledToFit()
-                            .aspectRatio(contentMode: .fit)
-                            .scaleEffect(isCurrent ? zoom : 1.0)
-                            .matchedTransitionSource(id: transitionID, in: namespace)
-                            .containerRelativeFrame([.horizontal, .vertical])
-                            .contentShape(Rectangle())
-                            .onAppear {
-                                scrollPosition = image
-                                currentImage = image
-                            }
-                            .gesture(
-                                MagnificationGesture()
-                                    .updating($zoom) { value, state, _ in
-                                        if currentImage.url == image.url {
-                                            state = value
-                                        }
-                                    }
-                            )
+            TabView(selection: Binding(
+                get: { 
+                    images.firstIndex(where: { $0.url == currentImage.url }) ?? 0 
+                },
+                set: { index in 
+                    if images.indices.contains(index) {
+                        currentImage = images[index]
+                        zoom = 1.0
                     }
                 }
-            }
-            .navigationTransition(.zoom(sourceID: currentImage.url, in: namespace))
-            .onChange(of: scrollPosition) { newValue in
-                if let newValue = newValue {
-                    currentImage = newValue
+            )) {
+                ForEach(Array(images.enumerated()), id: \.offset) { index, image in
+                    ZoomableScrollView(zoomResetTrigger: .constant(0)) {
+                        WebImage(url: image.url) { phase in
+                            switch phase {
+                            case .empty:
+                                ProgressView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            case .failure(_):
+                                Rectangle()
+                                    .foregroundStyle(.gray)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                        }
+                    }
+                    .tag(index)
                 }
             }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+            .navigationTransition(.zoom(sourceID: currentImage.url, in: namespace))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") {
