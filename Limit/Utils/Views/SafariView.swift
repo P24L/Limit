@@ -37,6 +37,7 @@ struct CustomWebView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WKWebView {
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
         webView.load(URLRequest(url: initialURL))
         return webView
     }
@@ -45,7 +46,7 @@ struct CustomWebView: UIViewRepresentable {
         // intentionally left blank: do not reload on update
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         @Binding var title: String?
         let webState: WebViewState
 
@@ -57,6 +58,14 @@ struct CustomWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             title = webView.title
             webState.currentURL = webView.url
+        }
+        
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            // Když se má otevřít nové okno, načteme URL v současném WebView
+            if let url = navigationAction.request.url {
+                webView.load(URLRequest(url: url))
+            }
+            return nil
         }
     }
 }
