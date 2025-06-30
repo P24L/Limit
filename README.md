@@ -131,9 +131,36 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/zdenekindra/limit/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/zdenekindra/limit/discussions)
-- **Email**: [Your email here]
+Having issues or questions? We're here to help!
+
+### 🐛 Bug Reports & Feature Requests
+- **GitHub Issues**: [https://github.com/P24L/Limit/issues](https://github.com/P24L/Limit/issues)
+- **New Issue**: [Create Issue](https://github.com/P24L/Limit/issues/new)
+
+### 📋 Before Reporting Issues
+Please check if your issue already exists in [open issues](https://github.com/P24L/Limit/issues).
+
+### 💡 Frequently Asked Questions
+
+**Q: App crashes on startup**  
+A: Try restarting your device and updating to the latest iOS version.
+
+**Q: Can't login to Bluesky**  
+A: Make sure you're using an App Password from Bluesky settings, not your main account password.
+
+**Q: Lists or feeds not loading**  
+A: Check your internet connection and try refreshing the timeline.
+
+**Q: Images not displaying**  
+A: This might be a temporary network issue. Try refreshing or switching networks.
+
+### 📱 When Reporting Bugs
+Please include:
+- Device model (e.g., iPhone 15)
+- iOS version (e.g., iOS 17.5)
+- App version (found in Settings)
+- Steps to reproduce the issue
+- Screenshots if applicable
 
 ## 🔄 Version History
 
