@@ -27,7 +27,7 @@ struct PostItemActionsView: View {
             Button {
                 
             } label: {
-                Label("\(postWrapper.replyCount)", systemImage: "quote.bubble")
+                Label("\(postWrapper.replyCount.abbreviated)", systemImage: "quote.bubble")
                     .lineLimit(1)
                     .font(.callout)
             }
@@ -38,7 +38,7 @@ struct PostItemActionsView: View {
             Button {
                 
             } label: {
-                Label("\(postWrapper.repostCount)", systemImage: "arrow.2.squarepath")
+                Label("\(postWrapper.repostCount.abbreviated)", systemImage: "arrow.2.squarepath")
                     .lineLimit(1)
                     .font(.callout)
             }
@@ -62,7 +62,7 @@ struct PostItemActionsView: View {
                     await postWrapper.toggleLike(using: client)
                 }
             } label: {
-                Label("\(postWrapper.likeCount)", systemImage: postWrapper.isLiked ? "heart.fill" : "heart")
+                Label("\(postWrapper.likeCount.abbreviated)", systemImage: postWrapper.isLiked ? "heart.fill" : "heart")
                     .foregroundStyle(postWrapper.isLiked ? .red : .primary)
                     .lineLimit(1)
                     .font(.callout)

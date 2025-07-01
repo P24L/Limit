@@ -54,7 +54,7 @@ struct ListTimelineView: View {
     var body: some View {
         Group {
             if isLoading {
-                ProgressView("Načítám příspěvky…")
+                ProgressView("Loading posts…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error {
                 Text("Chyba: \(error.localizedDescription)")
