@@ -164,7 +164,7 @@ struct ATTimelineView_experimental: View {
                                 .buttonStyle(.plain)
                                 .symbolEffect(.bounce, value: client.isLoading)
                                 .foregroundStyle(.mintAccent)
-                                .font(.callout)
+                                .font(.caption)
                         }
                     }
                     .disabled(client.isLoading)
@@ -185,6 +185,7 @@ struct ATTimelineView_experimental: View {
                 }
             }
             .pickerStyle(.menu)
+            .font(.callout)
             .frame(maxWidth: 200)
         }
         .padding(.horizontal)

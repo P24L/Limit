@@ -96,9 +96,7 @@ struct UserProfileView: View {
             HStack(spacing: 20) {
                 ForEach(ProfileSection.allCases, id: \.self) { section in
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedSection = section
-                        }
+                        selectedSection = section
                     }) {
                         Text(section.rawValue)
                             .font(.subheadline)
@@ -107,12 +105,10 @@ struct UserProfileView: View {
                             .padding(.vertical, 12)
                             .padding(.horizontal, 12)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(
-                                        selectedSection == section
-                                            ? Color.mintAccent.opacity(0.1) : Color.clear
-                                    )
+                                selectedSection == section
+                                    ? Color.mintAccent.opacity(0.1) : Color.clear
                             )
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
             }
@@ -177,7 +173,7 @@ struct UserProfileView: View {
                                 followingURI == nil ? Color.mintAccent : Color.mintInactive
                             )
                             .foregroundColor(.white)
-                            .cornerRadius(20)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20)
                                     .stroke(
@@ -366,7 +362,7 @@ struct FollowerItemView: View {
                             .padding(.vertical, 6)
                             .background(followingURI == nil ? Color.blue : Color.gray)
                             .foregroundColor(.white)
-                            .cornerRadius(16)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
                 }
 
@@ -382,7 +378,7 @@ struct FollowerItemView: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
         .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -437,7 +433,7 @@ struct ListItemView: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
         .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -492,7 +488,7 @@ struct FeedItemView: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
         .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -508,7 +504,7 @@ struct AvatarView: View {
                     Rectangle().foregroundStyle(.gray)
                 case .success(let image):
                     image.resizable()
-                case .failure(let error):
+                case .failure(_):
                     Rectangle().foregroundStyle(.gray)
                 }
             }

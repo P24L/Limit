@@ -55,14 +55,12 @@ struct AppRootView: View {
             ATTimelineView_experimental()
         case .computedTimeline:
             ComputedTimelineView()
+        case .search:
+            SearchTabView()
         case .favorites:
             FavoritesViews()
-        case .safari:
-            SafariTabView(safariURL: nil)
         case .settings:
             SettingsView()
-        default:
-            Text("Not implemented")
         }
     }
     
@@ -73,6 +71,8 @@ struct AppRootView: View {
             ATTimelineView_experimental()
         case .computedTimeline:
             ComputedTimelineView()
+        case .search:
+            SearchTabView()
         case .postThreadWrapped(let postThread):
             ThreadWrappedView(postThread: postThread)
         case .safari(let url):

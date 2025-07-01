@@ -11,7 +11,7 @@ import Foundation
 import SwiftUI
 
 enum AppTab: String, TabType, CaseIterable {
-    case timeline, computedTimeline, favorites, safari, settings
+    case timeline, computedTimeline, search, favorites, settings
     
     var id: String { rawValue}
     
@@ -21,10 +21,10 @@ enum AppTab: String, TabType, CaseIterable {
             return "clock"
         case .computedTimeline:
             return "sparkles"
+        case .search:
+            return "magnifyingglass"
         case .favorites:
             return "star"
-        case .safari:
-            return "safari"
         case .settings:
             return "gear"
         }
@@ -36,8 +36,8 @@ enum AppTab: String, TabType, CaseIterable {
             return "Timeline"
         case .computedTimeline:
             return "Aline"
-        case .safari:
-            return "Safari"
+        case .search:
+            return "Search"
         case .favorites:
             return "Favorites"
         case .settings:
@@ -49,6 +49,7 @@ enum AppTab: String, TabType, CaseIterable {
 enum Destination: DestinationType {
     case timeline
     case computedTimeline
+    case search
     case postThreadWrapped(postThread: TimelinePostWrapper)
     case safari(url: URL?)
     case favorites

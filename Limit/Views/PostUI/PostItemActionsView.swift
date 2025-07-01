@@ -29,7 +29,7 @@ struct PostItemActionsView: View {
             } label: {
                 Label("\(postWrapper.replyCount.abbreviated)", systemImage: "quote.bubble")
                     .lineLimit(1)
-                    .font(.callout)
+                    .font(.caption)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -40,7 +40,7 @@ struct PostItemActionsView: View {
             } label: {
                 Label("\(postWrapper.repostCount.abbreviated)", systemImage: "arrow.2.squarepath")
                     .lineLimit(1)
-                    .font(.callout)
+                    .font(.caption)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -65,7 +65,7 @@ struct PostItemActionsView: View {
                 Label("\(postWrapper.likeCount.abbreviated)", systemImage: postWrapper.isLiked ? "heart.fill" : "heart")
                     .foregroundStyle(postWrapper.isLiked ? .red : .primary)
                     .lineLimit(1)
-                    .font(.callout)
+                    .font(.caption)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -81,7 +81,7 @@ struct PostItemActionsView: View {
                 }
             } label: {
                 Image(systemName: "bookmark")
-                    .font(.callout)
+                    .font(.caption)
             }
             .buttonStyle(.plain)
             .symbolVariant(favoritesPost.isFavorited(postWrapper.uri) ? .fill : .none)
@@ -101,7 +101,7 @@ struct PostItemActionsView: View {
                     }
                 } label: {
                     Image(systemName: "safari")
-                        .font(.callout)
+                        .font(.caption)
                 }
                 .buttonStyle(.plain)
                 .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
@@ -118,14 +118,14 @@ struct PostItemActionsView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .buttonStyle(.plain)
-                        .font(.callout)
+                        .font(.caption)
                         .foregroundStyle(.postAction)
                 }
 
             }
         }
         .buttonStyle(.plain)
-        .font(.callout)
+        .font(.caption)
         .padding(.top, 3)
         .padding(.bottom, 3)
         .controlSize(.regular)

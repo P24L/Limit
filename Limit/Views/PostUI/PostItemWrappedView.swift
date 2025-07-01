@@ -80,10 +80,11 @@ struct PostItemWrappedView: View {
                                 }
                         }
                         Text(!(post.authorDisplayName ?? "").isEmpty ? (post.authorDisplayName ?? "") : post.authorHandle)
-                            .font(.headline)
+                            .font(.subheadline)
                             .foregroundColor(.mintAccent)
                         Spacer()
                         Text(post.createdAt.relativeFormatted)
+                            .font(.footnote)
                             .foregroundStyle(.gray)
                     }
 
@@ -118,7 +119,7 @@ struct PostItemWrappedView: View {
                     // MARK: Post - text
                     VStack(alignment: .leading) {
                         Text(post.text)
-                            .font(.body)
+                            .font(.callout)
                             .onTapGesture {
                                 router.navigateTo(.postThreadWrapped(postThread: post))
                             }
@@ -172,13 +173,11 @@ struct PostItemWrappedView: View {
                     if let quotedPost = post.quotedPost, depth < 2 {
                         PostItemWrappedView(post: quotedPost, depth: depth + 1, postViewType: .quoted)
                             .padding(10)
-                            .background(
+                            .background(Color.gray.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.gray.opacity(0.08))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.gray.opacity(0.3))
-                                    )
+                                    .stroke(Color.gray.opacity(0.3))
                             )
                     }
                     
@@ -212,9 +211,7 @@ struct WrappedPostLinkView: View {
     var body: some View {
         Button(action: {
             if let url = URL(string: linkExt.uri) {
-                router.popToRoot(for: .safari)
-                router.selectedTab = .safari
-                router.navigateTo(.safari(url: url), for: .safari)
+                router.navigateTo(.safari(url: url))
             }
         }) {
             HStack(alignment: .top, spacing: 12) {
@@ -232,16 +229,16 @@ struct WrappedPostLinkView: View {
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 60, height: 60)
                         .clipped()
-                        .cornerRadius(8)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     if !linkExt.title.isEmpty {
                         Text(linkExt.title)
-                            .font(.headline)
+                            .font(.subheadline)
                             .lineLimit(2)
                     }
                     Text(linkExt.desc.count > 0 ? linkExt.desc : linkExt.uri)
-                        .font(.subheadline)
+                        .font(.footnote)
                         .lineLimit(2)
                         .foregroundColor(.gray)
                 }
@@ -249,7 +246,7 @@ struct WrappedPostLinkView: View {
             }
             .padding(8)
             .background(Color(UIColor.secondarySystemBackground))
-            .cornerRadius(10)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
 }
@@ -307,15 +304,19 @@ struct EmbeddedImageView: View {
                         .aspectRatio(4/3, contentMode: .fit)
                 case .success(let image):
                     image.resizable()
-                case .failure(let error):
+                case .failure(_):
                     Rectangle().foregroundStyle(.gray)
                         .aspectRatio(4/3, contentMode: .fit)
                 }
             }
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.clear)
+                        .shadow(color: .black.opacity(0.7), radius: 2)
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-                .shadow(color: .black.opacity(0.7), radius: 2)
                 .padding(.trailing, 8)
         } else {
             EmptyView()
@@ -331,9 +332,7 @@ struct PostLinkView: View {
     var body: some View {
         Button(action: {
             if let url = URL(string: linkExt.uri) {
-                router.popToRoot(for: .safari)
-                router.selectedTab = .safari
-                router.navigateTo(.safari(url: url), for: .safari)
+                router.navigateTo(.safari(url: url))
             }
         }) {
             HStack(alignment: .top, spacing: 12) {
@@ -344,23 +343,23 @@ struct PostLinkView: View {
                             Rectangle().foregroundStyle(.gray)
                         case .success(let image):
                             image.resizable()
-                        case .failure(let error):
+                        case .failure(_):
                             Rectangle().foregroundStyle(.gray)
                         }
                     }
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 60, height: 60)
                         .clipped()
-                        .cornerRadius(8)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     if !linkExt.title.isEmpty {
                         Text(linkExt.title)
-                            .font(.headline)
+                            .font(.subheadline)
                             .lineLimit(2)
                     }
                     Text(linkExt.desc.count > 0 ? linkExt.desc : linkExt.uri)
-                        .font(.subheadline)
+                        .font(.footnote)
                         .lineLimit(2)
                         .foregroundColor(.gray)
                 }
@@ -368,7 +367,7 @@ struct PostLinkView: View {
             }
             .padding(8)
             .background(Color(UIColor.secondarySystemBackground))
-            .cornerRadius(10)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
 }

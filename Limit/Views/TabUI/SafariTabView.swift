@@ -16,7 +16,7 @@ struct SafariTabView: View {
         if let safariURL = safariURL {
             CustomWebViewContainer(url: safariURL)
                 .id(id)
-                .toolbar(.hidden, for: .navigationBar)
+                .toolbar(.automatic, for: .navigationBar)
                 .onChange(of: safariURL) { oldValue, newValue in
                     guard oldValue != newValue else { return }
                     id = UUID()

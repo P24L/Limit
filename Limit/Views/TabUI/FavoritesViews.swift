@@ -57,9 +57,7 @@ struct FavoritesViews: View {
             HStack(spacing: 20) {
                 ForEach(FavoriteCategory.allCases, id: \.self) { category in
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedCategory = category
-                        }
+                        selectedCategory = category
                     }) {
                         Text(category.rawValue)
                             .font(.subheadline)
@@ -68,12 +66,10 @@ struct FavoritesViews: View {
                             .padding(.vertical, 12)
                             .padding(.horizontal, 12)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(
-                                        selectedCategory == category
-                                            ? Color.mintAccent.opacity(0.1) : Color.clear
-                                    )
+                                selectedCategory == category
+                                    ? Color.mintAccent.opacity(0.1) : Color.clear
                             )
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
                 }
             }
@@ -126,8 +122,7 @@ struct FavoriteLinksSectionView: View {
                             }
                             .aspectRatio(contentMode: .fill)
                             .frame(width: 80, height: 80)
-                            .clipped()
-                            .cornerRadius(8)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                         VStack(alignment: .leading, spacing: 4) {
                             if let favTitle = favURL.title {
@@ -146,10 +141,9 @@ struct FavoriteLinksSectionView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(Color.mintAccent.opacity(0.1))
-                    .cornerRadius(8)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onTapGesture {
-                        router.selectedTab = .safari
-                        router.navigateTo(.safari(url: favURL.url), for: .safari)
+                        router.navigateTo(.safari(url: favURL.url))
                     }
                     .contextMenu {
                         Button(role: .destructive) {
