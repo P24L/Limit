@@ -131,9 +131,7 @@ struct SearchTabView: View {
                             case .users:
                                 UsersSearchView(query: debouncedSearchText)
                             case .posts:
-                                Text("Post search results for \"\(debouncedSearchText)\"")
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                PostsSearchView(query: debouncedSearchText)
                             }
                         }
                     }
