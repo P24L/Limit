@@ -55,6 +55,7 @@ enum Destination: DestinationType {
     case favorites
     case settings
     case actor(userID: String)
+    case listTimeline(source: TimelineContentSource)
     
     static func from(path: String, fullPath: [String], parameters: [String : String]) -> Destination? {
         return nil // Nepotřebuješ prozatím deep-linking, lze doplnit později.

@@ -11,14 +11,52 @@ import Foundation
 import SwiftData
 import SwiftUI
 
-enum TimelineContentSource {
+enum TimelineContentSource: Hashable {
     case list(AppBskyLexicon.Graph.ListViewDefinition)
     case feed(AppBskyLexicon.Feed.GeneratorViewDefinition)
+    case feedUri(String, String) // uri, displayName
+    case trendingFeed(String, String) // link, displayName
+    
+    func hash(into hasher: inout Hasher) {
+        switch self {
+        case .list(let list):
+            hasher.combine("list")
+            hasher.combine(list.uri)
+        case .feed(let feed):
+            hasher.combine("feed")
+            hasher.combine(feed.feedURI)
+        case .feedUri(let uri, let displayName):
+            hasher.combine("feedUri")
+            hasher.combine(uri)
+            hasher.combine(displayName)
+        case .trendingFeed(let link, let displayName):
+            hasher.combine("trendingFeed")
+            hasher.combine(link)
+            hasher.combine(displayName)
+        }
+    }
+    
+    static func == (lhs: TimelineContentSource, rhs: TimelineContentSource) -> Bool {
+        switch (lhs, rhs) {
+        case (.list(let lhsList), .list(let rhsList)):
+            return lhsList.uri == rhsList.uri
+        case (.feed(let lhsFeed), .feed(let rhsFeed)):
+            return lhsFeed.feedURI == rhsFeed.feedURI
+        case (.feedUri(let lhsUri, let lhsName), .feedUri(let rhsUri, let rhsName)):
+            return lhsUri == rhsUri && lhsName == rhsName
+        case (.trendingFeed(let lhsLink, let lhsName), .trendingFeed(let rhsLink, let rhsName)):
+            return lhsLink == rhsLink && lhsName == rhsName
+        default:
+            return false
+        }
+    }
     
     var displayName: String {
         switch self {
         case .list(let list): return list.name
         case .feed(let feed): return feed.displayName
+        case .feedUri(_, let displayName): return displayName
+        case .trendingFeed(_, let displayName): return displayName
         }
     }
     
@@ -26,6 +64,8 @@ enum TimelineContentSource {
         switch self {
         case .list(let list): return list.uri
         case .feed(let feed): return feed.feedURI
+        case .feedUri(let uri, _): return uri
+        case .trendingFeed(let link, _): return link // Return link for trending feeds
         }
     }
     
@@ -33,6 +73,8 @@ enum TimelineContentSource {
         switch self {
         case .list: return "list"
         case .feed: return "feed"
+        case .feedUri: return "feed"
+        case .trendingFeed: return "trendingFeed"
         }
     }
 }
@@ -121,6 +163,12 @@ struct ListTimelineView: View {
             case .feed(let feed):
                 let output = try await client.protoClient?.getFeed(by: feed.feedURI, limit: 50)
                 wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            case .feedUri(let uri, _):
+                let output = try await client.protoClient?.getFeed(by: uri, limit: 50)
+                wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            case .trendingFeed(let link, _):
+                let result = try await client.bskyClient?.viewTrendingFeed(link, limit: 50)
+                wrappers = result?.posts.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
             }
             
             await MainActor.run {

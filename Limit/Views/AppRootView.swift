@@ -83,6 +83,8 @@ struct AppRootView: View {
             SettingsView()
         case .actor(let actorDID):
             ActorView(actorDID: actorDID)
+        case .listTimeline(let source):
+            ListTimelineView(source: source)
         }
     }
     

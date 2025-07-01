@@ -8,9 +8,11 @@
 import SwiftUI
 import ATProtoKit
 import SDWebImageSwiftUI
+import AppRouter
 
 struct TrendsView: View {
     @Environment(BlueskyClient.self) private var client
+    @Environment(AppRouter.self) private var router
     
     @State private var trends: [AppBskyLexicon.Unspecced.TrendViewDefinition] = []
     @State private var isLoading = false
@@ -47,6 +49,13 @@ struct TrendsView: View {
                     LazyVStack(spacing: 12) {
                         ForEach(Array(trends.enumerated()), id: \.element.topic) { index, trend in
                             TrendItemView(trend: trend, rank: index + 1)
+                                .onTapGesture {
+                                    DevLogger.shared.log("TrendsView.swift - Trend tapped: \(trend.link)")
+                                    
+                                    // Navigate to trend feed using the trending feed API
+                                    let source = TimelineContentSource.trendingFeed(trend.link, trend.displayName)
+                                    router.navigateTo(.listTimeline(source: source))
+                                }
                         }
                     }
                     .padding(.horizontal, 16)

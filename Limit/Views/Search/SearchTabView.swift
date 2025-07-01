@@ -99,10 +99,8 @@ struct SearchTabView: View {
                         switch browseMode {
                         case .trends:
                             TrendsView()
-                        case .topics:
-                            Text("Topics coming soon...")
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        case .suggestions:
+                            SuggestionsView()
                         }
                     case .active:
                         if searchText.isEmpty {

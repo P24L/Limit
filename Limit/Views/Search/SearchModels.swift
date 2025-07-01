@@ -16,12 +16,12 @@ enum SearchState {
 
 enum BrowseMode: String, CaseIterable {
     case trends
-    case topics
+    case suggestions
     
     var displayName: String {
         switch self {
         case .trends: return "Trends"
-        case .topics: return "Topics"
+        case .suggestions: return "Suggestions"
         }
     }
 }
