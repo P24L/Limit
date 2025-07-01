@@ -67,6 +67,8 @@ struct TrendsView: View {
             }
         }
         .task {
+            // Add small delay for initial load to avoid authentication race conditions
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
             await loadTrends()
         }
     }
@@ -86,7 +88,11 @@ struct TrendsView: View {
             }
         } catch {
             await MainActor.run {
-                self.error = error
+                // Ignore cancellation errors - they happen during navigation
+                if (error as NSError).code != NSURLErrorCancelled {
+                    DevLogger.shared.log("TrendsView.swift - Error loading trends: \(error)")
+                    self.error = error
+                }
             }
         }
     }

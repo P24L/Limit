@@ -21,15 +21,21 @@ struct SearchTabView: View {
     @State private var browseMode: BrowseMode = .trends
     @State private var searchMode: SearchMode = .users
     @State private var searchText: String = ""
+    @State private var debouncedSearchText: String = ""
     @FocusState private var isSearchFocused: Bool
+    
+    private let searchDebounceTime: TimeInterval = 0.3
     
     private var currentPickerMode: PickerMode {
         searchState == .idle ? .browse(browseMode) : .search(searchMode)
     }
     
+    private var shouldShowSearchResults: Bool {
+        !searchText.isEmpty || isSearchFocused
+    }
+    
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
                 // Search Bar
                 HStack {
                     HStack {
@@ -38,14 +44,27 @@ struct SearchTabView: View {
                         
                         TextField("Search Bluesky", text: $searchText)
                             .focused($isSearchFocused)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
                             .onSubmit {
                                 if !searchText.isEmpty {
-                                    // TODO: Implement search functionality
+                                    debouncedSearchText = searchText
                                 }
                             }
                             .onChange(of: isSearchFocused) { _, newValue in
                                 withAnimation(.easeInOut(duration: 0.2)) {
-                                    searchState = newValue ? .active : .idle
+                                    updateSearchState()
+                                }
+                            }
+                            .onChange(of: searchText) { _, newValue in
+                                updateSearchState()
+                                Task {
+                                    try await Task.sleep(nanoseconds: UInt64(searchDebounceTime * 1_000_000_000))
+                                    if searchText == newValue && !newValue.isEmpty {
+                                        debouncedSearchText = newValue
+                                    } else if newValue.isEmpty {
+                                        debouncedSearchText = ""
+                                    }
                                 }
                             }
                     }
@@ -54,12 +73,13 @@ struct SearchTabView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(10)
                     
-                    if searchState == .active {
+                    if shouldShowSearchResults {
                         Button("Cancel") {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 searchText = ""
+                                debouncedSearchText = ""
                                 isSearchFocused = false
-                                searchState = .idle
+                                updateSearchState()
                             }
                         }
                         .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -70,7 +90,7 @@ struct SearchTabView: View {
                 
                 // Mode Picker
                 HStack {
-                    if searchState == .idle {
+                    if !shouldShowSearchResults {
                         Picker("Mode", selection: $browseMode) {
                             ForEach(BrowseMode.allCases, id: \.self) { mode in
                                 Text(mode.displayName).tag(mode)
@@ -90,43 +110,43 @@ struct SearchTabView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .animation(.easeInOut(duration: 0.2), value: searchState)
+                .animation(.easeInOut(duration: 0.2), value: shouldShowSearchResults)
                 
                 // Content
                 Group {
-                    switch searchState {
-                    case .idle:
+                    if !shouldShowSearchResults {
                         switch browseMode {
                         case .trends:
                             TrendsView()
                         case .suggestions:
                             SuggestionsView()
                         }
-                    case .active:
-                        if searchText.isEmpty {
+                    } else {
+                        if debouncedSearchText.isEmpty {
                             Text("Start typing to search...")
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             switch searchMode {
                             case .users:
-                                Text("User search results for \"\(searchText)\"")
-                                    .foregroundColor(.secondary)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                UsersSearchView(query: debouncedSearchText)
                             case .posts:
-                                Text("Post search results for \"\(searchText)\"")
+                                Text("Post search results for \"\(debouncedSearchText)\"")
                                     .foregroundColor(.secondary)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                             }
                         }
                     }
                 }
-                .animation(.easeInOut(duration: 0.2), value: searchState)
+                .animation(.easeInOut(duration: 0.2), value: shouldShowSearchResults)
                 .animation(.easeInOut(duration: 0.2), value: browseMode)
-            }
-            .navigationTitle("Search")
-            .navigationBarTitleDisplayMode(.large)
         }
+        .navigationTitle("Search")
+        .navigationBarTitleDisplayMode(.large)
+    }
+    
+    private func updateSearchState() {
+        searchState = shouldShowSearchResults ? .active : .idle
     }
 }
 
