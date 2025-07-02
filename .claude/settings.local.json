@@ -10,7 +10,9 @@
       "mcp__XcodeBuildMCP__install_app_sim",
       "mcp__XcodeBuildMCP__launch_app_logs_sim",
       "mcp__XcodeBuildMCP__launch_app_sim",
-      "mcp__XcodeBuildMCP__stop_sim_log_cap"
+      "mcp__XcodeBuildMCP__stop_sim_log_cap",
+      "mcp__XcodeBuildMCP__get_app_bundle_id",
+      "mcp__XcodeBuildMCP__boot_sim"
     ],
     "deny": []
   }

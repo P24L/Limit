@@ -71,7 +71,6 @@ struct TimelinePostList: View {
                 if let firstID = visibleIDs.first {
                     topVisibleID = firstID
                     TimelinePositionManager.shared.saveTimelinePosition(firstID)
-                    DevLogger.shared.log("ATTimelineView_experimental.swift - onScrollTargetVisibilityChange - saving position \(firstID)")
                     if let index = posts.firstIndex(where: { $0.uri == firstID }) {
                         newPostsAboveCount = index
                     } else {

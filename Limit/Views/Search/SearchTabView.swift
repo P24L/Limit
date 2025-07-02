@@ -17,12 +17,20 @@ struct SearchTabView: View {
     @Environment(FavoriteURLManager.self) private var favoritesURL
     @Environment(FavoritePostManager.self) private var favoritesPost
     
+    let initialQuery: String?
+    let initialMode: SearchMode?
+    
     @State private var searchState: SearchState = .idle
     @State private var browseMode: BrowseMode = .trends
     @State private var searchMode: SearchMode = .users
     @State private var searchText: String = ""
     @State private var debouncedSearchText: String = ""
     @FocusState private var isSearchFocused: Bool
+    
+    init(initialQuery: String? = nil, initialMode: SearchMode? = nil) {
+        self.initialQuery = initialQuery
+        self.initialMode = initialMode
+    }
     
     private let searchDebounceTime: TimeInterval = 0.3
     
@@ -141,6 +149,18 @@ struct SearchTabView: View {
         }
         .navigationTitle("Search")
         .navigationBarTitleDisplayMode(.large)
+        .onAppear {
+            // Set initial values if provided
+            if let query = initialQuery {
+                searchText = query
+                debouncedSearchText = query
+                // Don't set focus when navigating from tag - just activate search state
+                updateSearchState()
+            }
+            if let mode = initialMode {
+                searchMode = mode
+            }
+        }
     }
     
     private func updateSearchState() {

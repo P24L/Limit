@@ -26,6 +26,7 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     let authorAvatarURL: URL?
     
     let text: String
+    var facets: PostFacets?
     
     var likeCount: Int
     var replyCount: Int
@@ -83,6 +84,186 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         let width: Int?
     }
     
+    struct ProcessedFacet {
+        let range: NSRange
+        let type: FacetType
+        let data: FacetData
+    }
+    
+    enum FacetType {
+        case link, mention, tag
+        
+        // Convert to SwiftData FacetType
+        var swiftDataType: Limit.FacetType {
+            switch self {
+            case .link: return .link
+            case .mention: return .mention
+            case .tag: return .tag
+            }
+        }
+        
+        // Convert from SwiftData FacetType
+        init(from swiftDataType: Limit.FacetType) {
+            switch swiftDataType {
+            case .link: self = .link
+            case .mention: self = .mention
+            case .tag: self = .tag
+            }
+        }
+    }
+    
+    enum FacetData {
+        case link(uri: String)
+        case mention(did: String, handle: String?)
+        case tag(tag: String)
+    }
+    
+    struct PostFacets {
+        let facets: [ProcessedFacet]
+        
+        var isEmpty: Bool {
+            facets.isEmpty
+        }
+        
+        var links: [ProcessedFacet] {
+            facets.filter { $0.type == .link }
+        }
+        
+        var mentions: [ProcessedFacet] {
+            facets.filter { $0.type == .mention }
+        }
+        
+        var tags: [ProcessedFacet] {
+            facets.filter { $0.type == .tag }
+        }
+    }
+    
+    // MARK: - Facet Processing Helper
+    
+    private static func convertByteRangeToStringRange(text: String, byteStart: Int, byteEnd: Int) -> NSRange? {
+        let utf8Data = text.data(using: .utf8) ?? Data()
+        guard byteStart >= 0, byteEnd <= utf8Data.count, byteStart < byteEnd else { return nil }
+        
+        let startData = utf8Data.prefix(byteStart)
+        let endData = utf8Data.prefix(byteEnd)
+        
+        guard let startString = String(data: startData, encoding: .utf8),
+              let endString = String(data: endData, encoding: .utf8) else {
+            return nil
+        }
+        
+        let startIndex = startString.count
+        let endIndex = endString.count
+        
+        guard startIndex <= text.count, endIndex <= text.count else { return nil }
+        
+        return NSRange(location: startIndex, length: endIndex - startIndex)
+    }
+    
+    private static func processFacets(from atprotoFacets: [AppBskyLexicon.RichText.Facet], text: String) -> PostFacets? {
+        var processedFacets: [ProcessedFacet] = []
+        
+        for facet in atprotoFacets {
+            guard let range = convertByteRangeToStringRange(
+                text: text,
+                byteStart: facet.index.byteStart,
+                byteEnd: facet.index.byteEnd
+            ) else { continue }
+            
+            // Priority: Link > Mention > Tag
+            var selectedType: FacetType?
+            var selectedData: FacetData?
+            
+            for feature in facet.features {
+                switch feature {
+                case .link(let link):
+                    selectedType = .link
+                    selectedData = .link(uri: link.uri)
+                    break // Highest priority, stop here
+                    
+                case .mention(let mention):
+                    if selectedType == nil {
+                        selectedType = .mention
+                        selectedData = .mention(did: mention.did, handle: nil)
+                    }
+                    
+                case .tag(let tag):
+                    if selectedType == nil {
+                        selectedType = .tag
+                        selectedData = .tag(tag: tag.tag)
+                    }
+                    
+                case .unknown:
+                    continue
+                }
+            }
+            
+            if let type = selectedType, let data = selectedData {
+                let processedFacet = ProcessedFacet(range: range, type: type, data: data)
+                processedFacets.append(processedFacet)
+            }
+        }
+        
+        return processedFacets.isEmpty ? nil : PostFacets(facets: processedFacets)
+    }
+    
+    // MARK: - SwiftData Conversion Helpers
+    
+    /// Convert wrapper facets to SwiftData PostFacet models
+    private func convertFacetsToSwiftData() -> [PostFacet] {
+        guard let facets = self.facets else { return [] }
+        
+        return facets.facets.map { processedFacet in
+            let (uri, did, tag, handle): (String?, String?, String?, String?) = {
+                switch processedFacet.data {
+                case .link(let uri):
+                    return (uri, nil, nil, nil)
+                case .mention(let did, let handle):
+                    return (nil, did, nil, handle)
+                case .tag(let tag):
+                    return (nil, nil, tag, nil)
+                }
+            }()
+            
+            return PostFacet(
+                facetType: processedFacet.type.swiftDataType,
+                startIndex: processedFacet.range.location,
+                endIndex: processedFacet.range.location + processedFacet.range.length,
+                uri: uri,
+                did: did,
+                tag: tag,
+                handle: handle
+            )
+        }
+    }
+    
+    /// Convert SwiftData PostFacet models to wrapper facets
+    private static func convertFacetsFromSwiftData(_ swiftDataFacets: [PostFacet]) -> PostFacets? {
+        guard !swiftDataFacets.isEmpty else { return nil }
+        
+        let processedFacets = swiftDataFacets.compactMap { facet -> ProcessedFacet? in
+            let range = NSRange(location: facet.startIndex, length: facet.endIndex - facet.startIndex)
+            let wrapperType = FacetType(from: facet.facetType)
+            
+            let data: FacetData
+            switch facet.facetType {
+            case .link:
+                guard let uri = facet.uri else { return nil }
+                data = .link(uri: uri)
+            case .mention:
+                guard let did = facet.did else { return nil }
+                data = .mention(did: did, handle: facet.handle)
+            case .tag:
+                guard let tag = facet.tag else { return nil }
+                data = .tag(tag: tag)
+            }
+            
+            return ProcessedFacet(range: range, type: wrapperType, data: data)
+        }
+        
+        return processedFacets.isEmpty ? nil : PostFacets(facets: processedFacets)
+    }
+    
     static func == (lhs: TimelinePostWrapper, rhs: TimelinePostWrapper) -> Bool {
         lhs.id == rhs.id
     }
@@ -97,6 +278,12 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         self.createdAt = postView.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)?.createdAt ?? postView.indexedAt
         self.text = postView.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self)?.text ?? ""
         self.type = .post
+        
+        // Process facets for rich text
+        if let postRecord = postView.record.getRecord(ofType: AppBskyLexicon.Feed.PostRecord.self),
+           let atprotoFacets = postRecord.facets {
+            self.facets = TimelinePostWrapper.processFacets(from: atprotoFacets, text: self.text)
+        }
         
         self.authorID = postView.author.actorDID
         self.authorHandle = postView.author.actorHandle
@@ -215,7 +402,8 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         quoteCount: Int,
         embeds: [TimelinePostWrapper.ImageEmbed] = [],
         linkExt: TimelinePostWrapper.LinkEmbed? = nil,
-        postVideo: TimelinePostWrapper.VideoEmbed? = nil
+        postVideo: TimelinePostWrapper.VideoEmbed? = nil,
+        facets: PostFacets? = nil
     ) {
         self.uri = uri
         self.cid = cid
@@ -233,6 +421,7 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         self.embeds = embeds
         self.linkExt = linkExt
         self.postVideo = postVideo
+        self.facets = facets
     }
     
     convenience init?(from viewRecord: AppBskyLexicon.Embed.RecordDefinition.ViewRecord) {
@@ -249,6 +438,9 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
             return nil
         }
 
+        let facets = postRecord.facets != nil ? 
+            TimelinePostWrapper.processFacets(from: postRecord.facets!, text: postRecord.text) : nil
+        
         self.init(
             uri: viewRecord.uri,
             cid: viewRecord.cid,
@@ -262,7 +454,8 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
             likeCount: viewRecord.likeCount ?? 0,
             replyCount: viewRecord.replyCount ?? 0,
             repostCount: viewRecord.repostCount ?? 0,
-            quoteCount: viewRecord.quoteCount ?? 0
+            quoteCount: viewRecord.quoteCount ?? 0,
+            facets: facets
         )
     }
     
@@ -306,7 +499,8 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
                     height: $0.height,
                     width: $0.width
                 )
-            }
+            },
+            facets: TimelinePostWrapper.convertFacetsFromSwiftData(model.facets)
         )
         self.storageID = model.id
         self.viewerLikeURI = model.viewerLikeURI
@@ -369,6 +563,9 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         if let video = postVideo {
             model.postVideo = PostVideo(id: video.id, altText: video.altText, playlistURI: video.playlistURI, thumbImageURL: video.thumbImageURL, height: video.height, width: video.width)
         }
+        
+        // Convert and assign facets
+        model.facets = convertFacetsToSwiftData()
 
         return model
     }

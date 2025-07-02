@@ -118,11 +118,7 @@ struct PostItemWrappedView: View {
 
                     // MARK: Post - text
                     VStack(alignment: .leading) {
-                        Text(post.text)
-                            .font(.callout)
-                            .onTapGesture {
-                                router.navigateTo(.postThreadWrapped(postThread: post))
-                            }
+                        RichTextView(text: post.text, facets: post.facets, postWrapper: post)
 
                         if let linkExt = post.linkExt {
                             WrappedPostLinkView(linkExt: linkExt)

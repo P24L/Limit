@@ -73,6 +73,8 @@ struct AppRootView: View {
             ComputedTimelineView()
         case .search:
             SearchTabView()
+        case .searchPosts(let query):
+            SearchTabView(initialQuery: query, initialMode: .posts)
         case .postThreadWrapped(let postThread):
             ThreadWrappedView(postThread: postThread)
         case .safari(let url):

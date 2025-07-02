@@ -50,6 +50,7 @@ enum Destination: DestinationType {
     case timeline
     case computedTimeline
     case search
+    case searchPosts(query: String)
     case postThreadWrapped(postThread: TimelinePostWrapper)
     case safari(url: URL?)
     case favorites

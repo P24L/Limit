@@ -42,6 +42,7 @@ final class TimelinePost: Identifiable {
     
     @Relationship(deleteRule: .cascade) var linkExt: PostLinkExt? = nil
     @Relationship(deleteRule: .cascade) var postVideo: PostVideo? = nil
+    @Relationship(deleteRule: .cascade) var facets: [PostFacet] = []
     
     var fetchedWithCursor: String? = nil
     
@@ -201,4 +202,41 @@ final class PostVideo {
         self.height = height
         self.width = width
     }
+}
+
+@Model
+final class PostFacet {
+    @Attribute(.unique) var id = UUID()
+    var facetType: FacetType
+    var startIndex: Int
+    var endIndex: Int
+    var uri: String?        // For links
+    var did: String?        // For mentions
+    var tag: String?        // For tags
+    var handle: String?     // For mentions - resolved handle
+    @Relationship(inverse: \TimelinePost.facets) var timelinePost: TimelinePost?
+    
+    init(
+        facetType: FacetType,
+        startIndex: Int,
+        endIndex: Int,
+        uri: String? = nil,
+        did: String? = nil,
+        tag: String? = nil,
+        handle: String? = nil
+    ) {
+        self.facetType = facetType
+        self.startIndex = startIndex
+        self.endIndex = endIndex
+        self.uri = uri
+        self.did = did
+        self.tag = tag
+        self.handle = handle
+    }
+}
+
+enum FacetType: String, Codable, CaseIterable {
+    case link = "link"
+    case mention = "mention"
+    case tag = "tag"
 }
