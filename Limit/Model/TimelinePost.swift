@@ -214,6 +214,13 @@ final class PostFacet {
     var did: String?        // For mentions
     var tag: String?        // For tags
     var handle: String?     // For mentions - resolved handle
+    
+    // Enhanced Link Presentation metadata
+    var title: String?           // Link title from og:title or <title>
+    var linkDescription: String? // Link description from og:description
+    var thumbnailURL: String?    // Thumbnail image URL from og:image
+    var metadataFetched: Bool = false // Whether metadata has been fetched
+    
     @Relationship(inverse: \TimelinePost.facets) var timelinePost: TimelinePost?
     
     init(
@@ -223,7 +230,11 @@ final class PostFacet {
         uri: String? = nil,
         did: String? = nil,
         tag: String? = nil,
-        handle: String? = nil
+        handle: String? = nil,
+        title: String? = nil,
+        linkDescription: String? = nil,
+        thumbnailURL: String? = nil,
+        metadataFetched: Bool = false
     ) {
         self.facetType = facetType
         self.startIndex = startIndex
@@ -232,6 +243,10 @@ final class PostFacet {
         self.did = did
         self.tag = tag
         self.handle = handle
+        self.title = title
+        self.linkDescription = linkDescription
+        self.thumbnailURL = thumbnailURL
+        self.metadataFetched = metadataFetched
     }
 }
 

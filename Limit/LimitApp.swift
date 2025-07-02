@@ -63,6 +63,9 @@ struct LimitApp: App {
         _favoritesURLManager = State(initialValue: FavoriteURLManager(context: container.mainContext))
         _favoritesPostManager = State(initialValue: FavoritePostManager(context: container.mainContext))
         _feed = State(initialValue: TimelineFeed(context: container.mainContext, client: BlueskyClient()))
+        
+        // Configure LinkMetadataService
+        LinkMetadataService.shared.configure(context: container.mainContext)
     }
     
     var body: some Scene  {

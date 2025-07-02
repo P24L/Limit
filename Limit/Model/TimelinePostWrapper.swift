@@ -136,6 +136,18 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         var tags: [ProcessedFacet] {
             facets.filter { $0.type == .tag }
         }
+        
+        /// Returns facet links that are not already displayed in the main link embed
+        func uniqueLinks(excluding embedLinkURI: String?) -> [ProcessedFacet] {
+            guard let embedURI = embedLinkURI else { return links }
+            
+            return links.filter { facet in
+                if case .link(let uri) = facet.data {
+                    return uri != embedURI
+                }
+                return false
+            }
+        }
     }
     
     // MARK: - Facet Processing Helper
@@ -232,7 +244,11 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
                 uri: uri,
                 did: did,
                 tag: tag,
-                handle: handle
+                handle: handle,
+                title: nil,
+                linkDescription: nil,
+                thumbnailURL: nil,
+                metadataFetched: false
             )
         }
     }
@@ -570,6 +586,29 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         return model
     }
 
+    // MARK: - Link Metadata Management
+    
+    /// Fetches metadata for all link facets in this post
+    func fetchLinkMetadata(context: ModelContext) async {
+        guard let facets = self.facets else { return }
+        
+        // Get SwiftData facets from database
+        let linkFacets = facets.links.compactMap { processedFacet -> PostFacet? in
+            guard case .link(let uri) = processedFacet.data else { return nil }
+            
+            // Find corresponding PostFacet in database by URI only
+            let descriptor = FetchDescriptor<PostFacet>(
+                predicate: #Predicate<PostFacet> { facet in
+                    facet.uri == uri
+                }
+            )
+            
+            return try? context.fetch(descriptor).first
+        }
+        
+        await LinkMetadataService.shared.fetchMetadataForLinks(linkFacets)
+    }
+    
     // MARK: - ToggleLike
     func toggleLike(using client: BlueskyClient) async {
         let originalURI = viewerLikeURI

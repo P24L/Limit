@@ -177,6 +177,11 @@ struct PostItemWrappedView: View {
                             )
                     }
                     
+                    // MARK: Enhanced Link Presentation - Facet Links
+                    if depth == 0 {
+                        FacetLinksView(post: post)
+                    }
+                    
                     // MARK: Action bar
                     if depth == 0 {
                         PostItemActionsView(postWrapper: post)

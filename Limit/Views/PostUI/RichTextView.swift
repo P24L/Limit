@@ -209,11 +209,11 @@ private struct InteractiveRichText: View {
     private func styleForFacet(_ type: TimelinePostWrapper.FacetType) -> (Color, Bool) {
         switch type {
         case .link:
-            return (.blue, true)
+            return (.mintAccent, false)
         case .mention:
-            return (.mint, false)
+            return (.mintAccent, false)
         case .tag:
-            return (.orange, false)
+            return (.mintAccent, false)
         }
     }
 }
