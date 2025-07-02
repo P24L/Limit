@@ -34,7 +34,7 @@ struct LoginTabView: View {
                 .font(.largeTitle)
                 .fontWeight(.bold)
         }
-        .padding(.top, 40)
+        .padding(.top, 20)
         NavigationStack {
             Form {
                 Section(header: Text("Bluesky Login")) {
@@ -85,9 +85,21 @@ struct LoginTabView: View {
                 }
             }
             .navigationTitle("Login")
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        hideKeyboard()
+                    }
+                }
+            }
         }
     }
 
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+    
     private func login() {
         isLoading = true
         errorMessage = nil

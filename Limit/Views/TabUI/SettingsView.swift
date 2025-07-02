@@ -9,6 +9,7 @@
 import Foundation
 import SwiftUI
 import SwiftData
+import KeychainSwift
 
 
 
@@ -16,7 +17,9 @@ struct SettingsView: View {
     @Environment(BlueskyClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
     @Environment(AppRouter.self) private var router
+    @Environment(TimelineFeed.self) private var feed
     @Environment(\.modelContext) var context
+    @Environment(AppState.self) private var appState
     
     @Query(
         sort: \TimelinePost.createdAt,
@@ -51,8 +54,41 @@ struct SettingsView: View {
                 if client.isAuthenticated {
                     Button("Logout") {
                         Task {
+                            // Clear keychain credentials
+                            let keychain = KeychainSwift()
+                            keychain.delete("cz.P24L.limit.handle")
+                            keychain.delete("cz.P24L.limit.appPassword")
+                            
+                            // Clear SwiftData
+                            do {
+                                let allPosts = try context.fetch(FetchDescriptor<TimelinePost>())
+                                allPosts.forEach { context.delete($0) }
+                                let allImages = try context.fetch(FetchDescriptor<PostImage>())
+                                allImages.forEach { context.delete($0) }
+                                let allLinks = try context.fetch(FetchDescriptor<PostLinkExt>())
+                                allLinks.forEach { context.delete($0) }
+                                let allVideos = try context.fetch(FetchDescriptor<PostVideo>())
+                                allVideos.forEach { context.delete($0) }
+                                // let allFavoriteURLs = try context.fetch(FetchDescriptor<FavoriteURL>())
+                                // allFavoriteURLs.forEach { context.delete($0) }
+                                // let allFavoritePosts = try context.fetch(FetchDescriptor<FavoritePost>())
+                                // allFavoritePosts.forEach { context.delete($0) }
+                                try context.save()
+                            } catch {
+                                DevLogger.shared.log("SettingsView.swift - error while clearing SwiftData during logout: \(error)")
+                            }
+                            
+                            // Clear currentUser
+                            currentUser.clear()
+                            
+                            // Clear timeline feed from memory
+                            feed.clearStorage()
+                            
+                            // Logout from client
                             await client.logout()
-                            // Additional logic after logout if needed
+                            
+                            // Switch to unauthenticated state
+                            appState.setUnauthenticated()
                         }
                     }
                     .foregroundColor(.red)

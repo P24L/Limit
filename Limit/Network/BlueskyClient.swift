@@ -126,6 +126,12 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         self.currentUser?.clear()
         self.currentUser = nil
         self.userSession = nil
+        self.handle = ""
+        self.appPassword = ""
+
+        cachedHotPosts = []
+        hotPostIDsTimestamp = .distantPast
+
 
         DevLogger.shared.log("BlueskyClient.swift - User logged out.")
     }
@@ -137,24 +143,19 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             return ([], nil)
         }
 
-        do {
-            DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - Fetching timeline")
-            let response = try await client.getTimeline(limit: 25)
-            DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - Finished fetching timeline")
-            return (response.feed, response.cursor)
-        } catch let error as ATAPIError {
-            if case .badRequest(let httpError) = error, httpError.error == "ExpiredToken" {
-                await login()
-                DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - Fetching timeline after ExpiredToken")
-                return await fetchTimeline()
-            } else {
-                DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - error: \(error)")
-            }
-        } catch {
-            DevLogger.shared.log("BlueskyClient.swift - general error in fetchUserTimeline: \(error)")
+        DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - Fetching timeline")
+        
+        let result = await performAuthenticatedRequest {
+            try await client.getTimeline(limit: 25)
         }
-
-        return ([], nil)
+        
+        guard let response = result else {
+            DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - Failed to get response")
+            return ([], nil)
+        }
+        
+        DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - Finished fetching timeline")
+        return (response.feed, response.cursor)
     }
     
     
@@ -173,38 +174,32 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         defer { isLoading = false }
 
         loop: for _ in 0..<maxTimelineFetchLoops {
-            do {
-                let response = try await client.getTimeline(limit: 100, cursor: cursor)
-                let feed = response.feed
-                if feed.isEmpty { break loop }
-
-                for post in feed {
-                    if post.post.uri == lastPost { break loop }
-                    if allNewPosts.contains(where: { $0.post.uri == post.post.uri }) { continue }
-                    allNewPosts.append(post)
-                }
-
-                // Limit maximum fetched posts
-                if allNewPosts.count >= 1000 { break loop }
-
-                if let newCursor = response.cursor {
-                    cursor = newCursor
-                    lastCursor = newCursor
-                } else {
-                    break loop
-                }
-            } catch let error as ATAPIError {
-                if case .badRequest(let httpError) = error, httpError.error == "ExpiredToken" {
-                    isAuthenticated = false
-                    await login()
-                    return await fetchTimeline(since: lastPost)
-                } else {
-                    DevLogger.shared.log("BlueskyClient.swift - other badRequest error: \(error)")
-                }
+            let result = await performAuthenticatedRequest {
+                try await client.getTimeline(limit: 100, cursor: cursor)
+            }
+            
+            guard let response = result else {
+                DevLogger.shared.log("BlueskyClient.swift - failed to get timeline response")
                 break loop
-            } catch {
-                DevLogger.shared.log("BlueskyClient.swift - general error in fetchTimeline since: \(error)")
-                return ([], lastCursor)
+            }
+            
+            let feed = response.feed
+            if feed.isEmpty { break loop }
+
+            for post in feed {
+                if post.post.uri == lastPost { break loop }
+                if allNewPosts.contains(where: { $0.post.uri == post.post.uri }) { continue }
+                allNewPosts.append(post)
+            }
+
+            // Limit maximum fetched posts
+            if allNewPosts.count >= 1000 { break loop }
+
+            if let newCursor = response.cursor {
+                cursor = newCursor
+                lastCursor = newCursor
+            } else {
+                break loop
             }
         }
         return (allNewPosts, lastCursor)
@@ -316,6 +311,9 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         sampleAccountsCount: Int = 150,
         postsPerAccount: Int = 50
     ) async -> [TimelinePostWrapper] {
+        
+        guard isAuthenticated else { return []}
+
         struct ScoredPost {
             let id: String
             let createdAt: Date
@@ -455,7 +453,8 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         within timeInterval: TimeInterval = 36000,
         maxAge: TimeInterval = 600
     ) async -> [TimelinePostWrapper] {
-        
+        guard isAuthenticated else { return []}
+
         let now = Date()
 
         if now.timeIntervalSince(hotPostIDsTimestamp) < maxAge {

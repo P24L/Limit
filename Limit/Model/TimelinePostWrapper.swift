@@ -442,11 +442,15 @@ final class TimelineFeed {
     private(set) var oldestCursor: String?
     private let context: ModelContext
 
-    private let client: BlueskyClient
+    private var client: BlueskyClient
 
     init(context: ModelContext, client: BlueskyClient) {
         self.context = context
         self.client = client
+    }
+    
+    func updateClient(_ newClient: BlueskyClient) {
+        self.client = newClient
     }
 
     func loadFromStorage() {

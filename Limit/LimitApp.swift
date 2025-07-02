@@ -18,19 +18,33 @@ class NavigationState {
     var safariURL: URL? = nil
 }
 
-enum AppState: Sendable {
+enum AppStateValue: Sendable {
     case unauthenticated
     case authenticated
 }
 
+@Observable
+@MainActor
+class AppState {
+    var value: AppStateValue = .unauthenticated
+    
+    func setAuthenticated() {
+        value = .authenticated
+    }
+    
+    func setUnauthenticated() {
+        value = .unauthenticated
+    }
+}
+
 @main
 struct LimitApp: App {
-    @State private var appState: AppState = .unauthenticated
+    @State private var appState = AppState()
     @State private var router = AppRouter(initialTab: .timeline)
     @State private var client = BlueskyClient()
     @State private var favoritesURLManager: FavoriteURLManager
     @State private var favoritesPostManager: FavoritePostManager
-    @State private var feed: TimelineFeed!
+    @State private var feed: TimelineFeed
     @State private var currentUser = CurrentUser()
     
     let container: ModelContainer = {
@@ -48,14 +62,22 @@ struct LimitApp: App {
         _client = State(initialValue: BlueskyClient())
         _favoritesURLManager = State(initialValue: FavoriteURLManager(context: container.mainContext))
         _favoritesPostManager = State(initialValue: FavoritePostManager(context: container.mainContext))
+        _feed = State(initialValue: TimelineFeed(context: container.mainContext, client: BlueskyClient()))
     }
     
     var body: some Scene  {
         WindowGroup {
             Group {
-                switch appState {
+                switch appState.value {
                 case .unauthenticated:
-                    LoadingScreenView()
+                    LoadingScreenView {
+                        Task {
+                            await handleLoginSuccess()
+                        }
+                    }
+                    .environment(client)
+                    .environment(currentUser)
+                    .environment(appState)
                 case .authenticated:
                     AppRootView()
                         .environment(client)
@@ -65,6 +87,7 @@ struct LimitApp: App {
                         .environment(favoritesPostManager)
                         .environment(feed)
                         .environment(currentUser)
+                        .environment(appState)
                 }
             }
             .task {
@@ -81,13 +104,20 @@ struct LimitApp: App {
             client.appPassword = appPassword
             await client.login()
             if client.isAuthenticated {
-                feed = TimelineFeed(context: container.mainContext, client: client)
+                feed.updateClient(client)
                 await currentUser.refreshProfile(client: client)
-                appState = .authenticated
+                appState.setAuthenticated()
             }
         } else {
-            feed = TimelineFeed(context: container.mainContext, client: client)
-            appState = .authenticated
+            appState.setUnauthenticated()
+        }
+    }
+    
+    private func handleLoginSuccess() async {
+        if client.isAuthenticated {
+            feed.updateClient(client)
+            await currentUser.refreshProfile(client: client)
+            appState.setAuthenticated()
         }
     }
 }
