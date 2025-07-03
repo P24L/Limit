@@ -21,6 +21,10 @@ final class ComputedTimelineFeed {
     // Track if we've loaded posts in this session to avoid unnecessary reloads
     private var hasLoadedInSession = false
     
+    // MARK: - Session-level cache for navigation persistence
+    private var sessionCachedPosts: [TimelinePostWrapper] = []
+    private var sessionCacheValid = false
+    
     // MARK: - Public Methods
     
     /// Loads computed timeline posts. Won't reload if already loaded in session unless forced.
@@ -33,19 +37,32 @@ final class ComputedTimelineFeed {
             return
         }
         
+        // Check session cache first
+        if !forceRefresh && sessionCacheValid && !sessionCachedPosts.isEmpty {
+            DevLogger.shared.log("ComputedTimelineFeed - loadPosts - using session cache")
+            posts = sessionCachedPosts
+            hasLoadedInSession = true
+            return
+        }
+        
         isLoading = true
         error = nil
         
         await client.login()
         
-        let result = await client.getComputedTimelinePosts(
-            respectSessionCache: !forceRefresh
-        )
+        let result = await client.getCachedOrRefreshHotPosts()
         
         posts = result
         lastLoadTime = Date()
         hasLoadedInSession = true
         error = nil
+        
+        // Store in session cache
+        if !sessionCacheValid {
+            sessionCachedPosts = result
+            sessionCacheValid = true
+            DevLogger.shared.log("ComputedTimelineFeed - loadPosts - stored in session cache")
+        }
         
         DevLogger.shared.log("ComputedTimelineFeed - loadPosts - loaded \(result.count) posts")
         
@@ -61,12 +78,20 @@ final class ComputedTimelineFeed {
         
         await client.login()
         
-        let result = await client.fastRefreshComputedTimeline()
+        // Try to get cached posts immediately
+        let result = await client.getCachedOrRefreshHotPosts()
         
         posts = result
         lastLoadTime = Date()
         hasLoadedInSession = true
         error = nil
+        
+        // Update session cache with current posts
+        sessionCachedPosts = result
+        sessionCacheValid = true
+        
+        // Start background refresh for next time
+        client.prepareHotPostCacheInBackground()
         
         DevLogger.shared.log("ComputedTimelineFeed - fastRefresh - loaded \(result.count) posts")
         
@@ -77,17 +102,26 @@ final class ComputedTimelineFeed {
     func refresh(client: BlueskyClient) async {
         guard !isLoading else { return }
         
+        DevLogger.shared.log("ComputedTimelineFeed - refresh - invalidating session cache")
+        sessionCacheValid = false
+        sessionCachedPosts = []
+        
         isLoading = true
         error = nil
         
         await client.login()
         
-        let result = await client.refreshComputedTimeline()
+        // Force fresh fetch by using maxAge=0
+        let result = await client.getCachedOrRefreshHotPosts(maxAge: 0)
         
         posts = result
         lastLoadTime = Date()
         hasLoadedInSession = true
         error = nil
+        
+        // Store new results in session cache
+        sessionCachedPosts = result
+        sessionCacheValid = true
         
         DevLogger.shared.log("ComputedTimelineFeed - refresh - refreshed with \(result.count) posts")
         
@@ -101,6 +135,8 @@ final class ComputedTimelineFeed {
         lastLoadTime = nil
         error = nil
         isLoading = false
+        sessionCachedPosts = []
+        sessionCacheValid = false
         DevLogger.shared.log("ComputedTimelineFeed - session cleared")
     }
 }

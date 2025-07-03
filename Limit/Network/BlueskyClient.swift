@@ -21,10 +21,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     private var hotPostIDsTimestamp: Date = .distantPast
     internal private(set) var isRefreshingHotPosts = false
     
-    // MARK: - Session-level cache for ComputedTimeline (persists during navigation)
-    private var sessionComputedPosts: [TimelinePostWrapper] = []
-    private var sessionComputedPostsValid = false
-    
     // MARK: - Konfigurace
 
     /// URL adresa Personal Data Serveru (PDS).
@@ -135,8 +131,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
 
         cachedHotPosts = []
         hotPostIDsTimestamp = .distantPast
-        sessionComputedPosts = []
-        sessionComputedPostsValid = false
 
 
         DevLogger.shared.log("BlueskyClient.swift - User logged out.")
@@ -501,101 +495,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         return fresh
     }
     
-    // MARK: - Session-based Hot Posts for ComputedTimeline
-    
-    /// Gets hot posts for ComputedTimeline with session-level persistence
-    /// If respectSessionCache=true, returns same posts during navigation session
-    /// If respectSessionCache=false, forces refresh using normal cache logic
-    func getComputedTimelinePosts(
-        respectSessionCache: Bool = true,
-        within timeInterval: TimeInterval = 36000,
-        maxAge: TimeInterval = 600
-    ) async -> [TimelinePostWrapper] {
-        
-        // If we want to respect session cache and it's valid, return it
-        if respectSessionCache && sessionComputedPostsValid && !sessionComputedPosts.isEmpty {
-            DevLogger.shared.log("getComputedTimelinePosts - returning session cached result")
-            
-            // Still prepare fresh cache in background if needed
-            if Date().timeIntervalSince(hotPostIDsTimestamp) >= maxAge && !isRefreshingHotPosts {
-                prepareHotPostCacheInBackground(within: timeInterval)
-            }
-            
-            return sessionComputedPosts
-        }
-        
-        // Otherwise use normal cache logic
-        let result = await getCachedOrRefreshHotPosts(within: timeInterval, maxAge: maxAge)
-        
-        // Store in session cache if it's the first load in this session
-        if !sessionComputedPostsValid {
-            sessionComputedPosts = result
-            sessionComputedPostsValid = true
-            DevLogger.shared.log("getComputedTimelinePosts - stored in session cache")
-        }
-        
-        return result
-    }
-    
-    /// Fast refresh: immediately returns available posts, starts background generation of new ones
-    @MainActor
-    func fastRefreshComputedTimeline(
-        within timeInterval: TimeInterval = 36000,
-        maxAge: TimeInterval = 600
-    ) async -> [TimelinePostWrapper] {
-        DevLogger.shared.log("fastRefreshComputedTimeline - checking available posts")
-        
-        // If we have recent cached posts, return them immediately and start background refresh
-        let now = Date()
-        if now.timeIntervalSince(hotPostIDsTimestamp) < maxAge && !cachedHotPosts.isEmpty {
-            DevLogger.shared.log("fastRefreshComputedTimeline - returning recent cache, starting background refresh")
-            
-            // Update session cache with current posts
-            sessionComputedPosts = cachedHotPosts
-            sessionComputedPostsValid = true
-            
-            // Start background refresh for next time
-            if !isRefreshingHotPosts {
-                prepareHotPostCacheInBackground(within: timeInterval)
-            }
-            
-            return cachedHotPosts
-        }
-        
-        // If we have session posts but main cache is old, return session posts and start refresh
-        if sessionComputedPostsValid && !sessionComputedPosts.isEmpty {
-            DevLogger.shared.log("fastRefreshComputedTimeline - returning session cache, starting background refresh")
-            
-            // Start background refresh for next time
-            if !isRefreshingHotPosts {
-                prepareHotPostCacheInBackground(within: timeInterval)
-            }
-            
-            return sessionComputedPosts
-        }
-        
-        // No posts available, fall back to regular refresh behavior
-        DevLogger.shared.log("fastRefreshComputedTimeline - no cache available, fetching fresh")
-        return await refreshComputedTimeline(within: timeInterval, maxAge: maxAge)
-    }
-    
-    /// Invalidates session cache and forces fresh data fetch
-    @MainActor
-    func refreshComputedTimeline(
-        within timeInterval: TimeInterval = 36000,
-        maxAge: TimeInterval = 600
-    ) async -> [TimelinePostWrapper] {
-        DevLogger.shared.log("refreshComputedTimeline - invalidating session cache")
-        sessionComputedPostsValid = false
-        sessionComputedPosts = []
-        
-        let result = await getCachedOrRefreshHotPosts(within: timeInterval, maxAge: 0) // Force refresh with maxAge=0
-        
-        sessionComputedPosts = result
-        sessionComputedPostsValid = true
-        
-        return result
-    }
     
     @MainActor
     func loadOlderPosts(from oldestCursor: String) async -> (posts: [AppBskyLexicon.Feed.FeedViewPostDefinition], cursor: String?) {
