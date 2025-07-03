@@ -9,6 +9,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 import ATProtoKit
+import LinkPresentation
 
 @Observable
 final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
@@ -88,6 +89,10 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         let range: NSRange
         let type: FacetType
         let data: FacetData
+        // Enhanced Link Presentation metadata
+        var title: String?
+        var thumbnailURL: String?
+        var metadataFetched: Bool = false
     }
     
     enum FacetType {
@@ -245,10 +250,10 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
                 did: did,
                 tag: tag,
                 handle: handle,
-                title: nil,
+                title: processedFacet.title,
                 linkDescription: nil,
-                thumbnailURL: nil,
-                metadataFetched: false
+                thumbnailURL: processedFacet.thumbnailURL,
+                metadataFetched: processedFacet.metadataFetched
             )
         }
     }
@@ -274,7 +279,14 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
                 data = .tag(tag: tag)
             }
             
-            return ProcessedFacet(range: range, type: wrapperType, data: data)
+            return ProcessedFacet(
+                range: range, 
+                type: wrapperType, 
+                data: data,
+                title: facet.title,
+                thumbnailURL: facet.thumbnailURL,
+                metadataFetched: facet.metadataFetched
+            )
         }
         
         return processedFacets.isEmpty ? nil : PostFacets(facets: processedFacets)
@@ -362,6 +374,11 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
             self.viewerIsThreadMuted = viewer.isThreadMuted
             self.viewerAreRepliesDisabled = viewer.areRepliesDisabled ?? false
             self.viewerIsEmbeddingDisabled = viewer.isEmbeddingDisabled ?? false
+        }
+        
+        // Background fetch metadata for link facets (non-blocking)
+        Task.detached { [weak self] in
+            await self?.fetchLinkMetadataInWrapper()
         }
     }
 
@@ -473,6 +490,11 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
             quoteCount: viewRecord.quoteCount ?? 0,
             facets: facets
         )
+        
+        // Background fetch metadata for link facets (non-blocking)
+        Task.detached { [weak self] in
+            await self?.fetchLinkMetadataInWrapper()
+        }
     }
     
     convenience init(from model: TimelinePost) {
@@ -588,7 +610,59 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
 
     // MARK: - Link Metadata Management
     
-    /// Fetches metadata for all link facets in this post
+    /// Fetches metadata for link facets directly in wrapper (background)
+    func fetchLinkMetadataInWrapper() async {
+        guard let facets = self.facets else { return }
+        
+        var updatedFacets: [ProcessedFacet] = []
+        
+        for facet in facets.facets {
+            var updatedFacet = facet
+            
+            // Only fetch for links that haven't been fetched yet
+            if case .link(let uri) = facet.data, !facet.metadataFetched {
+                guard let url = URL(string: uri) else {
+                    updatedFacet.metadataFetched = true
+                    updatedFacets.append(updatedFacet)
+                    continue
+                }
+                
+                DevLogger.shared.log("TimelinePostWrapper - Fetching metadata for: \(uri)")
+                
+                do {
+                    let metadataProvider = LPMetadataProvider()
+                    let metadata = try await metadataProvider.startFetchingMetadata(for: url)
+                    
+                    // Update facet with metadata
+                    updatedFacet.title = metadata.title
+                    
+                    // Handle thumbnail using Google Favicon Service
+                    if let domain = url.host {
+                        let googleFaviconAPI = "https://www.google.com/s2/favicons?domain=\(domain)&sz=256"
+                        updatedFacet.thumbnailURL = googleFaviconAPI
+                    }
+                    
+                    updatedFacet.metadataFetched = true
+                    
+                    DevLogger.shared.log("TimelinePostWrapper - Metadata fetched for: \(uri)")
+                    
+                } catch {
+                    DevLogger.shared.log("TimelinePostWrapper - Failed to fetch metadata: \(error.localizedDescription)")
+                    updatedFacet.metadataFetched = true // Mark as attempted
+                }
+            }
+            
+            updatedFacets.append(updatedFacet)
+        }
+        
+        // Update facets with new metadata
+        let finalFacets = updatedFacets // Capture before MainActor
+        await MainActor.run {
+            self.facets = PostFacets(facets: finalFacets)
+        }
+    }
+    
+    /// Fetches metadata for all link facets in this post (SwiftData version)
     func fetchLinkMetadata(context: ModelContext) async {
         guard let facets = self.facets else { return }
         

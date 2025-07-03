@@ -13,80 +13,47 @@ import SDWebImageSwiftUI
 struct FacetLinksView: View {
     let post: TimelinePostWrapper
     @Environment(AppRouter.self) private var router
-    @Environment(\.modelContext) private var context
     
-    @State private var facets: [PostFacet] = []
-    
-    private var uniqueLinks: [(facet: TimelinePostWrapper.ProcessedFacet, dbFacet: PostFacet?)] {
-        guard let postFacets = post.facets else { return [] }
-        let uniqueProcessedFacets = postFacets.uniqueLinks(excluding: post.linkExt?.uri)
-        
-        return uniqueProcessedFacets.map { processedFacet in
-            if case .link(let uri) = processedFacet.data {
-                let dbFacet = facets.first { $0.uri == uri }
-                return (facet: processedFacet, dbFacet: dbFacet)
-            }
-            return (facet: processedFacet, dbFacet: nil)
-        }
+    private var uniqueLinks: [TimelinePostWrapper.ProcessedFacet] {
+        guard let facets = post.facets else { return [] }
+        return facets.uniqueLinks(excluding: post.linkExt?.uri)
     }
     
     var body: some View {
         if !uniqueLinks.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 12) {
-                    ForEach(Array(uniqueLinks.enumerated()), id: \.offset) { index, linkData in
-                        if case .link(let uri) = linkData.facet.data {
+                    ForEach(Array(uniqueLinks.enumerated()), id: \.offset) { index, facet in
+                        if case .link(let uri) = facet.data {
                             LinkCardView(
                                 uri: uri,
                                 isFirst: index == 0,
-                                dbFacet: linkData.dbFacet
+                                facet: facet
                             )
                             .onTapGesture {
                                 if let url = URL(string: uri) {
                                     router.navigateTo(.safari(url: url))
                                 }
                             }
-                            .task {
-                                // Fetch metadata if not already fetched
-                                if let dbFacet = linkData.dbFacet, !dbFacet.metadataFetched {
-                                    await LinkMetadataService.shared.fetchMetadata(for: dbFacet)
-                                }
-                            }
                         }
                     }
                 }
-                .padding(.horizontal, 16)
-            }
-            .task {
-                await loadFacets()
             }
         }
     }
     
-    private func loadFacets() async {
-        do {
-            // Load all facets and filter in code due to SwiftData relationship limitations
-            let descriptor = FetchDescriptor<PostFacet>(
-                sortBy: [SortDescriptor(\PostFacet.startIndex)]
-            )
-            let allFacets = try context.fetch(descriptor)
-            facets = allFacets.filter { $0.timelinePost?.uri == post.uri }
-        } catch {
-            DevLogger.shared.log("FacetLinksView - Failed to load facets: \(error.localizedDescription)")
-        }
-    }
 }
 
 struct LinkCardView: View {
     let uri: String
     let isFirst: Bool
-    let dbFacet: PostFacet?
+    let facet: TimelinePostWrapper.ProcessedFacet
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             // Favicon on the left
             Group {
-                if let thumbnailURL = dbFacet?.thumbnailURL, let url = URL(string: thumbnailURL) {
+                if let thumbnailURL = facet.thumbnailURL, let url = URL(string: thumbnailURL) {
                     WebImage(url: url) { image in
                         image
                             .resizable()
@@ -136,10 +103,10 @@ struct LinkCardView: View {
     }
     
     private var linkTitle: String {
-        if let title = dbFacet?.title, !title.isEmpty {
+        if let title = facet.title, !title.isEmpty {
             return title
         }
-        return dbFacet?.metadataFetched == true ? displayURL : "Loading..."
+        return facet.metadataFetched ? displayURL : "Loading..."
     }
     
     private var cardWidth: CGFloat {

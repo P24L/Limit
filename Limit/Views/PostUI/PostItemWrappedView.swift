@@ -110,20 +110,14 @@ struct PostItemWrappedView: View {
                             }
                         }
                     }
-                    /*VStack {
-                        Text("Post - id:\(post.uri)")
-                        Text("Post - root id:\(post.rootPost?.uri ?? "")")
-                        Text("Next post - root id:\(nextPostThreadRootID ?? "")")
-                    }*/
-
                     // MARK: Post - text
-                    VStack(alignment: .leading) {
-                        RichTextView(text: post.text, facets: post.facets, postWrapper: post)
+                    RichTextView(text: post.text, facets: post.facets, postWrapper: post)
 
-                        if let linkExt = post.linkExt {
-                            WrappedPostLinkView(linkExt: linkExt)
-                        }
+                    // MARK: Weblink
+                    if let linkExt = post.linkExt {
+                        WrappedPostLinkView(linkExt: linkExt)
                     }
+
 
                     // MARK: Post - images
                     if post.embeds.count == 1, let image = post.embeds.first {
@@ -155,7 +149,7 @@ struct PostItemWrappedView: View {
                                 }
                             }
                         }
-                        .frame(height: 230)
+                        .frame(maxHeight: 230)
                     }
 
                     // MARK: Post - video
@@ -178,8 +172,9 @@ struct PostItemWrappedView: View {
                     }
                     
                     // MARK: Enhanced Link Presentation - Facet Links
-                    if depth == 0 {
+                    if depth == 0, let facets = post.facets, !facets.uniqueLinks(excluding: post.linkExt?.uri).isEmpty {
                         FacetLinksView(post: post)
+                            .padding(.vertical, -4) // Reduce vertical spacing
                     }
                     
                     // MARK: Action bar
