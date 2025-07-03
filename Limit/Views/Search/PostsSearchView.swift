@@ -106,26 +106,21 @@ struct PostsSearchView: View {
         isLoading = true
         defer { isLoading = false }
         
-        do {
-            let response = try await protoClient.searchPosts(
+        let result = await client.performAuthenticatedRequest {
+            try await protoClient.searchPosts(
                 matching: query,
                 limit: 25
             )
-            
-            await MainActor.run {
+        }
+        
+        await MainActor.run {
+            if let response = result {
                 self.posts = response.posts.compactMap { TimelinePostWrapper(from: $0) }
                 self.cursor = response.cursor
                 self.hitsTotal = response.hitsTotal
                 self.error = nil
-            }
-        } catch {
-            // Ignore cancellation errors when user navigates away quickly
-            if (error as NSError).code == NSURLErrorCancelled {
-                return
-            }
-            
-            await MainActor.run {
-                self.error = error
+            } else {
+                self.error = NSError(domain: "PostsSearchView", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to search posts"])
                 self.posts = []
                 self.cursor = nil
                 self.hitsTotal = nil
@@ -142,14 +137,16 @@ struct PostsSearchView: View {
         isLoadingMore = true
         defer { isLoadingMore = false }
         
-        do {
-            let response = try await protoClient.searchPosts(
+        let result = await client.performAuthenticatedRequest {
+            try await protoClient.searchPosts(
                 matching: query,
                 limit: 25,
                 cursor: cursor
             )
-            
-            await MainActor.run {
+        }
+        
+        await MainActor.run {
+            if let response = result {
                 let newPosts = response.posts.compactMap { TimelinePostWrapper(from: $0) }
                 // Filter out duplicates by URI
                 let existingURIs = Set(self.posts.map { $0.uri })
@@ -158,16 +155,9 @@ struct PostsSearchView: View {
                 self.posts.append(contentsOf: uniqueNewPosts)
                 self.cursor = response.cursor
                 // Don't update hitsTotal on pagination
-            }
-        } catch {
-            // Ignore cancellation errors
-            if (error as NSError).code == NSURLErrorCancelled {
-                return
-            }
-            
-            await MainActor.run {
+            } else {
                 // On pagination error, just log but don't clear existing results
-                DevLogger.shared.log("PostsSearchView - loadMorePosts error: \(error.localizedDescription)")
+                DevLogger.shared.log("PostsSearchView - loadMorePosts error: Failed to load more posts")
             }
         }
     }

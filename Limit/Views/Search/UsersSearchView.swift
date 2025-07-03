@@ -94,9 +94,12 @@ struct UsersSearchView: View {
         isLoading = true
         defer { isLoading = false }
         
-        do {
-            let response = try await protoClient.searchActors(matching: query, limit: 25, cursor: nil)
-            await MainActor.run {
+        let result = await client.performAuthenticatedRequest {
+            try await protoClient.searchActors(matching: query, limit: 25, cursor: nil)
+        }
+        
+        await MainActor.run {
+            if let response = result {
                 self.actors = response.actors
                 self.cursor = response.cursor
                 self.error = nil
@@ -106,10 +109,8 @@ struct UsersSearchView: View {
                         followingStates[actor.actorDID] = actor.viewer?.followingURI
                     }
                 }
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error
+            } else {
+                self.error = NSError(domain: "UsersSearchView", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to search users"])
                 self.actors = []
                 self.cursor = nil
             }
@@ -124,9 +125,12 @@ struct UsersSearchView: View {
         isLoading = true
         defer { isLoading = false }
         
-        do {
-            let response = try await protoClient.searchActors(matching: query, limit: 25, cursor: cursor)
-            await MainActor.run {
+        let result = await client.performAuthenticatedRequest {
+            try await protoClient.searchActors(matching: query, limit: 25, cursor: cursor)
+        }
+        
+        await MainActor.run {
+            if let response = result {
                 self.actors.append(contentsOf: response.actors)
                 self.cursor = response.cursor
                 self.error = nil
@@ -136,10 +140,8 @@ struct UsersSearchView: View {
                         followingStates[actor.actorDID] = actor.viewer?.followingURI
                     }
                 }
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error
+            } else {
+                self.error = NSError(domain: "UsersSearchView", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to load more users"])
             }
         }
     }

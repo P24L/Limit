@@ -51,7 +51,7 @@ struct ThreadWrappedView: View {
                         }
                     }
                     .task {
-                        posts = try? await client.fetchThreadWrapped(for: postThread.uri)
+                        posts = await client.fetchThreadWrapped(for: postThread.uri)
 
                         if let allPosts = posts {
                             let cleanedPosts = allPosts

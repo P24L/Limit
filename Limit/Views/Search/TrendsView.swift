@@ -80,19 +80,16 @@ struct TrendsView: View {
         isLoading = true
         defer { isLoading = false }
         
-        do {
-            let response = try await protoClient.getTrends(limit: 10)
-            await MainActor.run {
+        let result = await client.performAuthenticatedRequest {
+            try await protoClient.getTrends(limit: 10)
+        }
+        
+        await MainActor.run {
+            if let response = result {
                 self.trends = response.trends
                 self.error = nil
-            }
-        } catch {
-            await MainActor.run {
-                // Ignore cancellation errors - they happen during navigation
-                if (error as NSError).code != NSURLErrorCancelled {
-                    DevLogger.shared.log("TrendsView.swift - Error loading trends: \(error)")
-                    self.error = error
-                }
+            } else {
+                self.error = NSError(domain: "TrendsView", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to load trends"])
             }
         }
     }

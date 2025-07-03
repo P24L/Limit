@@ -230,7 +230,7 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
 
     // MARK: - In-memory thread fetch for TimelinePostWrapper (without ModelContext/SwiftData)
     @MainActor
-    func fetchThreadWrapped(for postID: String) async throws -> [TimelinePostWrapper] {
+    func fetchThreadWrapped(for postID: String) async -> [TimelinePostWrapper] {
         guard let client = protoClient else {
             DevLogger.shared.log("BlueskyClient.swift - fetchThreadWrapped - No protoClient available")
             return []
@@ -238,7 +238,14 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         isLoading = true
         defer { isLoading = false }
 
-        let output = try await client.getPostThread(from: postID)
+        let result = await performAuthenticatedRequest {
+            try await client.getPostThread(from: postID)
+        }
+        
+        guard let output = result else {
+            DevLogger.shared.log("BlueskyClient.swift - fetchThreadWrapped - Failed to get thread")
+            return []
+        }
         guard case let .threadViewPost(rootThread) = output.thread else {
             DevLogger.shared.log("BlueskyClient.swift - fetchThreadWrapped - No valid threadViewPost")
             return []

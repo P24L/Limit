@@ -75,9 +75,12 @@ struct SuggestionsView: View {
         isLoading = true
         defer { isLoading = false }
         
-        do {
-            let response = try await protoClient.getSuggestions(limit: 20)
-            await MainActor.run {
+        let result = await client.performAuthenticatedRequest {
+            try await protoClient.getSuggestions(limit: 20)
+        }
+        
+        await MainActor.run {
+            if let response = result {
                 self.suggestions = response.actors
                 self.error = nil
                 // Initialize following states from API response
@@ -86,10 +89,8 @@ struct SuggestionsView: View {
                         followingStates[actor.actorDID] = actor.viewer?.followingURI
                     }
                 }
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error
+            } else {
+                self.error = NSError(domain: "SuggestionsView", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to load suggestions"])
             }
         }
     }
