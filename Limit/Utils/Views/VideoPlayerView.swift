@@ -9,6 +9,7 @@ import AVKit
 import SwiftUI
 import AVFoundation
 
+/// Video player component for timeline posts with automatic muting and fullscreen support
 struct EmbeddedVideoView: View {
     let playlistURL: URL
     var height: Int? = nil
@@ -30,16 +31,15 @@ struct EmbeddedVideoView: View {
         ZStack {
             VideoPlayer(player: player)
                 .aspectRatio(computedAspectRatio, contentMode: .fit)
-                .frame(height: UIScreen.main.bounds.width / computedAspectRatio)
                 .onAppear {
                     DispatchQueue.main.async {
-                        /*do {
+                        do {
                             let session = AVAudioSession.sharedInstance()
                             try session.setCategory(.ambient, mode: .moviePlayback, options: [.mixWithOthers])
-                            // Není nutné: try session.setActive(true)
+                            try session.setActive(true)
                         } catch {
-                            DevLogger.shared.log("VideoPlayerView.swift - Chyba při nastavení audio session category: \(error.localizedDescription)")
-                        }*/
+                            DevLogger.shared.log("VideoPlayerView.swift - Error setting audio session category: \(error.localizedDescription)")
+                        }
                         player.isMuted = true
                         player.replaceCurrentItem(with: AVPlayerItem(url: playlistURL))
                     }
@@ -56,22 +56,23 @@ struct EmbeddedVideoView: View {
                         isVisible = visible
                     }
                 )
-
-            Rectangle()
-                .foregroundColor(Color.clear)
-                .contentShape(Rectangle())
-                .frame(height: UIScreen.main.bounds.width / computedAspectRatio)
-                .onTapGesture {
-                    isFullScreen = true
+                .onDisappear {
+                    player.pause()
+                    player.replaceCurrentItem(with: nil)
                 }
         }
-        .allowsHitTesting(false)
+        .aspectRatio(computedAspectRatio, contentMode: .fit)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isFullScreen = true
+        }
         .fullScreenCover(isPresented: $isFullScreen) {
             FullscreenVideoView(videoURL: playlistURL)
         }
     }
 }
 
+/// Fullscreen video player with audio enabled
 struct FullscreenVideoView: View {
     let videoURL: URL
     @Environment(\.dismiss) private var dismiss
@@ -81,9 +82,20 @@ struct FullscreenVideoView: View {
         ZStack {
             VideoPlayer(player: player)
                 .onAppear {
+                    do {
+                        let session = AVAudioSession.sharedInstance()
+                        try session.setCategory(.playback, mode: .moviePlayback, options: [])
+                        try session.setActive(true)
+                    } catch {
+                        DevLogger.shared.log("FullscreenVideoView.swift - Error setting audio session category: \(error.localizedDescription)")
+                    }
                     player.replaceCurrentItem(with: AVPlayerItem(url: videoURL))
                     player.isMuted = false
                     player.play()
+                }
+                .onDisappear {
+                    player.pause()
+                    player.replaceCurrentItem(with: nil)
                 }
                 .edgesIgnoringSafeArea(.all)
             VStack {
@@ -104,6 +116,7 @@ struct FullscreenVideoView: View {
     }
 }
 
+/// Detects when a view becomes visible on screen to control video playback
 struct VisibilityDetector: View {
     var onChange: (Bool) -> Void
 
