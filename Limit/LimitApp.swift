@@ -45,6 +45,7 @@ struct LimitApp: App {
     @State private var favoritesURLManager: FavoriteURLManager
     @State private var favoritesPostManager: FavoritePostManager
     @State private var feed: TimelineFeed
+    @State private var computedFeed = ComputedTimelineFeed()
     @State private var currentUser = CurrentUser()
     
     let container: ModelContainer = {
@@ -89,6 +90,7 @@ struct LimitApp: App {
                         .environment(favoritesURLManager)
                         .environment(favoritesPostManager)
                         .environment(feed)
+                        .environment(computedFeed)
                         .environment(currentUser)
                         .environment(appState)
                 }
@@ -112,6 +114,7 @@ struct LimitApp: App {
                 appState.setAuthenticated()
             }
         } else {
+            computedFeed.clearSession()
             appState.setUnauthenticated()
         }
     }
@@ -121,6 +124,8 @@ struct LimitApp: App {
             feed.updateClient(client)
             await currentUser.refreshProfile(client: client)
             appState.setAuthenticated()
+        } else {
+            computedFeed.clearSession()
         }
     }
 }

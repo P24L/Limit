@@ -13,8 +13,8 @@ struct ComputedTimelineView: View {
     @Environment(AppRouter.self) private var router
     @Environment(\EnvironmentValues.modelContext) private var context
     @Environment(BlueskyClient.self) private var client
+    @Environment(ComputedTimelineFeed.self) private var feed
     
-    @State private var posts: [TimelinePostWrapper]? = nil
     @State private var isTopbarHidden = false
     @State private var hideDirectionIsUp = true
     
@@ -22,39 +22,58 @@ struct ComputedTimelineView: View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
                 topbarView(proxy: proxy)
-                ScrollView {
-                    LazyVStack {
-                        if let posts {
-                            Color.clear
+                
+                Group {
+                    if feed.isLoading && feed.posts.isEmpty {
+                        ProgressView("Loading computed timeline...")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let error = feed.error, feed.posts.isEmpty {
+                        ErrorView(title: "Error", 
+                                  message: error.localizedDescription,
+                                  buttonTitle: "Try again") {
+                            Task {
+                                await feed.fastRefresh(client: client)
+                            }
+                        }
+                    } else if feed.posts.isEmpty {
+                        VStack {
+                            Text("No posts available")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                            Text("Try refreshing to load content")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack {
+                                Color.clear
                                     .frame(height: 60)
                                     .id("top")
-                            ForEach(posts, id: \.id) { post in
-                                PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline)
-                                    .id(post.id)
+                                ForEach(feed.posts, id: \.id) { post in
+                                    PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline)
+                                        .id(post.id)
+                                }
                             }
-                        } else {
-                            ProgressView()
+                            .padding(.top, 0)
+                            .animation(.smooth, value: isTopbarHidden)
+                            .padding(.horizontal, 12)
+                            .scrollTargetLayout()
                         }
-                    }
-                    .padding(.top,0) //isTopbarHidden ? 0 : 44 + safeAreaTopInset)
-                    .animation(.smooth, value: isTopbarHidden)
-                    .padding(.horizontal, 12)
-                    .scrollTargetLayout()
-                }
-                .onScrollPhaseChange { old, new in
-                    isTopbarHidden = (new == .tracking || new == .interacting)
-                }
-                .task {
-                    await client.login()
-                    DevLogger.shared.log("ComputedTimelineView.swift - task part 1 - starting getCachedOrRefreshHotPostIDs")
-                    let rawPosts = await client.getCachedOrRefreshHotPosts()
-                    DevLogger.shared.log("ComputedTimelineView.swift - task part 2 - completed getCachedOrRefreshHotPostIDs")
-                    if rawPosts.count > 0 {
-                        posts = rawPosts
+                        .onScrollPhaseChange { old, new in
+                            isTopbarHidden = (new == .tracking || new == .interacting)
+                        }
                     }
                 }
             }
             .ignoresSafeArea(.container, edges: .top)
+        }
+        .task {
+            await feed.loadPosts(client: client)
+        }
+        .refreshable {
+            await feed.fastRefresh(client: client)
         }
     }
 
@@ -79,24 +98,24 @@ struct ComputedTimelineView: View {
                 HStack(spacing: 8) {
                     Button {
                         Task {
-                            await loadFreshPosts(proxy: proxy)
+                            await feed.fastRefresh(client: client)
                             withAnimation {
                                 proxy.scrollTo("top", anchor: .top)
                             }
                         }
                     } label: {
-                        if client.isRefreshingHotPosts {
+                        if feed.isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle())
                         } else {
                             Image(systemName: "arrow.clockwise.circle.fill")
                                 .buttonStyle(.plain)
-                                .symbolEffect(.bounce, value: client.isLoading)
+                                .symbolEffect(.bounce, value: feed.isLoading)
                                 .foregroundStyle(.mintAccent)
                                 .font(.callout)
                         }
                     }
-                    .disabled(client.isRefreshingHotPosts)
+                    .disabled(feed.isLoading)
                 }
             }
 
@@ -113,16 +132,4 @@ struct ComputedTimelineView: View {
         .zIndex(1)
     }
 
-    private func loadFreshPosts(proxy: ScrollViewProxy) async {
-        DevLogger.shared.log("ComputedTimelineView.swift - topbar - starting getCachedOrRefreshHotPostIDs")
-        
-        let rawPosts = await client.getCachedOrRefreshHotPosts()
-
-        if rawPosts.count > 0 {
-            posts = rawPosts
-            withAnimation {
-                proxy.scrollTo("top", anchor: .top)
-            }
-        }
-    }
 }
