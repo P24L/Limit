@@ -23,37 +23,90 @@ Use English when writing anaything in project files.
 5. **Deploy**: Install and launch on simulator/device using XcodeBuildMCP
 
 ### XcodeBuildMCP Build Examples
+
+#### For iOS Simulator (Default Development Workflow)
 ```bash
-# Discover Xcode projects in workspace
+# 1. Discover Xcode projects
 mcp__XcodeBuildMCP__discover_projs
 
-# Build for iOS Simulator by name (WORKING EXAMPLE for this project)
-mcp__XcodeBuildMCP__build_sim_name_ws({
-  workspacePath: '/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj/project.xcworkspace',
+# 2. List available simulators
+mcp__XcodeBuildMCP__list_sims
+
+# 3. Build for iOS Simulator by name (USE THIS for simulator development)
+mcp__XcodeBuildMCP__build_sim_name_proj({
+  projectPath: '/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj',
   scheme: 'Limit',
-  simulatorName: 'Test sim',
+  simulatorName: 'iphone16promax',
   extraArgs: ['-allowProvisioningUpdates']
 })
 
-# Run tests on iOS Simulator
-mcp__XcodeBuildMCP__test_sim_name_ws({
-  workspacePath: '/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj/project.xcworkspace',
+# 4. Get app path and bundle ID
+mcp__XcodeBuildMCP__get_sim_app_path_name_proj({
+  projectPath: '/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj',
   scheme: 'Limit',
-  simulatorName: 'Test sim',
-  extraArgs: ['-allowProvisioningUpdates']
+  platform: 'iOS Simulator',
+  simulatorName: 'Test sim'
 })
 
-# Install and launch on simulator
+mcp__XcodeBuildMCP__get_app_bundle_id({
+  appPath: '/path/from/previous/step'
+})
+
+# 5. Install and launch on simulator
 mcp__XcodeBuildMCP__install_app_sim({
-  simulatorUuid: 'UUID',
-  appPath: '/path/to/app.app'
+  simulatorUuid: '00B394E4-6FF8-48D5-87A7-F59CC9EF168C',
+  appPath: '/path/from/get_sim_app_path'
+})
+
+mcp__XcodeBuildMCP__launch_app_sim({
+  simulatorUuid: '00B394E4-6FF8-48D5-87A7-F59CC9EF168C',
+  bundleId: 'P24L.Limit'
+})
+```
+
+#### For Physical Device (iPhone "Zdenek")
+```bash
+# 1. List connected devices
+mcp__XcodeBuildMCP__list_devices
+
+# 2. Build for physical device
+mcp__XcodeBuildMCP__build_dev_proj({
+  projectPath: '/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj',
+  scheme: 'Limit',
+  extraArgs: ['-allowProvisioningUpdates']
+})
+
+# 3. Install and launch on device
+mcp__XcodeBuildMCP__install_app_device({
+  deviceId: 'A7EA262F-D0FB-55DA-B7DD-890C49F58606',
+  appPath: '/path/from/build'
+})
+
+mcp__XcodeBuildMCP__launch_app_device({
+  deviceId: 'A7EA262F-D0FB-55DA-B7DD-890C49F58606',
+  bundleId: 'P24L.Limit'
+})
+```
+
+#### Test Execution
+```bash
+# Run tests on iOS Simulator
+mcp__XcodeBuildMCP__test_sim_name_proj({
+  projectPath: '/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj',
+  scheme: 'Limit',
+  simulatorName: 'iphone16promax',
+  extraArgs: ['-allowProvisioningUpdates']
 })
 ```
 
 ### Important Notes for MCP Tools
-- **Use workspace**: This project requires `_ws` tools (workspace), not `_proj` tools (project)
-- **Correct simulator name**: Use exact simulator name from `list_sims` (e.g., 'Test sim')
+- **Project vs Workspace**: This project uses `_proj` tools (project), not `_ws` tools (workspace)
+- **Correct simulator name**: Use exact simulator name from `list_sims` (e.g., 'Test sim', 'iphone16promax')
+- **Available simulators**: 
+  - "iphone16promax" has UUID `00B394E4-6FF8-48D5-87A7-F59CC9EF168C`
+- **Physical device**: iPhone "Zdenek" has UDID `A7EA262F-D0FB-55DA-B7DD-890C49F58606`
 - **Provisioning flag**: Always include `extraArgs: ['-allowProvisioningUpdates']` for code signing
+- **Default workflow**: Use simulator for development unless specifically targeting physical device
 
 ### Legacy Command Line (Use XcodeBuildMCP Instead)
 ```bash
@@ -86,6 +139,7 @@ xcodebuild clean build \
 - **AppRouter (v1.0.2)**: Typed navigation and routing system
 - **KeychainSwift (v24.0.0)**: Secure credential storage
 - **SDWebImageSwiftUI (v3.1.3)**: Efficient image loading and caching
+- **swift-log (v1.6.3)**: Logging infrastructure (ATProto dependency)
 
 ### Data Architecture Pattern
 The app uses a **dual-layer data architecture**:
@@ -107,7 +161,7 @@ This separation allows for:
 
 #### Navigation System (`AppRoute.swift`)
 Uses `AppRouter` with three navigation layers:
-- **AppTab**: Main tabs (Timeline, ComputedTimeline, Favorites, Safari, Settings)
+- **AppTab**: Main tabs (Timeline, ComputedTimeline, Search, Favorites, Settings)
 - **Destination**: Navigation targets (posts, threads, profiles)
 - **Sheet**: Modal presentations (login, full-screen images)
 
@@ -125,6 +179,23 @@ Comprehensive AT Protocol client featuring:
 - **`TimelineFeed`**: Observable collection manager for timeline data
 - **Media Models**: `PostImage`, `PostLinkExt`, `PostVideo` for post embeds
 - **Favorites**: `FavoriteURL`, `FavoritePost` for saved content
+- **Rich Text**: `PostFacet` for link detection and rich text formatting
+
+#### SwiftData Schema Configuration
+Complete model schema defined in `LimitConfiguration.swift`:
+```swift
+enum AppSchema {
+    static let allModels: [any PersistentModel.Type] = [
+        TimelinePost.self,
+        PostImage.self, 
+        FavoriteURL.self,
+        FavoritePost.self
+    ]
+}
+```
+- **Database**: `LimitDB_v40` with active schema versioning
+- **Performance**: Maximum 1,000 posts in timeline cache
+- **Pagination**: Maximum 10 fetch loops per timeline request
 
 ## View Architecture
 
@@ -170,7 +241,7 @@ Views/
 - **Business Logic**: All logic should be in services or helper structures (testable)
 
 ### AppRouter Navigation Pattern
-- **AppTab**: Enum for main tabs (Timeline, ComputedTimeline, Favorites, Safari, Settings)
+- **AppTab**: Enum for main tabs (Timeline, ComputedTimeline, Search, Favorites, Settings)
 - **Destination**: Enum for navigation targets (posts, threads, profiles)
 - **Sheet**: Enum for modal presentations (login, full-screen images)
 - **Navigation**: `router.navigateTo(.postThreadWrapped(postThread: post))`
@@ -201,12 +272,13 @@ Views/
 ### Bundle Configuration
 - **Bundle ID**: `P24L.Limit` (production)
 - **Deployment Target**: iOS 18.4+
-- **Supported Devices**: iPhone + iPad (Universal)
+- **Supported Devices**: iPhone only (Portrait + Landscape orientations)
 - **Local Development**: Uses `Local.xcconfig` for team settings (not committed)
 
 ### Key Files
 - **`Local.xcconfig`**: Contains `DEVELOPMENT_TEAM` setting for local builds
 - **`buildServer.json`**: Build Server Protocol configuration for IDE integration
+- **`PrivacyInfo.xcprivacy`**: Privacy manifest for App Store compliance (UserDefaults, file timestamps, system boot time, disk space access)
 - **`.github/workflows/ci.yml.disabled`**: CI/CD workflow (currently disabled)
 
 ## Notable Implementation Details
@@ -246,11 +318,13 @@ Sophisticated content discovery system that:
 - All logging uses centralized `DevLogger` system
 
 ### Testing Strategy
-The app is designed for testing with:
-- Comprehensive sample data generation (`SampleData.swift`)
-- In-app log viewer for debugging (`LogViewer.swift`)
-- Modular architecture enabling unit testing of individual components
-- CI/CD setup ready for automated testing (currently disabled)
+The app currently has no test target or unit tests. Testing is handled through:
+- **Preview Data**: Comprehensive sample data generation (`SampleData.swift`)
+- **In-App Debugging**: Log viewer for debugging (`LogViewer.swift`)
+- **Manual Testing**: Modular architecture designed for testability
+- **CI/CD**: Setup ready for automated testing (currently disabled)
+
+Note: Consider adding unit tests for core business logic, especially BlueskyClient, timeline operations, and data model transformations.
 
 ## Technical Guidelines
 
@@ -271,7 +345,23 @@ The app is designed for testing with:
 
 ### XcodeBuildMCP Integration
 - **Workflow**: discover → list schemes → build → test → install → launch
-- **Simulators**: Use list → boot → install → launch → capture logs workflow
+- **Simulators**: Use list → boot → **open_sim** → install → launch → capture logs workflow
+- **CRITICAL**: Always use `open_sim({ enabled: true })` after booting simulator to make it visible
 - **Physical Devices**: Use list → build → install → launch → monitor workflow
 - **Swift Packages**: Use build → test → run executables workflow
 - **Debugging**: Capture logs, screenshots, UI automation through XcodeBuildMCP tools
+
+#### Complete Simulator Workflow
+```bash
+# 1. List and boot simulator
+mcp__XcodeBuildMCP__list_sims({ enabled: true })
+mcp__XcodeBuildMCP__boot_sim({ simulatorUuid: 'UUID' })
+
+# 2. IMPORTANT: Open Simulator app to make it visible
+mcp__XcodeBuildMCP__open_sim({ enabled: true })
+
+# 3. Build, install and launch
+mcp__XcodeBuildMCP__build_sim_id_proj({ projectPath: '...', scheme: 'Limit', simulatorId: 'UUID' })
+mcp__XcodeBuildMCP__install_app_sim({ simulatorUuid: 'UUID', appPath: '...' })
+mcp__XcodeBuildMCP__launch_app_sim({ simulatorUuid: 'UUID', bundleId: 'P24L.Limit' })
+```
