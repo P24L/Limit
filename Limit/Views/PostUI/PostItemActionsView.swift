@@ -29,7 +29,7 @@ struct PostItemActionsView: View {
             } label: {
                 Label("\(postWrapper.replyCount.abbreviated)", systemImage: "quote.bubble")
                     .lineLimit(1)
-                    .font(.caption)
+                    .font(.footnote)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -40,7 +40,7 @@ struct PostItemActionsView: View {
             } label: {
                 Label("\(postWrapper.repostCount.abbreviated)", systemImage: "arrow.2.squarepath")
                     .lineLimit(1)
-                    .font(.caption)
+                    .font(.footnote)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -65,7 +65,7 @@ struct PostItemActionsView: View {
                 Label("\(postWrapper.likeCount.abbreviated)", systemImage: postWrapper.isLiked ? "heart.fill" : "heart")
                     .foregroundStyle(postWrapper.isLiked ? .red : .primary)
                     .lineLimit(1)
-                    .font(.caption)
+                    .font(.footnote)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -81,7 +81,7 @@ struct PostItemActionsView: View {
                 }
             } label: {
                 Image(systemName: "bookmark")
-                    .font(.caption)
+                    .font(.footnote)
             }
             .buttonStyle(.plain)
             .symbolVariant(favoritesPost.isFavorited(postWrapper.uri) ? .fill : .none)
@@ -89,6 +89,7 @@ struct PostItemActionsView: View {
             .foregroundStyle(favoritesPost.isFavorited(postWrapper.uri) ? .mintAccent : .postAction)
             .monospacedDigit()
             
+            /*
             if let linkExt = postWrapper.linkExt,
                let url = URL(string: linkExt.uri) {
                 Button {
@@ -107,14 +108,16 @@ struct PostItemActionsView: View {
                 .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
                 .symbolEffect(.bounce, value: favoritesURL.isFavorited(url))
                 .foregroundStyle(favoritesURL.isFavorited(url) ? .mintAccent : .postAction)
-            }
+            }*/
 
             
             Spacer()
             
             if !hideMoreActions {
                 Button {
-                    
+                    // Navigate to thread view
+                    //if let postWrapper = postWrapper {
+                    router.navigateTo(.postThreadWrapped(postThread: postWrapper))
                 } label: {
                     Image(systemName: "ellipsis")
                         .buttonStyle(.plain)

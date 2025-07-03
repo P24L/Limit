@@ -555,6 +555,11 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
         }
         self.repostedByDisplayName = model.repostedByDisplayName
         self.repostedByAvatarURL = model.repostedByAvatarURL
+        
+        // Background fetch metadata for link facets if not already fetched (for SwiftData loaded posts)
+        Task.detached { [weak self] in
+            await self?.fetchLinkMetadataIfNeeded()
+        }
     }
     
     func toModel(context: ModelContext) -> TimelinePost {
@@ -609,6 +614,20 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     }
 
     // MARK: - Link Metadata Management
+    
+    /// Checks if any link facets need metadata and fetches them if necessary
+    func fetchLinkMetadataIfNeeded() async {
+        guard let facets = self.facets else { return }
+        
+        // Only fetch for links that haven't been fetched yet
+        let needsMetadata = facets.links.contains { facet in
+            !facet.metadataFetched
+        }
+        
+        if needsMetadata {
+            await fetchLinkMetadataInWrapper()
+        }
+    }
     
     /// Fetches metadata for link facets directly in wrapper (background)
     func fetchLinkMetadataInWrapper() async {

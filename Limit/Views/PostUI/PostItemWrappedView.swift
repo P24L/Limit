@@ -156,6 +156,7 @@ struct PostItemWrappedView: View {
                     if let videoEmbed = post.postVideo,
                        let url = URL(string: videoEmbed.playlistURI) {
                         EmbeddedVideoView(playlistURL: url, height: videoEmbed.height, width: videoEmbed.width)
+                            .padding(.top, 4)
                     }
 
                     // MARK: Quoted post
@@ -174,7 +175,6 @@ struct PostItemWrappedView: View {
                     // MARK: Enhanced Link Presentation - Facet Links
                     if depth == 0, let facets = post.facets, !facets.uniqueLinks(excluding: post.linkExt?.uri).isEmpty {
                         FacetLinksView(post: post)
-                            .padding(.vertical, -4) // Reduce vertical spacing
                     }
                     
                     // MARK: Action bar
@@ -202,48 +202,90 @@ struct PostItemWrappedView: View {
 
 struct WrappedPostLinkView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(FavoriteURLManager.self) private var favoritesURL
     var linkExt: TimelinePostWrapper.LinkEmbed
 
     var body: some View {
-        Button(action: {
-            if let url = URL(string: linkExt.uri) {
-                router.navigateTo(.safari(url: url))
-            }
-        }) {
-            HStack(alignment: .top, spacing: 12) {
-                if let thumbnail = linkExt.thumbnailImageURL {
-                    WebImage(url: thumbnail) { phase in
-                        switch phase {
-                        case .empty:
-                            Rectangle().foregroundStyle(.gray)
-                        case .success(let image):
-                            image.resizable()
-                        case .failure:
-                            Rectangle().foregroundStyle(.gray)
+        VStack {
+            // Clickable content area (image + text)
+            Button(action: {
+                if let url = URL(string: linkExt.uri) {
+                    router.navigateTo(.safari(url: url))
+                }
+            }) {
+                VStack {
+                    if let thumbnail = linkExt.thumbnailImageURL {
+                        WebImage(url: thumbnail) { phase in
+                            switch phase {
+                            case .empty:
+                                Rectangle().foregroundStyle(.gray)
+                            case .success(let image):
+                                image.resizable()
+                            case .failure:
+                                Rectangle().foregroundStyle(.gray)
+                            }
+                        }
+                            .aspectRatio(contentMode: .fill)
+                            .frame(maxWidth: .infinity, maxHeight: 160)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    HStack(alignment: .top, spacing: 12) {
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            if !linkExt.title.isEmpty {
+                                Text(linkExt.title)
+                                    .font(.subheadline)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Text(linkExt.desc.count > 0 ? linkExt.desc : linkExt.uri)
+                                .font(.footnote)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                                .foregroundColor(.gray)
+                            if let mainURL = URL(string:linkExt.uri), let hostURL = mainURL.host() {
+                                Text(hostURL)
+                                .font(.footnote)
+                                .lineLimit(1)
+                                .foregroundColor(.mintInactive)
+                            }
+                        }
+                        Spacer()
+                        
+                        // Bookmark button (separate action)
+                        VStack {
+                            Spacer()
+                            if let url = URL(string: linkExt.uri) {
+                                Button {
+                                    Task {
+                                        if favoritesURL.isFavorited(url) {
+                                            await favoritesURL.removeFavorite(url: url)
+                                        } else {
+                                            await favoritesURL.addFavorite(url: url, title: linkExt.title, thumbnailImageURL: linkExt.thumbnailImageURL)
+                                        }
+                                    }
+                                } label: {
+                                    Image(systemName: "bookmark")
+                                        .font(.title2)
+                                }
+                                .buttonStyle(.plain)
+                                .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
+                                .symbolEffect(.bounce, value: favoritesURL.isFavorited(url))
+                                .foregroundStyle(favoritesURL.isFavorited(url) ? .mintAccent : .postAction)
+                            }
+                            Spacer()
                         }
                     }
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 60, height: 60)
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .frame(minHeight: 60)
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    if !linkExt.title.isEmpty {
-                        Text(linkExt.title)
-                            .font(.subheadline)
-                            .lineLimit(2)
-                    }
-                    Text(linkExt.desc.count > 0 ? linkExt.desc : linkExt.uri)
-                        .font(.footnote)
-                        .lineLimit(2)
-                        .foregroundColor(.gray)
-                }
-                Spacer()
             }
-            .padding(8)
-            .background(Color(UIColor.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .buttonStyle(.plain)
         }
+        .padding(8)
+        .background(Color(UIColor.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 

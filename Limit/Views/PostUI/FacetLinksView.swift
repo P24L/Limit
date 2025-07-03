@@ -13,6 +13,7 @@ import SDWebImageSwiftUI
 struct FacetLinksView: View {
     let post: TimelinePostWrapper
     @Environment(AppRouter.self) private var router
+    @Environment(FavoriteURLManager.self) private var favoritesURL
     
     private var uniqueLinks: [TimelinePostWrapper.ProcessedFacet] {
         guard let facets = post.facets else { return [] }
@@ -38,7 +39,10 @@ struct FacetLinksView: View {
                         }
                     }
                 }
+                .padding(.horizontal, 16)
             }
+            .padding(.top, 2)
+            .padding(.bottom, 2)
         }
     }
     
@@ -48,6 +52,7 @@ struct LinkCardView: View {
     let uri: String
     let isFirst: Bool
     let facet: TimelinePostWrapper.ProcessedFacet
+    @Environment(FavoriteURLManager.self) private var favoritesURL
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -73,7 +78,7 @@ struct LinkCardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Title from metadata or placeholder
                 Text(linkTitle)
-                    .font(.subheadline)
+                    .font(.footnote)
                     .lineLimit(2)
                     .foregroundColor(.primary)
                 
@@ -85,9 +90,30 @@ struct LinkCardView: View {
             }
             
             Spacer()
+            
+            // Bookmark button
+            if let url = URL(string: uri) {
+                Button {
+                    Task {
+                        if favoritesURL.isFavorited(url) {
+                            await favoritesURL.removeFavorite(url: url)
+                        } else {
+                            let thumbnailURL = facet.thumbnailURL.flatMap { URL(string: $0) }
+                            await favoritesURL.addFavorite(url: url, title: facet.title, thumbnailImageURL: thumbnailURL)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "bookmark")
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+                .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
+                .symbolEffect(.bounce, value: favoritesURL.isFavorited(url))
+                .foregroundStyle(favoritesURL.isFavorited(url) ? .mintAccent : .postAction)
+            }
         }
-        .padding(12)
-        .frame(width: cardWidth)
+        .padding(8)
+        .frame(maxWidth: cardWidth, minHeight: 80, maxHeight: 80)
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
     }
@@ -112,7 +138,7 @@ struct LinkCardView: View {
     private var cardWidth: CGFloat {
         // First card 80% width, subsequent cards 100% width
         let screenWidth = UIScreen.main.bounds.width - 32 // Account for padding
-        return isFirst ? screenWidth * 0.8 : screenWidth
+        return isFirst ? screenWidth * 0.8 : screenWidth * 0.8
     }
     
     private var displayURL: String {
