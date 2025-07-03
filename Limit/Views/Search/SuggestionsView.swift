@@ -17,7 +17,7 @@ struct SuggestionsView: View {
     @State private var followingStates: [String: String?] = [:] // DID -> followingURI
     
     var body: some View {
-        Group {
+        VStack {
             if isLoading {
                 ProgressView("Loading suggestions...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -48,10 +48,7 @@ struct SuggestionsView: View {
                         ForEach(suggestions, id: \.actorDID) { suggestion in
                             FollowerItemView(
                                 profile: suggestion,
-                                followingURI: followingStates[suggestion.actorDID] ?? suggestion.viewer?.followingURI,
-                                onFollowToggle: { did, uri in
-                                    followingStates[did] = uri
-                                }
+                                followingURI: followingStates[suggestion.actorDID] ?? suggestion.viewer?.followingURI
                             )
                         }
                     }

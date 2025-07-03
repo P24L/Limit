@@ -24,7 +24,7 @@ struct UsersSearchView: View {
     @State private var followingStates: [String: String?] = [:] // DID -> followingURI
     
     var body: some View {
-        Group {
+        VStack {
             if isLoading && actors.isEmpty {
                 ProgressView("Searching users...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -55,10 +55,7 @@ struct UsersSearchView: View {
                         ForEach(actors, id: \.actorDID) { actor in
                             FollowerItemView(
                                 profile: actor,
-                                followingURI: followingStates[actor.actorDID] ?? actor.viewer?.followingURI,
-                                onFollowToggle: { did, uri in
-                                    followingStates[did] = uri
-                                }
+                                followingURI: followingStates[actor.actorDID] ?? actor.viewer?.followingURI
                             )
                         }
                         

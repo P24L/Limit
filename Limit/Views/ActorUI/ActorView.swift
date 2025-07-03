@@ -238,7 +238,6 @@ struct FollowersSectionView: View {
   let actorWrapper: ActorWrapper
   let sectionType: SectionType
   @Environment(BlueskyClient.self) private var client
-  @State private var followingStates: [String: String?] = [:]
   @State private var isLoadingMore = false
   @State private var hasMoreData = true
   @State private var lastFollowersCount = 0
@@ -262,10 +261,7 @@ struct FollowersSectionView: View {
       ForEach(Array(followers.enumerated()), id: \.element.actorDID) { index, follower in
         FollowerItemView(
           profile: follower,
-          followingURI: follower.viewer?.followingURI,
-          onFollowToggle: { did, uri in
-            followingStates[did] = uri
-          }
+          followingURI: follower.viewer?.followingURI
         )
         .onAppear {
           // Detekce konce seznamu pro načtení dalších položek
@@ -325,7 +321,6 @@ struct FollowersSectionView: View {
 struct FollowerItemView: View {
   let profile: AppBskyLexicon.Actor.ProfileViewDefinition
   @State var followingURI: String?
-  let onFollowToggle: (String, String?) -> Void
   @Environment(BlueskyClient.self) private var client
   @Environment(AppRouter.self) private var router
 
