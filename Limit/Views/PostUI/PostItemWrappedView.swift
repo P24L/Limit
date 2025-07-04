@@ -156,6 +156,11 @@ struct PostItemWrappedView: View {
                     if let videoEmbed = post.postVideo,
                        let url = URL(string: videoEmbed.playlistURI) {
                         EmbeddedVideoView(playlistURL: url, height: videoEmbed.height, width: videoEmbed.width)
+                            .aspectRatio(
+                                CGFloat(videoEmbed.width ?? 16) / CGFloat(videoEmbed.height ?? 9), 
+                                contentMode: .fit
+                            )
+                            .frame(maxWidth: .infinity)
                             .padding(.top, 4)
                     }
 
@@ -200,6 +205,7 @@ struct PostItemWrappedView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

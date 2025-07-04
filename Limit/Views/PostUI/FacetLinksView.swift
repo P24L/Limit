@@ -22,8 +22,8 @@ struct FacetLinksView: View {
     
     var body: some View {
         if !uniqueLinks.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: true) {
+                HStack(spacing: 12) {
                     ForEach(Array(uniqueLinks.enumerated()), id: \.offset) { index, facet in
                         if case .link(let uri) = facet.data {
                             LinkCardView(
@@ -39,8 +39,9 @@ struct FacetLinksView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 16)
+                .frame(maxWidth:.infinity)
             }
+            .frame(maxWidth:.infinity)
         }
     }
     
@@ -134,9 +135,9 @@ struct LinkCardView: View {
     }
     
     private var cardWidth: CGFloat {
-        // First card 80% width, subsequent cards 100% width
-        let screenWidth = UIScreen.main.bounds.width - 32 // Account for padding
-        return isFirst ? screenWidth * 0.8 : screenWidth * 0.8
+        // Cards use full available width
+        let screenWidth = UIScreen.main.bounds.width * 0.8 //- 16 // Account for minimal padding
+        return screenWidth
     }
     
     private var displayURL: String {
