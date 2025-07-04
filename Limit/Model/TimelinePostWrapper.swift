@@ -569,6 +569,8 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     if let root = model.rootPost {
       self.rootPost = TimelinePostWrapper(from: root)
     }
+    self.repostedByID = model.repostedByID
+    self.repostedByHandle = model.repostedByHandle
     self.repostedByDisplayName = model.repostedByDisplayName
     self.repostedByAvatarURL = model.repostedByAvatarURL
 

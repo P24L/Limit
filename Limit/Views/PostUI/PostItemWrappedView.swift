@@ -43,11 +43,11 @@ struct PostItemWrappedView: View {
     ) var posts: [TimelinePost]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             // MARK: Avatar
             HStack(alignment: .top) {
-                VStack {
-                    if postViewType == .timeline {
+                if postViewType == .timeline {
+                    VStack(spacing: 0) {
                         AvatarView(url: post.authorAvatarURL, size: 50)
                             .onTapGesture {
                                 router.navigateTo(.actor(userID: post.authorID))
@@ -62,7 +62,7 @@ struct PostItemWrappedView: View {
                 }
 
                 // MARK: Autor a čas postu
-                VStack(alignment: .leading){
+                VStack(alignment: .leading, spacing: 4){
                     // MARK: Reposted by
                     if let repostHandle = post.repostedByHandle
                     {
@@ -172,26 +172,29 @@ struct PostItemWrappedView: View {
                             )
                     }
                     
-                    // MARK: Enhanced Link Presentation - Facet Links
-                    if depth == 0, let facets = post.facets, !facets.uniqueLinks(excluding: post.linkExt?.uri).isEmpty {
-                        FacetLinksView(post: post)
-                    }
-                    
-                    // MARK: Action bar
+                    // MARK: Enhanced Link Presentation - Facet Links + Action bar + Divider
                     if depth == 0 {
-                        PostItemActionsView(postWrapper: post)
-                    }
-
-                    // Divider ukazuji jen na hlavní timeline a když nejsem v threadu
-                    if depth == 0 && postViewType == .timeline {
-                        let showDivider = {
-                            guard let threadRootID = post.rootPost?.uri else { return true }
-                            return !(threadRootID == nextPostThreadRootID || threadRootID == nextPostID)
-                        }()
-                        if showDivider {
-                            Divider()
-                                .frame(height: 1)
-                                .background(.mintInactive)
+                        VStack(spacing: 4) {
+                            // FacetLinksView jen když existují odkazy
+                            if let facets = post.facets, !facets.uniqueLinks(excluding: post.linkExt?.uri).isEmpty {
+                                FacetLinksView(post: post)
+                            }
+                            
+                            // Action bar vždy
+                            PostItemActionsView(postWrapper: post)
+                            
+                            // Divider jen na timeline a podle thread podmínek
+                            if postViewType == .timeline {
+                                let showDivider = {
+                                    guard let threadRootID = post.rootPost?.uri else { return true }
+                                    return !(threadRootID == nextPostThreadRootID || threadRootID == nextPostID)
+                                }()
+                                if showDivider {
+                                    Divider()
+                                        .frame(height: 1)
+                                        .background(.mintInactive)
+                                }
+                            }
                         }
                     }
                 }
