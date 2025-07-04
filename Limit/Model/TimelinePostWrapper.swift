@@ -873,8 +873,31 @@ final class TimelineFeed {
         wrapper.storageID = postModel.id
       }
       try context.save()
+      
+      // Cleanup old posts if database is getting too large
+      cleanupOldPostsIfNeeded()
     } catch {
       print("Failed to save timeline: \(error)")
+    }
+  }
+  
+  private func cleanupOldPostsIfNeeded() {
+    do {
+      let descriptor = FetchDescriptor<TimelinePost>(
+        predicate: #Predicate<TimelinePost> { $0.type == .post },
+        sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+      )
+      
+      let allPosts = try context.fetch(descriptor)
+      if allPosts.count > 3000 {
+        let postsToDelete = Array(allPosts.dropFirst(2000)) // Keep 2000 newest
+        postsToDelete.forEach { context.delete($0) }
+        try context.save()
+        
+        DevLogger.shared.log("TimelineFeed.swift - cleaned up \(postsToDelete.count) old posts, keeping \(allPosts.count - postsToDelete.count)")
+      }
+    } catch {
+      print("Failed to cleanup old posts: \(error)")
     }
   }
 

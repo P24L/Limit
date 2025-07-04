@@ -123,8 +123,8 @@ struct SettingsView: View {
                                 let temporaryThreadPosts = allPosts.filter { $0.type == .temporaryThread }
                                 temporaryThreadPosts.forEach { context.delete($0) }
                                 let postTypePosts = allPosts.filter { $0.type == .post }
-                                if postTypePosts.count > 400 {
-                                    let postsToDelete = Array(postTypePosts.dropFirst(200))
+                                if postTypePosts.count > 3000 {
+                                    let postsToDelete = Array(postTypePosts.dropFirst(2000))
                                     postsToDelete.forEach { context.delete($0) }
                                     DevLogger.shared.log("SettingsView.swift - deleted \(postsToDelete.count) old posts")
                                 }
