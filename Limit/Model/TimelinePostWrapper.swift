@@ -480,7 +480,7 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
       !viewRecord.cid.isEmpty,
       !viewRecord.author.actorDID.isEmpty,
       !viewRecord.author.actorHandle.isEmpty,
-      (viewRecord.indexedAt ?? postRecord.createdAt).timeIntervalSince1970 > 0
+      viewRecord.indexedAt.timeIntervalSince1970 > 0
     else {
       print("❌ Skipping invalid wrapper during init (quoted): \(viewRecord.uri)")
       return nil
@@ -493,7 +493,7 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     self.init(
       uri: viewRecord.uri,
       cid: viewRecord.cid,
-      createdAt: viewRecord.indexedAt ?? postRecord.createdAt,
+      createdAt: viewRecord.indexedAt,
       type: .quoted,
       authorID: viewRecord.author.actorDID,
       authorHandle: viewRecord.author.actorHandle,
@@ -568,6 +568,9 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     }
     if let root = model.rootPost {
       self.rootPost = TimelinePostWrapper(from: root)
+    }
+    if let quoted = model.quotedPost {
+      self.quotedPost = TimelinePostWrapper(from: quoted)
     }
     self.repostedByID = model.repostedByID
     self.repostedByHandle = model.repostedByHandle
@@ -807,9 +810,11 @@ final class TimelineFeed {
       descriptor.relationshipKeyPathsForPrefetching = [
         \.parentPost,
         \.rootPost,
+        \.quotedPost,
         \.embeds,
         \.linkExt,
         \.postVideo,
+        \.facets,
       ]
 
       let storedPosts = try context.fetch(descriptor)

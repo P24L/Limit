@@ -22,7 +22,7 @@ struct FacetLinksView: View {
     
     var body: some View {
         if !uniqueLinks.isEmpty {
-            ScrollView(.horizontal, showsIndicators: true) {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(Array(uniqueLinks.enumerated()), id: \.offset) { index, facet in
                         if case .link(let uri) = facet.data {
