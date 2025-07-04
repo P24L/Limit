@@ -210,18 +210,31 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     // MARK: - In-memory fetch for TimelinePostWrapper (without ModelContext/SwiftData)
     /// Returns wrapped TimelinePostWrapper directly from API for given post IDs, without saving to SwiftData.
     /// Use only for in-memory usage in ComputedTimeline or during prototyping.
+    /// Uses batch processing to handle API limit of 25 posts per call.
     @MainActor
     func fetchPostWrappersByID(for ids: [String]) async -> [TimelinePostWrapper] {
         guard let client = protoClient else {
             DevLogger.shared.log("BlueskyClient.swift - fetchPostWrappersByID - no protoClient")
             return []
         }
+        
+        guard !ids.isEmpty else { return [] }
+        
         isLoading = true
         defer { isLoading = false }
+        
+        // Split IDs into batches of 25 (API limit)
+        let batches = ids.batched(size: 25)
+        var allPosts: [AppBskyLexicon.Feed.PostViewDefinition] = []
+        
         do {
-            let response = try await client.getPosts(ids)
-            let views = response.posts
-            return views.map { TimelinePostWrapper(from: $0) }
+            for batch in batches {
+                let response = try await client.getPosts(batch)
+                allPosts.append(contentsOf: response.posts)
+            }
+            
+            let wrappers = allPosts.map { TimelinePostWrapper(from: $0) }
+            return wrappers
         } catch {
             DevLogger.shared.log("BlueskyClient.swift - fetchPostWrappersByID - \(error)")
             return []
@@ -313,10 +326,10 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     }
     
     func fetchHotPosts(
-        within timeInterval: TimeInterval = 36000, // last 600 minutes
+        within timeInterval: TimeInterval = 86400, // last 24 hours (was 10h)
         maxResults: Int = 150,
-        sampleAccountsCount: Int = 150,
-        postsPerAccount: Int = 50
+        sampleAccountsCount: Int = 75, // reduced from 150 for speed
+        postsPerAccount: Int = 50 // reduced from 75 for speed
     ) async -> [TimelinePostWrapper] {
         
         guard isAuthenticated else { return []}
@@ -327,10 +340,12 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             let score: Int
         }
 
-        // Constants for optimization
-        let maxFollowersToExpand = 30
+        // Constants for optimization - reduced for 10-12s target
+        let maxFollowersToFetch = 100  // fetch more to sample from
+        let maxFollowersToExpand = 20  // reduced from 30
         let maxFollowsPerUser = 50
         let maxFollowersPerUser = 50
+        let secondHopSampleSize = 5  // reduced from 10 for faster 2nd hop
 
         guard let myDID = currentDID else {
             DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - No currentDID available")
@@ -343,12 +358,15 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
 
         do {
             DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - 1 - getting my followers")
-            let followers = try await protoClient.getFollows(from: myDID, limit: maxFollowersToExpand)
+            let followersResponse = try await protoClient.getFollows(from: myDID, limit: maxFollowersToFetch)
+            
+            // Randomly sample followers for better diversity
+            let selectedFollowers = Array(followersResponse.follows.shuffled().prefix(maxFollowersToExpand))
 
             var relatedAccounts = Set<String>()
 
             try await withThrowingTaskGroup(of: Set<String>.self) { group in
-                for follower in followers.follows.prefix(maxFollowersToExpand) {
+                for follower in selectedFollowers {
                     group.addTask {
                         var result = Set<String>()
                         do {
@@ -367,14 +385,40 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                     relatedAccounts.formUnion(result)
                 }
             }
+            
+            // 2nd hop exploration for greater diversity
+            let firstHopAccounts = Array(relatedAccounts)
+            let secondHopSample = Array(firstHopAccounts.shuffled().prefix(secondHopSampleSize))
+            
+            try await withThrowingTaskGroup(of: Set<String>.self) { group in
+                for account in secondHopSample {
+                    group.addTask {
+                        var result = Set<String>()
+                        do {
+                            // Explore 2nd hop with smaller limits to balance performance
+                            let theirFollows = try await protoClient.getFollows(from: account, limit: 20)
+                            result.formUnion(theirFollows.follows.map { $0.actorDID })
+                        } catch {
+                            // Silent fail for 2nd hop to not slow down main algorithm
+                        }
+                        return result
+                    }
+                }
+                
+                for try await result in group {
+                    relatedAccounts.formUnion(result)
+                }
+            }
 
             let sampledAccounts = Array(relatedAccounts.shuffled().prefix(sampleAccountsCount))
+            
+            DevLogger.shared.log("fetchHotPostIDs - 2 - found \(relatedAccounts.count) accounts, sampling \(sampledAccounts.count)")
 
             var scoredPosts: [ScoredPost] = []
             let now = Date()
 
             try await withThrowingTaskGroup(of: [ScoredPost].self) { group in
-                let concurrentLimit = 20
+                let concurrentLimit = 25  // reduced from 35 for stability
                 var activeTasks = 0
                 var accountIterator = sampledAccounts.makeIterator()
 
@@ -390,11 +434,30 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                         var localPosts: [ScoredPost] = []
                         do {
                             let posts = try await protoClient.getAuthorFeed(by: accountDID, limit: postsPerAccount)
+                            let postCount = posts.feed.count
                             for post in posts.feed {
                                 let age = now.timeIntervalSince(post.post.indexedAt)
-                                guard age <= timeInterval else { continue }
-                                let score = (post.post.likeCount ?? 0) + (post.post.repostCount ?? 0) + (post.post.replyCount ?? 0)
-                                localPosts.append(ScoredPost(id: post.id, createdAt: post.post.indexedAt, score: score))
+                                
+                                // Hard time limit - skip posts older than 7 days
+                                if age > 7 * 24 * 3600 { continue }
+                                
+                                // Basic engagement score
+                                let engagementScore = (post.post.likeCount ?? 0) + (post.post.repostCount ?? 0) + (post.post.replyCount ?? 0)
+                                
+                                // Exponential time decay - stronger preference for fresh content
+                                let ageInDays = age / 86400.0
+                                let timeFactor = max(0.01, exp(-ageInDays / 2.0)) // 2-day half-life
+                                
+                                let finalScore = Int(Double(engagementScore) * timeFactor)
+                                
+                                // Score threshold - ignore very low scored posts
+                                if finalScore < 3 { continue }
+                                
+                                localPosts.append(ScoredPost(id: post.id, createdAt: post.post.indexedAt, score: finalScore))
+                            }
+                            // Debug log when we get few posts from an account
+                            if localPosts.count < postCount / 2 {
+                                DevLogger.shared.log("fetchHotPostIDs - low yield: \(localPosts.count)/\(postCount) posts from account")
                             }
                         } catch {
                             DevLogger.shared.log("fetchHotPostIDs - error for feed \(accountDID): \(error)")
@@ -415,12 +478,20 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                 }
             }
 
+            DevLogger.shared.log("fetchHotPostIDs - 3 - collected \(scoredPosts.count) scored posts")
+            
             let weightedPosts = scoredPosts.flatMap { post in
                 let clampedScore = max(1, min(post.score, 20))
                 return Array(repeating: post, count: clampedScore)
             }
             let topPostIDs = Array(weightedPosts.shuffled().prefix(maxResults).map { $0.id })
+            
+            DevLogger.shared.log("fetchHotPostIDs - 4 - selected \(topPostIDs.count) post IDs for final fetch")
+            
             let topPosts = await fetchPostWrappersByID(for: topPostIDs)
+            
+            DevLogger.shared.log("fetchHotPostIDs - 5 - final result: \(topPosts.count) posts")
+            
             return topPosts
         } catch {
             DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - Error during processing \(error)")
@@ -543,6 +614,15 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             DevLogger.shared.log("performAuthenticatedRequest - General error: \(error)")
         }
         return nil
+    }
+}
+
+// MARK: - Helper Extensions
+extension Array {
+    func batched(size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
     }
 }
 

@@ -169,7 +169,8 @@ Uses `AppRouter` with three navigation layers:
 Comprehensive AT Protocol client featuring:
 - Authentication with handle/app-password and auto-retry
 - Timeline operations with cursor-based pagination
-- **Hot Posts Algorithm**: Intelligent content discovery via social network analysis
+- **Hot Posts Algorithm**: Optimized content discovery (6-7s, fresh content only)
+- **Batch Processing**: Handles 25-post API limits efficiently
 - Smart caching with background refresh capabilities
 - Robust error handling including automatic token refresh
 
@@ -284,9 +285,13 @@ Views/
 ## Notable Implementation Details
 
 ### Hot Posts Algorithm
-Sophisticated content discovery system that:
-- Analyzes user's social network (followers/following relationships)
-- Scores posts based on engagement metrics and social relevance
+Optimized content discovery system that:
+- Analyzes user's social network (2-hop followers/following exploration)
+- **Fresh Content Focus**: Hard 7-day time limit eliminates old posts
+- **Exponential Time Decay**: 2-day half-life favors recent content
+- **Quality Filtering**: Score threshold (≥3) ensures engagement quality
+- **Performance Optimized**: 6-7 second execution time
+- **Batch Processing**: Handles API limits with 25-post batches
 - Uses weighted random sampling to ensure content diversity
 - Implements background caching for optimal performance
 
@@ -297,10 +302,13 @@ Sophisticated content discovery system that:
 - Support for Bluesky app passwords (not main account passwords)
 
 ### Timeline Management
+- **Infinity Scroll**: Smooth batch loading with background preparation
+- **ComputedTimeline**: AI-powered hot posts with 6-7s generation time
 - Cursor-based pagination for infinite scroll behavior
 - Duplicate prevention via URI tracking
 - Efficient SwiftData storage with relationship prefetching
 - Smart refresh strategies (incremental vs full refresh)
+- **Session-level caching**: Preserves timeline state across navigation
 
 ## Development Workflow
 
