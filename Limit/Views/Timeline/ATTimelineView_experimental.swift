@@ -19,6 +19,7 @@ struct ATTimelineView_experimental: View {
     @Environment(TimelineFeed.self) private var feed
     @Environment(CurrentUser.self) private var currentUser
     @Environment(AppRouter.self) private var router
+    @Environment(ComputedTimelineFeed.self) private var computedFeed
 
     enum ViewState {
         case loading
@@ -224,7 +225,7 @@ struct ATTimelineView_experimental: View {
                 }
             }
             .task {
-                client.prepareHotPostCacheInBackground()
+                computedFeed.prepareSessionCacheInBackground(client: client)
             }
         case .content(let source):
             ListTimelineView(source: source)

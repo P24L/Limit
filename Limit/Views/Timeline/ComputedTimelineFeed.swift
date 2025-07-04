@@ -18,6 +18,10 @@ final class ComputedTimelineFeed {
     private(set) var error: Error?
     private(set) var lastLoadTime: Date?
     
+    // MARK: - Batch loading for infinity scroll
+    private(set) var nextBatchPosts: [TimelinePostWrapper] = []
+    private(set) var isPreparingNextBatch = false
+    
     // Track if we've loaded posts in this session to avoid unnecessary reloads
     private var hasLoadedInSession = false
     
@@ -64,7 +68,8 @@ final class ComputedTimelineFeed {
             DevLogger.shared.log("ComputedTimelineFeed - loadPosts - stored in session cache")
         }
         
-        DevLogger.shared.log("ComputedTimelineFeed - loadPosts - loaded \(result.count) posts")
+        // Start preparing next batch after loading initial posts
+        prepareNextBatch(client: client)
         
         isLoading = false
     }
@@ -93,7 +98,8 @@ final class ComputedTimelineFeed {
         // Start background refresh for next time
         client.prepareHotPostCacheInBackground()
         
-        DevLogger.shared.log("ComputedTimelineFeed - fastRefresh - loaded \(result.count) posts")
+        // Start preparing next batch after refresh
+        prepareNextBatch(client: client)
         
         isLoading = false
     }
@@ -123,14 +129,96 @@ final class ComputedTimelineFeed {
         sessionCachedPosts = result
         sessionCacheValid = true
         
-        DevLogger.shared.log("ComputedTimelineFeed - refresh - refreshed with \(result.count) posts")
+        // Start preparing next batch after refresh
+        prepareNextBatch(client: client)
         
         isLoading = false
+    }
+    
+    /// Prepares the session cache in background without blocking UI
+    func prepareSessionCacheInBackground(client: BlueskyClient) {
+        // Don't start another background task if we already have valid cache
+        guard !sessionCacheValid || sessionCachedPosts.isEmpty else {
+            DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - cache already valid")
+            return
+        }
+        
+        // Don't start if already loading
+        guard !isLoading else {
+            DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - already loading")
+            return
+        }
+        
+        DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - starting background preparation")
+        
+        Task.detached { [weak self] in
+            guard let self else { return }
+            
+            await client.login()
+            let result = await client.getCachedOrRefreshHotPosts()
+            
+            await MainActor.run {
+                // Only update if we don't have valid cache yet
+                if !self.sessionCacheValid || self.sessionCachedPosts.isEmpty {
+                    self.sessionCachedPosts = result
+                    self.sessionCacheValid = true
+                    DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - cached \(result.count) posts")
+                }
+            }
+        }
+    }
+    
+    /// Loads more posts for infinity scroll - adds next batch and prepares another
+    func loadMorePosts(client: BlueskyClient) async {
+        guard !nextBatchPosts.isEmpty else {
+            // If no batch ready, start preparing one
+            prepareNextBatch(client: client)
+            return
+        }
+        
+        // Add prepared posts to main list
+        posts.append(contentsOf: nextBatchPosts)
+        
+        // Clear the next batch
+        nextBatchPosts = []
+        
+        // Start preparing another batch
+        prepareNextBatch(client: client)
+    }
+    
+    /// Prepares next batch of posts in background for infinity scroll
+    private func prepareNextBatch(client: BlueskyClient) {
+        // Don't start if already preparing
+        guard !isPreparingNextBatch else { return }
+        
+        // Don't prepare if we already have next batch ready
+        guard nextBatchPosts.isEmpty else { return }
+        
+        // Set preparing state synchronously so UI can react immediately
+        isPreparingNextBatch = true
+        
+        Task.detached { [weak self] in
+            guard let self else { return }
+            
+            await client.login()
+            // Generate fresh hot posts instead of using cached ones
+            let result = await client.fetchHotPosts()
+            
+            await MainActor.run {
+                // Only update if we don't have next batch yet
+                if self.nextBatchPosts.isEmpty {
+                    self.nextBatchPosts = result
+                }
+                self.isPreparingNextBatch = false
+            }
+        }
     }
     
     /// Clears the session state (call when user logs out or app starts fresh)
     func clearSession() {
         posts = []
+        nextBatchPosts = []
+        isPreparingNextBatch = false
         hasLoadedInSession = false
         lastLoadTime = nil
         error = nil

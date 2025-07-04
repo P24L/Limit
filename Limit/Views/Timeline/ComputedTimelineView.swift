@@ -55,6 +55,25 @@ struct ComputedTimelineView: View {
                                     PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline)
                                         .id(post.id)
                                 }
+                                
+                                // Infinity scroll trigger and loading indicator
+                                if feed.isPreparingNextBatch {
+                                    VStack {
+                                        ProgressView("Loading more posts...")
+                                            .foregroundColor(.secondary)
+                                            .padding()
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                } else {
+                                    // Invisible trigger that loads more when it appears
+                                    Color.clear
+                                        .frame(height: 20)
+                                        .onAppear {
+                                            Task {
+                                                await feed.loadMorePosts(client: client)
+                                            }
+                                        }
+                                }
                             }
                             .padding(.top, 0)
                             .animation(.smooth, value: isTopbarHidden)
