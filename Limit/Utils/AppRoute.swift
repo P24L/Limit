@@ -52,7 +52,6 @@ enum Destination: DestinationType {
     case search
     case searchPosts(query: String)
     case postThreadWrapped(postThread: TimelinePostWrapper)
-    case postExplanation(postWrapper: TimelinePostWrapper)
     case safari(url: URL?)
     case favorites
     case settings
@@ -69,6 +68,7 @@ enum Sheet: SheetType {
     case none // nebo můžeš později přidat např. compose post apod.
     case login
     case fullScreenImage(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID)
+    case aiExplanation(postWrapper: TimelinePostWrapper)
     
     var id: Int { hashValue }
 }
