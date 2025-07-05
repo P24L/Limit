@@ -116,6 +116,13 @@ struct LimitApp: App {
                 feed.updateClient(client)
                 await currentUser.refreshProfile(client: client)
                 appState.setAuthenticated()
+                
+                // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
+                Task.detached { [weak computedFeed, weak client] in
+                    guard let computedFeed = computedFeed, let client = client else { return }
+                    try? await Task.sleep(for: .seconds(4))
+                    await computedFeed.prepareSessionCacheInBackground(client: client)
+                }
             }
         } else {
             computedFeed.clearSession()
@@ -128,6 +135,13 @@ struct LimitApp: App {
             feed.updateClient(client)
             await currentUser.refreshProfile(client: client)
             appState.setAuthenticated()
+            
+            // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
+            Task.detached { [weak computedFeed, weak client] in
+                guard let computedFeed = computedFeed, let client = client else { return }
+                try? await Task.sleep(for: .seconds(4))
+                await computedFeed.prepareSessionCacheInBackground(client: client)
+            }
         } else {
             computedFeed.clearSession()
         }
