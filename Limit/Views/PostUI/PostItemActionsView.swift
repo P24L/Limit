@@ -89,6 +89,15 @@ struct PostItemActionsView: View {
             .foregroundStyle(favoritesPost.isFavorited(postWrapper.uri) ? .mintAccent : .postAction)
             .monospacedDigit()
             
+            Button {
+                router.navigateTo(.postExplanation(postWrapper: postWrapper))
+            } label: {
+                Image(systemName: "brain")
+                    .font(.footnote)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.postAction)
+            
             /*
             if let linkExt = postWrapper.linkExt,
                let url = URL(string: linkExt.uri) {

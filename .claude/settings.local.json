@@ -17,7 +17,14 @@
       "mcp__XcodeBuildMCP__build_sim_id_proj",
       "mcp__XcodeBuildMCP__get_sim_app_path_id_proj",
       "mcp__XcodeBuildMCP__open_sim",
-      "mcp__XcodeBuildMCP__screenshot"
+      "mcp__XcodeBuildMCP__screenshot",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(firebase deploy:*)",
+      "mcp__XcodeBuildMCP__describe_ui",
+      "mcp__XcodeBuildMCP__tap",
+      "mcp__XcodeBuildMCP__type_text",
+      "Bash(firebase functions:log:*)"
     ],
     "deny": []
   }

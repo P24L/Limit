@@ -52,6 +52,7 @@ enum Destination: DestinationType {
     case search
     case searchPosts(query: String)
     case postThreadWrapped(postThread: TimelinePostWrapper)
+    case postExplanation(postWrapper: TimelinePostWrapper)
     case safari(url: URL?)
     case favorites
     case settings

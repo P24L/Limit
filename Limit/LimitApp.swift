@@ -10,6 +10,7 @@ import KeychainSwift
 import Observation
 import SwiftUI
 import SwiftData
+import FirebaseCore
 
 
 @Observable
@@ -47,6 +48,7 @@ struct LimitApp: App {
     @State private var feed: TimelineFeed
     @State private var computedFeed = ComputedTimelineFeed()
     @State private var currentUser = CurrentUser()
+    @State private var aiService = AIService()
     
     let container: ModelContainer = {
         let config = ModelConfiguration(
@@ -93,6 +95,7 @@ struct LimitApp: App {
                         .environment(computedFeed)
                         .environment(currentUser)
                         .environment(appState)
+                        .environment(aiService)
                 }
             }
             .task {
@@ -100,6 +103,7 @@ struct LimitApp: App {
             }
         }
     }
+    
     
     private func tryAutoLogin() async {
         let keychain = KeychainSwift()
