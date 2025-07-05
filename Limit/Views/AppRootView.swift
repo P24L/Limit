@@ -77,8 +77,6 @@ struct AppRootView: View {
             SearchTabView(initialQuery: query, initialMode: .posts)
         case .postThreadWrapped(let postThread):
             ThreadWrappedView(postThread: postThread)
-        case .postExplanation(let postWrapper):
-            PostExplanationView(postWrapper: postWrapper)
         case .safari(let url):
             SafariTabView(safariURL: url)
         case .favorites:
@@ -108,7 +106,10 @@ struct AppRootView: View {
             LoginTabView(
                 onDismiss: { router.presentedSheet = nil }
             )
-            
+        case .aiExplanation(let postWrapper):
+            AIExplanationBottomSheet(postWrapper: postWrapper)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.hidden)
         }
     }
 }

@@ -90,7 +90,7 @@ struct PostItemActionsView: View {
             .monospacedDigit()
             
             Button {
-                router.navigateTo(.postExplanation(postWrapper: postWrapper))
+                router.presentedSheet = .aiExplanation(postWrapper: postWrapper)
             } label: {
                 Image(systemName: "brain")
                     .font(.footnote)
