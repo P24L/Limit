@@ -136,34 +136,36 @@ final class ComputedTimelineFeed {
     }
     
     /// Prepares the session cache in background without blocking UI
-    func prepareSessionCacheInBackground(client: BlueskyClient) {
-        // Don't start another background task if we already have valid cache
-        guard !sessionCacheValid || sessionCachedPosts.isEmpty else {
-            DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - cache already valid")
-            return
+    func prepareSessionCacheInBackground(client: BlueskyClient) async {
+        // Check cache state on main actor
+        let shouldProceed = await MainActor.run {
+            // Don't start another background task if we already have valid cache
+            guard !sessionCacheValid || sessionCachedPosts.isEmpty else {
+                DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - cache already valid")
+                return false
+            }
+            
+            // Don't start if already loading
+            guard !isLoading else {
+                DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - already loading")
+                return false
+            }
+            
+            DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - starting background preparation")
+            return true
         }
         
-        // Don't start if already loading
-        guard !isLoading else {
-            DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - already loading")
-            return
-        }
+        guard shouldProceed else { return }
         
-        DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - starting background preparation")
+        await client.login()
+        let result = await client.getCachedOrRefreshHotPosts()
         
-        Task.detached { [weak self] in
-            guard let self else { return }
-            
-            await client.login()
-            let result = await client.getCachedOrRefreshHotPosts()
-            
-            await MainActor.run {
-                // Only update if we don't have valid cache yet
-                if !self.sessionCacheValid || self.sessionCachedPosts.isEmpty {
-                    self.sessionCachedPosts = result
-                    self.sessionCacheValid = true
-                    DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - cached \(result.count) posts")
-                }
+        await MainActor.run {
+            // Only update if we don't have valid cache yet
+            if !self.sessionCacheValid || self.sessionCachedPosts.isEmpty {
+                self.sessionCachedPosts = result
+                self.sessionCacheValid = true
+                DevLogger.shared.log("ComputedTimelineFeed - prepareSessionCacheInBackground - cached \(result.count) posts")
             }
         }
     }

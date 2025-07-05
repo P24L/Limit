@@ -224,9 +224,6 @@ struct ATTimelineView_experimental: View {
                     viewState = .posts(feed.postTimeline)
                 }
             }
-            .task {
-                computedFeed.prepareSessionCacheInBackground(client: client)
-            }
         case .content(let source):
             ListTimelineView(source: source)
         }

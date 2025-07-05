@@ -211,17 +211,17 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     /// Returns wrapped TimelinePostWrapper directly from API for given post IDs, without saving to SwiftData.
     /// Use only for in-memory usage in ComputedTimeline or during prototyping.
     /// Uses batch processing to handle API limit of 25 posts per call.
-    @MainActor
-    func fetchPostWrappersByID(for ids: [String]) async -> [TimelinePostWrapper] {
-        guard let client = protoClient else {
+    nonisolated func fetchPostWrappersByID(for ids: [String]) async -> [TimelinePostWrapper] {
+        let client = await MainActor.run { protoClient }
+        guard let client = client else {
             DevLogger.shared.log("BlueskyClient.swift - fetchPostWrappersByID - no protoClient")
             return []
         }
         
         guard !ids.isEmpty else { return [] }
         
-        isLoading = true
-        defer { isLoading = false }
+        await MainActor.run { isLoading = true }
+        defer { Task { await MainActor.run { self.isLoading = false } } }
         
         // Split IDs into batches of 25 (API limit)
         let batches = ids.batched(size: 25)
@@ -325,14 +325,18 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         }
     }
     
-    func fetchHotPosts(
+    nonisolated func fetchHotPosts(
         within timeInterval: TimeInterval = 86400, // last 24 hours (was 10h)
         maxResults: Int = 150,
         sampleAccountsCount: Int = 75, // reduced from 150 for speed
         postsPerAccount: Int = 50 // reduced from 75 for speed
     ) async -> [TimelinePostWrapper] {
         
-        guard isAuthenticated else { return []}
+        let (authenticated, myDID, protoClient) = await MainActor.run {
+            (isAuthenticated, currentDID, self.protoClient)
+        }
+        
+        guard authenticated else { return []}
 
         struct ScoredPost {
             let id: String
@@ -347,7 +351,7 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         let maxFollowersPerUser = 50
         let secondHopSampleSize = 5  // reduced from 10 for faster 2nd hop
 
-        guard let myDID = currentDID else {
+        guard let myDID = myDID else {
             DevLogger.shared.log("BlueskyClient.swift - fetchHotPostIDs - No currentDID available")
             return []
         }
@@ -455,10 +459,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                                 
                                 localPosts.append(ScoredPost(id: post.id, createdAt: post.post.indexedAt, score: finalScore))
                             }
-                            // Debug log when we get few posts from an account
-                            if localPosts.count < postCount / 2 {
-                                DevLogger.shared.log("fetchHotPostIDs - low yield: \(localPosts.count)/\(postCount) posts from account")
-                            }
                         } catch {
                             DevLogger.shared.log("fetchHotPostIDs - error for feed \(accountDID): \(error)")
                             if let profile = try? await protoClient.getProfile(for: accountDID) {
@@ -527,36 +527,43 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         }
     }
     
-    func getCachedOrRefreshHotPosts(
+    nonisolated func getCachedOrRefreshHotPosts(
         within timeInterval: TimeInterval = 36000,
         maxAge: TimeInterval = 600
     ) async -> [TimelinePostWrapper] {
-        guard isAuthenticated else { return []}
+        let (authenticated, timestamp, cached, refreshing) = await MainActor.run {
+            (isAuthenticated, hotPostIDsTimestamp, cachedHotPosts, isRefreshingHotPosts)
+        }
+        
+        guard authenticated else { return []}
 
         let now = Date()
 
-        if now.timeIntervalSince(hotPostIDsTimestamp) < maxAge {
+        if now.timeIntervalSince(timestamp) < maxAge {
             DevLogger.shared.log("getCachedOrRefreshHotPostIDs - returning cached result")
 
-            if !isRefreshingHotPosts {
-                isRefreshingHotPosts = true
+            if !refreshing {
+                await MainActor.run { isRefreshingHotPosts = true }
                 Task.detached { [weak self] in
                     guard let self else { return }
                     await self.prepareFreshHotPostsCache(timeInterval: timeInterval)
                 }
             }
-            return cachedHotPosts
+            return cached
         }
 
         DevLogger.shared.log("getCachedOrRefreshHotPostIDs - cache expired, fetching fresh")
-        isRefreshingHotPosts = true
+        await MainActor.run { isRefreshingHotPosts = true }
         let fresh = await fetchHotPosts(within: timeInterval)
-        cachedHotPosts = fresh
-        hotPostIDsTimestamp = Date()
-        isRefreshingHotPosts = false
+        await MainActor.run {
+            cachedHotPosts = fresh
+            hotPostIDsTimestamp = Date()
+            isRefreshingHotPosts = false
+        }
 
-        if !isRefreshingHotPosts {
-            isRefreshingHotPosts = true
+        let stillRefreshing = await MainActor.run { isRefreshingHotPosts }
+        if !stillRefreshing {
+            await MainActor.run { isRefreshingHotPosts = true }
             Task.detached { [weak self] in
                 guard let self else { return }
                 await self.prepareFreshHotPostsCache(timeInterval: timeInterval)
