@@ -26,8 +26,7 @@ struct SafariView: UIViewControllerRepresentable {
 
 struct CustomWebView: UIViewRepresentable {
     let initialURL: URL
-    
-    @Binding var webView: WKWebView
+    let webView: WKWebView
     @Binding var title: String?
     @ObservedObject var webState: WebViewState
 
@@ -83,7 +82,7 @@ struct CustomWebViewContainer: View {
     // Toolbar nahoře nebo dole
     private let toolbarAtTop = false
 
-    @State private var webView = WKWebView()
+    @State private var webView: WKWebView?
     @State private var showToolbar = true
     @State private var isCollapsed = true
     @Environment(\.dismiss) private var dismiss
@@ -96,33 +95,30 @@ struct CustomWebViewContainer: View {
     @State var url: URL?
     @State private var title: String? = nil
     @State private var id: UUID = UUID()
+    @State private var hideToolbarWorkItem: DispatchWorkItem?
     
     //SwiftData
     @Environment(\.modelContext) var context
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            CustomWebView(
-                initialURL: url ?? URL(string: "about:blank")!,
-                webView: $webView,
-                title: $title,
-                webState: webState
-            )
-            .id(id)
-            .onAppear {
+            if let webView = webView {
+                CustomWebView(
+                    initialURL: url ?? URL(string: "about:blank")!,
+                    webView: webView,
+                    title: $title,
+                    webState: webState
+                )
+                .id(id)
+            } else {
+                ProgressView("Loading...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
             }
-            .onChange(of: url) { oldValue, newValue in
-                guard let newURL = newValue else { return }
-                webView.load(URLRequest(url: newURL))
-                id = UUID()
-            }
-            .onChange(of: webState.currentURL) { oldValue, newValue in
-            }
-        
 
             if showToolbar {
                 HStack {
-                    if let currentURL = webView.url {
+                    if let webView = webView, let currentURL = webView.url {
                         Button {
                             Task {
                                 if favorites.isFavorited(currentURL) {
@@ -158,7 +154,7 @@ struct CustomWebViewContainer: View {
                         .transition(.move(edge: .trailing))
                     } else {
                         HStack {
-                            if showBack {
+                            if showBack, let webView = webView {
                                 Button(action: { webView.goBack() }) {
                                     Image(systemName: "chevron.backward")
                                         .imageScale(.large)
@@ -167,7 +163,7 @@ struct CustomWebViewContainer: View {
                                 .disabled(!webView.canGoBack)
                             }
                             
-                            if showForward {
+                            if showForward, let webView = webView {
                                 Button(action: { webView.goForward() }) {
                                     Image(systemName: "chevron.forward")
                                         .imageScale(.large)
@@ -176,7 +172,7 @@ struct CustomWebViewContainer: View {
                                 .disabled(!webView.canGoForward)
                             }
                             
-                            if showReload {
+                            if showReload, let webView = webView {
                                 Button(action: { webView.reload() }) {
                                     Image(systemName: "arrow.clockwise")
                                         .imageScale(.large)
@@ -184,7 +180,7 @@ struct CustomWebViewContainer: View {
                                 }
                             }
                             
-                            if showShare {
+                            if showShare, let webView = webView {
                                 Button(action: {
                                     guard let url = webView.url else { return }
                                     let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
@@ -200,7 +196,7 @@ struct CustomWebViewContainer: View {
                                 }
                             }
                             
-                            if showOpenInSafari {
+                            if showOpenInSafari, let webView = webView {
                                 Button(action: {
                                     guard let url = webView.url else { return }
                                     UIApplication.shared.open(url)
@@ -233,10 +229,21 @@ struct CustomWebViewContainer: View {
                 .animation(.default, value: isCollapsed)
             }
         }
+        .onAppear {
+            if webView == nil {
+                Task { @MainActor in
+                    webView = WKWebView()
+                }
+            }
+        }
+        .onChange(of: url) { oldValue, newValue in
+            guard let newURL = newValue, let webView = webView else { return }
+            webView.load(URLRequest(url: newURL))
+            id = UUID()
+        }
+        .onChange(of: webState.currentURL) { oldValue, newValue in
+        }
     }
-
-
-    @State private var hideToolbarWorkItem: DispatchWorkItem?
 
     private func restartToolbarHideTimer() {
         hideToolbarWorkItem?.cancel()
