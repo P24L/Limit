@@ -20,6 +20,7 @@ class NavigationState {
 }
 
 enum AppStateValue: Sendable {
+    case loading
     case unauthenticated
     case authenticated
 }
@@ -27,7 +28,7 @@ enum AppStateValue: Sendable {
 @Observable
 @MainActor
 class AppState {
-    var value: AppStateValue = .unauthenticated
+    var value: AppStateValue = .loading
     
     func setAuthenticated() {
         value = .authenticated
@@ -75,15 +76,20 @@ struct LimitApp: App {
         WindowGroup {
             Group {
                 switch appState.value {
+                case .loading:
+                    LoadingScreenView()
+                        .environment(client)
+                        .environment(currentUser)
+                        .environment(appState)
+                        .environment(feed)
+                        .environment(computedFeed)
                 case .unauthenticated:
-                    LoadingScreenView {
-                        Task {
-                            await handleLoginSuccess()
-                        }
-                    }
-                    .environment(client)
-                    .environment(currentUser)
-                    .environment(appState)
+                    LoadingScreenView()
+                        .environment(client)
+                        .environment(currentUser)
+                        .environment(appState)
+                        .environment(feed)
+                        .environment(computedFeed)
                 case .authenticated:
                     AppRootView()
                         .environment(client)

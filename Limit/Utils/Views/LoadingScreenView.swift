@@ -9,8 +9,11 @@ import SwiftUI
 
 struct LoadingScreenView: View {
     @Environment(BlueskyClient.self) private var client
+    @Environment(AppState.self) private var appState
+    @Environment(TimelineFeed.self) private var feed
+    @Environment(CurrentUser.self) private var currentUser
+    @Environment(ComputedTimelineFeed.self) private var computedFeed
     @State private var showLogin = false
-    let onLoginSuccess: () -> Void
     
     var body: some View {
         VStack {
@@ -21,24 +24,39 @@ struct LoadingScreenView: View {
                 .font(.largeTitle)
                 .fontWeight(.semibold)
         }
+        .onChange(of: appState.value) { _, newValue in
+            if newValue == .unauthenticated {
+                showLogin = true
+            }
+        }
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                if !client.isAuthenticated {
-                    showLogin = true
-                }
+            if appState.value == .unauthenticated {
+                showLogin = true
             }
         }
         .sheet(isPresented: $showLogin) {
             LoginTabView {
                 showLogin = false
-                onLoginSuccess()
+                Task {
+                    await handleLoginSuccess()
+                }
+            }
+        }
+    }
+    
+    private func handleLoginSuccess() async {
+        if client.isAuthenticated {
+            feed.updateClient(client)
+            await currentUser.refreshProfile(client: client)
+            appState.setAuthenticated()
+            
+            // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
+            Task.detached { [weak computedFeed, weak client] in
+                guard let computedFeed = computedFeed, let client = client else { return }
+                try? await Task.sleep(for: .seconds(4))
+                await computedFeed.prepareSessionCacheInBackground(client: client)
             }
         }
     }
 }
 
-#Preview {
-    LoadingScreenView {
-        print("Login success")
-    }
-}
