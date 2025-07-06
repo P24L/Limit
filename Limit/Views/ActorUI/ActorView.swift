@@ -69,9 +69,9 @@ struct UserProfileView: View {
 
           switch selectedSection {
           case .posts:
-            PostsSectionView(posts: actorWrapped.posts)
+            PostsSectionView(posts: actorWrapped.posts, isLoading: actorWrapped.isLoadingPosts)
           case .likes:
-            PostsSectionView(posts: actorWrapped.likedPosts)
+            PostsSectionView(posts: actorWrapped.likedPosts, isLoading: actorWrapped.isLoadingLikes)
           case .followers:
             FollowersSectionView(
               actorWrapper: actorWrapped,
@@ -83,9 +83,9 @@ struct UserProfileView: View {
               sectionType: .followees
             )
           case .lists:
-            ListsSectionView(lists: actorWrapped.lists)
+            ListsSectionView(lists: actorWrapped.lists, isLoading: actorWrapped.isLoadingLists)
           case .feeds:
-            FeedsSectionView(feeds: actorWrapped.feedGenerators)
+            FeedsSectionView(feeds: actorWrapped.feedGenerators, isLoading: actorWrapped.isLoadingFeeds)
           }
         }
       }
@@ -222,12 +222,24 @@ struct UserProfileView: View {
 
 struct PostsSectionView: View {
   let posts: [TimelinePostWrapper]
+  let isLoading: Bool
 
   var body: some View {
     LazyVStack(spacing: 0) {
-      ForEach(posts, id: \.id) { post in
-        PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline)
-          .id(post.id)
+      if isLoading && posts.isEmpty {
+        HStack {
+          ProgressView()
+            .scaleEffect(0.8)
+          Text("Loading posts...")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+        .padding()
+      } else {
+        ForEach(posts, id: \.id) { post in
+          PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline)
+            .id(post.id)
+        }
       }
     }
     .padding(.horizontal, 12)
@@ -256,37 +268,57 @@ struct FollowersSectionView: View {
     }
   }
 
+  private var isInitialLoading: Bool {
+    switch sectionType {
+    case .followers:
+      return actorWrapper.isLoadingFollowers
+    case .followees:
+      return actorWrapper.isLoadingFollowees
+    }
+  }
+
   var body: some View {
     LazyVStack(spacing: 12) {
-      ForEach(Array(followers.enumerated()), id: \.element.actorDID) { index, follower in
-        FollowerItemView(
-          profile: follower,
-          followingURI: follower.viewer?.followingURI
-        )
-        .onAppear {
-          // Detekce konce seznamu pro načtení dalších položek
-          // Načítáme další data, když se zobrazí předposlední item
-          if index >= followers.count - 2 && !isLoadingMore && hasMoreData
-            && followers.count > lastFollowersCount
-          {
-            lastFollowersCount = followers.count
-            Task {
-              await loadMoreData()
-            }
-          }
-        }
-      }
-
-      // Loading indicator na konci
-      if isLoadingMore {
+      if isInitialLoading && followers.isEmpty {
         HStack {
           ProgressView()
             .scaleEffect(0.8)
-          Text("Loading more...")
+          Text("Loading \(sectionType == .followers ? "followers" : "followees")...")
             .font(.caption)
             .foregroundColor(.secondary)
         }
         .padding()
+      } else {
+        ForEach(Array(followers.enumerated()), id: \.element.actorDID) { index, follower in
+          FollowerItemView(
+            profile: follower,
+            followingURI: follower.viewer?.followingURI
+          )
+          .onAppear {
+            // Detekce konce seznamu pro načtení dalších položek
+            // Načítáme další data, když se zobrazí předposlední item
+            if index >= followers.count - 2 && !isLoadingMore && hasMoreData
+              && followers.count > lastFollowersCount
+            {
+              lastFollowersCount = followers.count
+              Task {
+                await loadMoreData()
+              }
+            }
+          }
+        }
+
+        // Loading indicator na konci
+        if isLoadingMore {
+          HStack {
+            ProgressView()
+              .scaleEffect(0.8)
+            Text("Loading more...")
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
+          .padding()
+        }
       }
     }
     .padding(.horizontal)
@@ -341,6 +373,9 @@ struct FollowerItemView: View {
               .font(.caption)
               .foregroundColor(.secondary)
           }
+          .onTapGesture {
+            router.navigateTo(.actor(userID: profile.actorDID))
+          }
           Spacer()
           Button {
             Task {
@@ -384,11 +419,23 @@ struct FollowerItemView: View {
 
 struct ListsSectionView: View {
   let lists: [AppBskyLexicon.Graph.ListViewDefinition]
+  let isLoading: Bool
 
   var body: some View {
     LazyVStack(spacing: 12) {
-      ForEach(lists, id: \.uri) { list in
-        ListItemView(list: list)
+      if isLoading && lists.isEmpty {
+        HStack {
+          ProgressView()
+            .scaleEffect(0.8)
+          Text("Loading lists...")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+        .padding()
+      } else {
+        ForEach(lists, id: \.uri) { list in
+          ListItemView(list: list)
+        }
       }
     }
     .padding(.horizontal)
@@ -439,11 +486,23 @@ struct ListItemView: View {
 
 struct FeedsSectionView: View {
   let feeds: [AppBskyLexicon.Feed.GeneratorViewDefinition]
+  let isLoading: Bool
 
   var body: some View {
     LazyVStack(spacing: 12) {
-      ForEach(feeds, id: \.cid) { feed in
-        FeedItemView(feed: feed)
+      if isLoading && feeds.isEmpty {
+        HStack {
+          ProgressView()
+            .scaleEffect(0.8)
+          Text("Loading feeds...")
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+        .padding()
+      } else {
+        ForEach(feeds, id: \.cid) { feed in
+          FeedItemView(feed: feed)
+        }
       }
     }
     .padding(.horizontal)

@@ -35,7 +35,7 @@ struct EmbeddedVideoView: View {
                     DispatchQueue.main.async {
                         do {
                             let session = AVAudioSession.sharedInstance()
-                            try session.setCategory(.ambient, mode: .moviePlayback, options: [.mixWithOthers])
+                            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
                             try session.setActive(true)
                         } catch {
                             DevLogger.shared.log("VideoPlayerView.swift - Error setting audio session category: \(error.localizedDescription)")
