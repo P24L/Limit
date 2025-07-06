@@ -12,6 +12,7 @@ import WebKit
 
 class WebViewState: ObservableObject {
     @Published var currentURL: URL?
+    @Published var isLoading = false
 }
 
 struct SafariView: UIViewControllerRepresentable {
@@ -54,9 +55,26 @@ struct CustomWebView: UIViewRepresentable {
             self.webState = webState
         }
 
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            webState.isLoading = true
+        }
+        
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            webState.isLoading = false  // Skryje loading jakmile je stránka použitelná
+        }
+        
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             title = webView.title
             webState.currentURL = webView.url
+            webState.isLoading = false  // Fallback pro případ že didCommit se nespustí
+        }
+        
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            webState.isLoading = false
+        }
+        
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            webState.isLoading = false
         }
         
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
@@ -103,13 +121,26 @@ struct CustomWebViewContainer: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             if let webView = webView {
-                CustomWebView(
-                    initialURL: url ?? URL(string: "about:blank")!,
-                    webView: webView,
-                    title: $title,
-                    webState: webState
-                )
-                .id(id)
+                ZStack {
+                    CustomWebView(
+                        initialURL: url ?? URL(string: "about:blank")!,
+                        webView: webView,
+                        title: $title,
+                        webState: webState
+                    )
+                    .id(id)
+                    
+                    if webState.isLoading {
+                        Color(.systemBackground)
+                            .opacity(0.8)
+                            .overlay(
+                                ProgressView("Loading...")
+                                    .padding()
+                                    .background(.ultraThinMaterial)
+                                    .cornerRadius(8)
+                            )
+                    }
+                }
             } else {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -9,17 +9,22 @@ import Foundation
 import LinkPresentation
 import SwiftData
 
-@MainActor
 @Observable
 final class LinkMetadataService {
     static let shared = LinkMetadataService()
     
-    private var context: ModelContext?
+    private var _context: ModelContext?
+    
+    var context: ModelContext? {
+        return _context
+    }
     
     private init() {}
     
     func configure(context: ModelContext) {
-        self.context = context
+        Task { @MainActor in
+            self._context = context
+        }
     }
     
     /// Fetches link metadata and updates PostFacet in database
@@ -31,26 +36,26 @@ final class LinkMetadataService {
             return
         }
         
-        DevLogger.shared.log("LinkMetadataService - Fetching metadata for: \(uri)")
-        
         do {
             // Create new provider for each request - LPMetadataProvider is one-shot
             let metadataProvider = LPMetadataProvider()
-            let metadata = try await metadataProvider.startFetchingMetadata(for: url)
+            
+            // Add timeout to prevent hanging
+            let metadata = try await withTimeout(seconds: 10) {
+                try await metadataProvider.startFetchingMetadata(for: url)
+            }
             
             // Update facet with metadata
             await updateFacet(facet, with: metadata)
             
-        } catch {
-            DevLogger.shared.log("LinkMetadataService - Failed to fetch metadata: \(error.localizedDescription)")
-            
+        } catch {         
             // Mark as fetched even if failed to avoid repeated attempts
-            facet.metadataFetched = true
-            try? context?.save()
+            await markFacetAsAttempted(facet)
         }
     }
     
     /// Updates PostFacet with fetched metadata
+    @MainActor
     private func updateFacet(_ facet: PostFacet, with metadata: LPLinkMetadata) async {
         facet.title = metadata.title
         facet.linkDescription = nil // Will handle description later
@@ -66,11 +71,17 @@ final class LinkMetadataService {
         
         // Save to database
         do {
-            try context?.save()
-            DevLogger.shared.log("LinkMetadataService - Metadata saved for: \(facet.uri ?? "")")
+            try _context?.save()
         } catch {
             DevLogger.shared.log("LinkMetadataService - Failed to save metadata: \(error.localizedDescription)")
         }
+    }
+    
+    /// Marks a facet as attempted (failed or completed)
+    @MainActor
+    private func markFacetAsAttempted(_ facet: PostFacet) {
+        facet.metadataFetched = true
+        try? _context?.save()
     }
     
     /// Batch fetch metadata for multiple link facets
@@ -80,7 +91,7 @@ final class LinkMetadataService {
         }
         
         // Limit concurrent requests to avoid overwhelming the system
-        let batchSize = 3
+        let batchSize = 2  // Reduced to be more conservative
         for batch in linkFacets.chunked(into: batchSize) {
             await withTaskGroup(of: Void.self) { group in
                 for facet in batch {
@@ -89,6 +100,9 @@ final class LinkMetadataService {
                     }
                 }
             }
+            
+            // Small delay between batches to prevent overwhelming
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
         }
     }
     
@@ -101,12 +115,3 @@ final class LinkMetadataService {
     }
 }
 
-// MARK: - Array Extension for Chunking
-
-extension Array {
-    func chunked(into size: Int) -> [[Element]] {
-        return stride(from: 0, to: count, by: size).map {
-            Array(self[$0..<Swift.min($0 + size, count)])
-        }
-    }
-}

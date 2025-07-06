@@ -428,9 +428,16 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
       self.viewerIsEmbeddingDisabled = viewer.isEmbeddingDisabled ?? false
     }
 
-    // Background fetch metadata for link facets (non-blocking)
-    Task.detached { [weak self] in
-      await self?.fetchLinkMetadataInWrapper()
+    // Check if we need to fetch metadata for link facets
+    let hasUnfetchedLinks = self.facets?.links.contains { !$0.metadataFetched } ?? false
+    
+    if hasUnfetchedLinks {
+      // Background fetch metadata for link facets (non-blocking with delay)
+      Task.detached { [weak self] in
+        // Add small delay to prioritize main UI loading
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        await self?.fetchLinkMetadataInWrapper()
+      }
     }
   }
 
@@ -547,9 +554,16 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
       facets: facets
     )
 
-    // Background fetch metadata for link facets (non-blocking)
-    Task.detached { [weak self] in
-      await self?.fetchLinkMetadataInWrapper()
+    // Check if we need to fetch metadata for link facets
+    let hasUnfetchedLinks = self.facets?.links.contains { !$0.metadataFetched } ?? false
+    
+    if hasUnfetchedLinks {
+      // Background fetch metadata for link facets (non-blocking with delay)
+      Task.detached { [weak self] in
+        // Add small delay to prioritize main UI loading
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        await self?.fetchLinkMetadataInWrapper()
+      }
     }
   }
 
@@ -617,10 +631,17 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     self.repostedByDisplayName = model.repostedByDisplayName
     self.repostedByAvatarURL = model.repostedByAvatarURL
 
-    // Background fetch metadata for link facets if not already fetched (for SwiftData loaded posts)
-    Task.detached { [weak self] in
-      await self?.fetchLinkMetadataIfNeeded()
-    }
+    // Check if we need to fetch metadata for SwiftData loaded posts
+    let hasUnfetchedLinks = self.facets?.links.contains { !$0.metadataFetched } ?? false
+    
+    if hasUnfetchedLinks {
+      // Background fetch metadata for link facets if not already fetched (for SwiftData loaded posts)
+      Task.detached { [weak self] in
+        // Add delay for SwiftData loaded posts to avoid blocking initial rendering
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second for cached posts
+        await self?.fetchLinkMetadataIfNeeded()
+      }
+    } 
   }
 
   func toModel(context: ModelContext) -> TimelinePost {
@@ -680,63 +701,260 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
 
   // MARK: - Link Metadata Management
 
+// Global set to track URLs currently being fetched to prevent duplicates
+private actor URLFetchingTracker {
+  private var fetchingURLs: Set<String> = []
+  
+  func startFetching(_ url: String) -> Bool {
+    if fetchingURLs.contains(url) {
+      return false // Already being fetched
+    }
+    fetchingURLs.insert(url)
+    return true // Can proceed with fetch
+  }
+  
+  func completeFetching(_ url: String) {
+    fetchingURLs.remove(url)
+  }
+}
+
+private let urlTracker = URLFetchingTracker()
+
   /// Checks if any link facets need metadata and fetches them if necessary
   func fetchLinkMetadataIfNeeded() async {
-    guard let facets = self.facets else { return }
+    guard let facets = self.facets else { 
+      return 
+    }
 
     // Only fetch for links that haven't been fetched yet
     let needsMetadata = facets.links.contains { facet in
       !facet.metadataFetched
     }
 
+    await MainActor.run {
+      if needsMetadata {
+        let unprocessedLinks = facets.links.filter { !$0.metadataFetched }
+        let linkUrls = unprocessedLinks.compactMap { facet in
+          if case .link(let uri) = facet.data { return uri }
+          return nil
+        }
+      }
+    }
+
     if needsMetadata {
       await fetchLinkMetadataInWrapper()
+    } 
+  }
+
+  /// Loads metadata from SwiftData for link facets that already have it stored
+  @MainActor
+  private func loadMetadataFromSwiftData(facets: [ProcessedFacet]) async -> [ProcessedFacet] {
+    // Get the main context from LinkMetadataService
+    guard let context = LinkMetadataService.shared.context else {
+      return facets
+    }
+
+    var updatedFacets: [ProcessedFacet] = []
+    
+    for facet in facets {
+      var updatedFacet = facet
+      
+      // Only check link facets that don't have metadata yet
+      if case .link(let uri) = facet.data, !facet.metadataFetched {        
+        // Check if we have this URL in SwiftData
+        let descriptor = FetchDescriptor<PostFacet>(
+          predicate: #Predicate<PostFacet> { storedFacet in
+            storedFacet.uri == uri && storedFacet.metadataFetched == true
+          }
+        )
+        
+        do {
+          let results = try context.fetch(descriptor)
+          if let storedFacet = results.first {
+            // Found existing metadata in SwiftData, use it
+            updatedFacet.title = storedFacet.title
+            updatedFacet.thumbnailURL = storedFacet.thumbnailURL
+            updatedFacet.metadataFetched = true
+          } 
+        } catch {
+          DevLogger.shared.log("TimelinePostWrapper.swift - loadMetadataFromSwiftData: ERROR querying SwiftData for \(uri): \(error)")
+        }
+      }      
+      updatedFacets.append(updatedFacet)
+    }
+    return updatedFacets
+  }
+
+  /// Saves newly fetched metadata to SwiftData for future use
+  @MainActor
+  private func saveNewMetadataToSwiftData(updatedFacets: [ProcessedFacet]) async {
+    guard let context = LinkMetadataService.shared.context else { return }
+    
+    for facet in updatedFacets {
+      if case .link(let uri) = facet.data, facet.metadataFetched {
+        // Check if this facet already exists in SwiftData
+        let descriptor = FetchDescriptor<PostFacet>(
+          predicate: #Predicate<PostFacet> { storedFacet in
+            storedFacet.uri == uri
+          }
+        )
+        
+        if let existingFacet = try? context.fetch(descriptor).first {
+          // Update existing facet
+          existingFacet.title = facet.title
+          existingFacet.thumbnailURL = facet.thumbnailURL
+          existingFacet.metadataFetched = true
+        } else {
+          // Create new facet
+          let newFacet = PostFacet(
+            facetType: .link,
+            startIndex: facet.range.location,
+            endIndex: facet.range.location + facet.range.length,
+            uri: uri,
+            did: nil,
+            tag: nil,
+            handle: nil,
+            title: facet.title,
+            linkDescription: nil,
+            thumbnailURL: facet.thumbnailURL,
+            metadataFetched: true
+          )
+          context.insert(newFacet)
+        }
+      }
+    }
+    
+    do {
+      try context.save()
+    } catch {
+      DevLogger.shared.log("TimelinePostWrapper.swift - saveNewMetadataToSwiftData: Failed to save: \(error.localizedDescription)")
     }
   }
 
-  /// Fetches metadata for link facets directly in wrapper (background)
+  /// Fetches metadata for link facets using SwiftData-first approach
   func fetchLinkMetadataInWrapper() async {
-    guard let facets = self.facets else { return }
-
-    var updatedFacets: [ProcessedFacet] = []
-
-    for facet in facets.facets {
-      var updatedFacet = facet
-
-      // Only fetch for links that haven't been fetched yet
-      if case .link(let uri) = facet.data, !facet.metadataFetched {
-        guard let url = URL(string: uri) else {
-          updatedFacet.metadataFetched = true
-          updatedFacets.append(updatedFacet)
-          continue
-        }
-
-        do {
-          let metadataProvider = LPMetadataProvider()
-          let metadata = try await metadataProvider.startFetchingMetadata(for: url)
-
-          // Update facet with metadata
-          updatedFacet.title = metadata.title
-
-          // Handle thumbnail using Google Favicon Service
-          if let domain = url.host {
-            let googleFaviconAPI = "https://www.google.com/s2/favicons?domain=\(domain)&sz=256"
-            updatedFacet.thumbnailURL = googleFaviconAPI
-          }
-
-          updatedFacet.metadataFetched = true
-
-        } catch {
-          updatedFacet.metadataFetched = true  // Mark as attempted
-        }
-      }
-
-      updatedFacets.append(updatedFacet)
+    guard let facets = self.facets else { 
+      return 
     }
 
-    // Update facets with new metadata
-    let finalFacets = updatedFacets  // Capture before MainActor
+    let linkFacetsTotal = facets.facets.filter { facet in
+      if case .link = facet.data { return true }
+      return false
+    }.count
+
+    // First check SwiftData for existing metadata
+    let updatedFacetsFromData = await loadMetadataFromSwiftData(facets: facets.facets)
+    
+    // Filter only link facets that still need metadata fetching after SwiftData check
+    let linkFacetsToProcess = updatedFacetsFromData.filter { facet in
+      if case .link = facet.data, !facet.metadataFetched {
+        return true
+      }
+      return false
+    }
+
+    // If no facets need fetching, just update with SwiftData results
+    if linkFacetsToProcess.isEmpty {
+      await MainActor.run {
+        self.facets = PostFacets(facets: updatedFacetsFromData)
+      }
+      return
+    }
+
+    // Create a map to store newly fetched link facets by their URI
+    var updatedLinkFacets: [String: ProcessedFacet] = [:]
+
+    // Process link facets in batches with concurrency control
+    for (batchIndex, batch) in linkFacetsToProcess.chunked(into: 2).enumerated() {     
+      let batchResults = await withTaskGroup(of: (String, ProcessedFacet).self, returning: [(String, ProcessedFacet)].self) { group in
+        for facet in batch {
+          group.addTask {
+            var updatedFacet = facet
+            var facetKey = ""
+            
+            if case .link(let uri) = facet.data {
+              facetKey = uri             
+              guard let url = URL(string: uri) else {
+                updatedFacet.metadataFetched = true
+                return (facetKey, updatedFacet)
+              }
+
+              // Check if this URL is already being fetched to prevent duplicates
+              guard await self.urlTracker.startFetching(uri) else {
+                updatedFacet.metadataFetched = true // Mark as processed to avoid retry
+                return (facetKey, updatedFacet)
+              }
+
+              do {
+                let metadataProvider = LPMetadataProvider()
+                
+                // Add timeout to prevent hanging
+                let metadata = try await withTimeout(seconds: 8) {
+                  try await metadataProvider.startFetchingMetadata(for: url)
+                }
+
+                // Update facet with metadata
+                updatedFacet.title = metadata.title
+
+                // Handle thumbnail using Google Favicon Service
+                if let domain = url.host {
+                  let googleFaviconAPI = "https://www.google.com/s2/favicons?domain=\(domain)&sz=256"
+                  updatedFacet.thumbnailURL = googleFaviconAPI
+                }
+
+                updatedFacet.metadataFetched = true
+              } catch {
+                updatedFacet.metadataFetched = true  // Mark as attempted
+              }
+              
+              // Mark URL as no longer being fetched
+              await self.urlTracker.completeFetching(uri)
+            }
+            
+            return (facetKey, updatedFacet)
+          }
+        }
+        
+        var results: [(String, ProcessedFacet)] = []
+        for await (key, updatedFacet) in group {
+          results.append((key, updatedFacet))
+        }
+        return results
+      }
+      
+      // Store results in map
+      for (key, facet) in batchResults {
+        if !key.isEmpty {
+          updatedLinkFacets[key] = facet
+        }
+      }
+      
+      // Small delay between batches
+      try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+    }
+
+    let updatedCount = updatedLinkFacets.count
+
+    // Create final facets array combining SwiftData results with newly fetched data
+    let finalFacets = updatedFacetsFromData.map { facet in
+      // If this is a link facet that was newly updated, use the updated version
+      if case .link(let uri) = facet.data,
+         let updatedFacet = updatedLinkFacets[uri] {
+        return updatedFacet
+      }
+      // Otherwise, return the facet (which may already have SwiftData metadata)
+      return facet
+    }
+    
+    // Save newly fetched metadata to SwiftData for future use
+    await saveNewMetadataToSwiftData(updatedFacets: Array(updatedLinkFacets.values))
+
+    // Update facets with new metadata on main thread
     await MainActor.run {
+      let linkFacetsInFinal = finalFacets.filter { facet in
+        if case .link = facet.data { return true }
+        return false
+      }
       self.facets = PostFacets(facets: finalFacets)
     }
   }
@@ -793,6 +1011,42 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
 extension TimelinePostWrapper.ImageEmbed {
   func toDisplayImage() -> ImageDisplayData {
     ImageDisplayData(id: id, url: url, thumbURL: thumbURL, altText: altText)
+  }
+}
+
+// MARK: - Timeout Helper (local copy for TimelinePostWrapper)
+func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+    return try await withThrowingTaskGroup(of: T.self, returning: T.self) { group in
+        group.addTask {
+            try await operation()
+        }
+        
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            throw TimeoutError()
+        }
+        
+        guard let result = try await group.next() else {
+            throw TimeoutError()
+        }
+        
+        group.cancelAll()
+        return result
+    }
+}
+
+struct TimeoutError: Error, LocalizedError {
+    var errorDescription: String? {
+        return "Operation timed out"
+    }
+}
+
+// MARK: - Array Extension for Chunking (local copy for TimelinePostWrapper)
+extension Array {
+  func chunked(into size: Int) -> [[Element]] {
+    return stride(from: 0, to: count, by: size).map {
+      Array(self[$0..<Swift.min($0 + size, count)])
+    }
   }
 }
 
