@@ -164,6 +164,7 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    NavigationLink("View Logs", destination: LogViewer())
                     SwiftDataCountView()
                 }
             }

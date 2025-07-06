@@ -159,12 +159,71 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     }
     
     
-    // MARK: - fetchUserTimeline - AT Posts SINCE
+    // MARK: - fetchUserTimeline - AT Posts SINCE (Multi-URI approach)
+    func fetchTimeline(since knownURIs: Set<String>) async -> (posts: [AppBskyLexicon.Feed.FeedViewPostDefinition], cursor: String?) {
+        guard isAuthenticated, let client = protoClient else {
+            DevLogger.shared.log("BlueskyClient.swift - not authenticated - fetchUserTimeline since URIs")
+            return ([], nil)
+        }
+
+        DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - since URIs - Fetching timeline (checking \(knownURIs.count) known URIs)")
+
+        var allNewPosts: [AppBskyLexicon.Feed.FeedViewPostDefinition] = []
+        var cursor: String? = nil
+        var lastCursor: String? = nil
+
+        isLoading = true
+        defer { isLoading = false }
+
+        loop: for loopIndex in 0..<maxTimelineFetchLoops {
+            let result = await performAuthenticatedRequest {
+                try await client.getTimeline(limit: 100, cursor: cursor)
+            }
+            
+            guard let response = result else {
+                DevLogger.shared.log("BlueskyClient.swift - failed to get timeline response in loop \(loopIndex)")
+                break loop
+            }
+            
+            let feed = response.feed
+            if feed.isEmpty { break loop }
+
+            for post in feed {
+                // Found overlap with existing posts
+                if knownURIs.contains(post.post.uri) { 
+                    DevLogger.shared.log("BlueskyClient.swift - found known URI match in loop \(loopIndex), collected \(allNewPosts.count) new posts")
+                    break loop 
+                }
+                
+                // Add new post (avoid duplicates)
+                if !allNewPosts.contains(where: { $0.post.uri == post.post.uri }) {
+                    allNewPosts.append(post)
+                }
+            }
+
+            // Limit maximum fetched posts
+            if allNewPosts.count >= 1000 { break loop }
+
+            if let newCursor = response.cursor {
+                cursor = newCursor
+                lastCursor = newCursor
+            } else {
+                break loop
+            }
+        }
+        
+        DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline since URIs - completed with \(allNewPosts.count) new posts")
+        return (allNewPosts, lastCursor)
+    }
+
+    // MARK: - fetchUserTimeline - AT Posts SINCE (Legacy single URI - DEPRECATED)
     func fetchTimeline(since lastPost: String) async -> (posts: [AppBskyLexicon.Feed.FeedViewPostDefinition], cursor: String?) {
         guard isAuthenticated, let client = protoClient else {
             DevLogger.shared.log("BlueskyClient.swift - not authenticated - fetchUserTimeline since")
             return ([], nil)
         }
+
+        DevLogger.shared.log("BlueskyClient.swift - fetchUserTimeline - since - Fetching timeline")
 
         var allNewPosts: [AppBskyLexicon.Feed.FeedViewPostDefinition] = []
         var cursor: String? = nil

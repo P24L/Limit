@@ -12,17 +12,21 @@ struct LogViewer: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading) {
-                ForEach(logger.logs.indices, id: \.self) { i in
-                    Text(logger.logs[i])
-                        .font(.system(size: 12, design: .monospaced))
+            LazyVStack(alignment: .leading, spacing: 4) {
+                ForEach(logger.logs.reversed().indices, id: \.self) { i in
+                    Text(logger.logs.reversed()[i])
+                        .font(.system(size: 11, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 2)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.1))
+                        .cornerRadius(4)
                 }
-                .padding()
             }
+            .padding()
         }
-        .navigationTitle("Log")
+        .navigationTitle("Debug Logs")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem {
                 Button("Clear") {

@@ -155,6 +155,40 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     }
   }
 
+  // MARK: - Media Processing Helper
+  
+  private func processMediaUnion(_ media: AppBskyLexicon.Embed.RecordWithMediaDefinition.View.MediaUnion) {
+    switch media {
+    case .embedImagesView(let imagesView):
+      self.embeds = imagesView.images.map { image in
+        TimelinePostWrapper.ImageEmbed(
+          id: image.id,
+          url: image.fullSizeImageURL,
+          thumbURL: image.thumbnailImageURL,
+          altText: image.altText
+        )
+      }
+    case .embedExternalView(let externalView):
+      self.linkExt = TimelinePostWrapper.LinkEmbed(
+        desc: externalView.external.description,
+        thumbnailImageURL: externalView.external.thumbnailImageURL,
+        title: externalView.external.title,
+        uri: externalView.external.uri
+      )
+    case .embedVideoView(let videoView):
+      self.postVideo = TimelinePostWrapper.VideoEmbed(
+        id: videoView.id,
+        altText: videoView.altText,
+        playlistURI: videoView.playlistURI,
+        thumbImageURL: videoView.thumbnailImageURL,
+        height: videoView.aspectRatio?.height,
+        width: videoView.aspectRatio?.width
+      )
+    case .unknown:
+      break
+    }
+  }
+
   // MARK: - Facet Processing Helper
 
   private static func convertByteRangeToStringRange(text: String, byteStart: Int, byteEnd: Int)
@@ -376,9 +410,15 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     } else if case .embedRecordWithMediaView(let combo) = postView.embed,
       case .viewRecord(let quotedView) = combo.record.record
     {
+      // Process both the quoted record and the media
       self.quotedPost = TimelinePostWrapper(from: quotedView)
       self.quotedPost?.type = .quoted
+      
+      // Process the media component and add it to this post
+      self.processMediaUnion(combo.media)
     }
+
+    //Viewer
     if let viewer = postView.viewer {
       self.viewerLikeURI = viewer.likeURI
       self.viewerRepostURI = viewer.repostURI
@@ -917,14 +957,19 @@ final class TimelineFeed {
   /// Načte nové příspěvky z klienta a přidá je na začátek timeline.
   /// Nepoužívá context, neukládá do DB.
   func refreshTimeline() async {
-    if let newestPost = posts.filter({ $0.type == .post }).sorted(by: {
-      $0.createdAt > $1.createdAt
-    }).first {
-      let result = await client.fetchTimeline(since: newestPost.uri)
+    let recentPosts = posts
+      .filter({ $0.type == .post })
+      .sorted(by: { $0.createdAt > $1.createdAt })
+      .prefix(20)  // Posledních 20 postů pro robustní matching
+    
+    if !recentPosts.isEmpty {
+      let knownURIs = Set(recentPosts.map { $0.uri })
+      let result = await client.fetchTimeline(since: knownURIs)
       let newPosts = result.posts
       let cursor = result.cursor
       await getFreshPosts(from: newPosts, cursor: cursor)
     } else {
+      // Fallback pro prázdný timeline
       let result = await client.fetchTimeline()
       let newPosts = result.posts
       let cursor = result.cursor
