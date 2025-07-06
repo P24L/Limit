@@ -24,7 +24,9 @@
       "mcp__XcodeBuildMCP__describe_ui",
       "mcp__XcodeBuildMCP__tap",
       "mcp__XcodeBuildMCP__type_text",
-      "Bash(firebase functions:log:*)"
+      "Bash(firebase functions:log:*)",
+      "Bash(xcrun simctl spawn:*)",
+      "Bash(log stream:*)"
     ],
     "deny": []
   }

@@ -200,6 +200,11 @@ struct SwiftDataCountView: View {
     @State private var rootTypeCount: Int = 0
     @State private var temporaryThreadTypeCount: Int = 0
     
+    // PostFacet (Links) breakdown
+    @State private var linkFacetsTotal: Int = 0
+    @State private var linkFacetsInPosts: Int = 0
+    @State private var linkFacetsMetadataCache: Int = 0
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("TimelinePost: \(timelinePostCount)")
@@ -213,6 +218,13 @@ struct SwiftDataCountView: View {
             }
             .padding(.leading, 8)
             Text("PostImage: \(postImageCount)")
+            Text("PostFacet (Links): \(linkFacetsTotal)")
+                .fontWeight(.semibold)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("  - In Posts: \(linkFacetsInPosts)")
+                Text("  - Metadata Cache: \(linkFacetsMetadataCache)")
+            }
+            .padding(.leading, 8)
             Text("FavoriteURL: \(favoriteURLCount)")
             Text("FavoritePost: \(favoritePostCount)")
         }
@@ -251,6 +263,19 @@ struct SwiftDataCountView: View {
                 let favoritePosts = try context.fetch(FetchDescriptor<FavoritePost>())
                 await MainActor.run {
                     favoritePostCount = favoritePosts.count
+                }
+                
+                // Count PostFacet (Links)
+                let allFacets = try context.fetch(FetchDescriptor<PostFacet>())
+                let allLinkFacets = allFacets.filter { $0.facetType == .link }
+                
+                let facetsInPosts = allLinkFacets.filter { $0.timelinePost != nil }
+                let facetsMetadataCache = allLinkFacets.filter { $0.timelinePost == nil }
+                
+                await MainActor.run {
+                    linkFacetsTotal = allLinkFacets.count
+                    linkFacetsInPosts = facetsInPosts.count
+                    linkFacetsMetadataCache = facetsMetadataCache.count
                 }
                 
             } catch {
