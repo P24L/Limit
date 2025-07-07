@@ -21,6 +21,7 @@ struct LogViewer: View {
                         .padding(.vertical, 2)
                         .background(Color.secondary.opacity(0.1))
                         .cornerRadius(4)
+                        .textSelection(.enabled)
                 }
             }
             .padding()
@@ -28,9 +29,15 @@ struct LogViewer: View {
         .navigationTitle("Debug Logs")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem {
-                Button("Clear") {
-                    logger.clear()
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack {
+                    Button("Copy All") {
+                        let allLogs = logger.logs.joined(separator: "\n")
+                        UIPasteboard.general.string = allLogs
+                    }
+                    Button("Clear") {
+                        logger.clear()
+                    }
                 }
             }
         }
