@@ -64,6 +64,13 @@ struct AISummaryBottomSheet: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
+                    .onTapGesture {
+                        router.presentedSheet = nil
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                            router.navigateTo(.safari(url: favoriteURL.url))
+                        }
+                    }
                     .padding(.bottom, 8)
                     
                     // AI Summary section
@@ -111,6 +118,7 @@ struct AISummaryBottomSheet: View {
                         } else if let summary = favoriteURL.summary, favoriteURL.safeSummaryStatus == .completed {
                             Text(summary)
                                 .font(.subheadline)
+                                .textSelection(.enabled)
                                 .padding(12)
                                 .background(.blue.opacity(0.05))
                                 .cornerRadius(12)
@@ -119,8 +127,8 @@ struct AISummaryBottomSheet: View {
                                         .stroke(.blue.opacity(0.2), lineWidth: 1)
                                 )
                             
-                            if favoriteURL.summaryGeneratedAt != nil {
-                                Text("Generated \\(favoriteURL.summaryGeneratedAt!, style: .relative)")
+                            if let genTime = favoriteURL.summaryGeneratedAt {
+                                Text("Generated \(genTime.relativeFormatted) ago")
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)
                                     .frame(maxWidth: .infinity, alignment: .trailing)
