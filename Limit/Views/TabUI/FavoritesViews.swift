@@ -110,38 +110,39 @@ struct FavoriteLinkCardView: View {
     
     let favoriteURL: FavoriteURL
     @State private var isBookmarkAnimating = false
+    @State private var isSummaryPressed = false
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Thumbnail
-            if let thumbnailURL = favoriteURL.thumbnailImageURL {
-                WebImage(url: thumbnailURL) { phase in
-                    switch phase {
-                    case .empty:
-                        Rectangle().foregroundStyle(.gray.opacity(0.3))
-                    case .success(let image):
-                        image.resizable()
-                    case .failure:
-                        Rectangle().foregroundStyle(.gray.opacity(0.3))
+        VStack(alignment: .leading, spacing: 12) {
+            // Top Section: Thumbnail + Content + Bookmark
+            HStack(alignment: .top, spacing: 12) {
+                // Thumbnail
+                if let thumbnailURL = favoriteURL.thumbnailImageURL {
+                    WebImage(url: thumbnailURL) { phase in
+                        switch phase {
+                        case .empty:
+                            Rectangle().foregroundStyle(.gray.opacity(0.3))
+                        case .success(let image):
+                            image.resizable()
+                        case .failure:
+                            Rectangle().foregroundStyle(.gray.opacity(0.3))
+                        }
                     }
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 60, height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    // Default placeholder
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.gray.opacity(0.2))
+                        .frame(width: 60, height: 60)
+                        .overlay(
+                            Image(systemName: "link")
+                                .foregroundStyle(.secondary)
+                        )
                 }
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            } else {
-                // Default placeholder
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.gray.opacity(0.2))
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Image(systemName: "link")
-                            .foregroundStyle(.secondary)
-                    )
-            }
-            
-            // Content Area
-            VStack(alignment: .leading, spacing: 6) {
-                // Title/URL Display
+                
+                // Content Area
                 VStack(alignment: .leading, spacing: 2) {
                     if let title = favoriteURL.title {
                         Text(title)
@@ -163,98 +164,112 @@ struct FavoriteLinkCardView: View {
                     }
                 }
                 
-                // AI Summary Section
-                if favoriteURL.safeSummaryStatus == .completed, let summary = favoriteURL.summary {
+                Spacer()
+                
+                // Bookmark Toggle
+                VStack {
                     Button {
-                        router.presentedSheet = .aiSummary(favoriteURL: favoriteURL)
-                    } label: {
-                        HStack(alignment: .top, spacing: 6) {
-                            Image(systemName: "brain")
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                            
-                            Text(summary)
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                                .lineLimit(4)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            isBookmarkAnimating = true
                         }
-                        .padding(8)
-                        .background(.blue.opacity(0.05))
-                        .cornerRadius(6)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(.blue.opacity(0.2), lineWidth: 0.5)
-                        )
+                        
+                        Task {
+                            await favoritesURL.removeFavorite(url: favoriteURL.url)
+                        }
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isBookmarkAnimating = false
+                        }
+                    } label: {
+                        Image(systemName: "bookmark.fill")
+                            .font(.title3)
+                            .foregroundStyle(.yellow)
+                            .scaleEffect(isBookmarkAnimating ? 1.2 : 1.0)
                     }
                     .buttonStyle(.plain)
                     
-                } else if favoriteURL.safeSummaryStatus == .processing {
-                    HStack(spacing: 6) {
+                    Spacer()
+                }
+            }
+            
+            // AI Summary Section - Full Width
+            if favoriteURL.safeSummaryStatus == .completed, let summary = favoriteURL.summary {
+                Button {
+                    router.presentedSheet = .aiSummary(favoriteURL: favoriteURL)
+                } label: {
+                    HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "brain")
                             .font(.caption)
                             .foregroundStyle(.blue)
                         
-                        ProgressView()
-                            .scaleEffect(0.6)
+                        Text(summary)
+                            .font(.caption)
+                            .foregroundStyle(.blue)
+                            .lineLimit(4)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        Text("Generating summary...")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                        VStack {
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.headline)
+                                .foregroundStyle(.blue.opacity(0.7))
+                            Spacer()
+                        }
                     }
                     .padding(8)
-                    .background(.blue.opacity(0.03))
+                    .background(.blue.opacity(isSummaryPressed ? 0.1 : 0.05))
                     .cornerRadius(6)
-                    
-                } else if favoriteURL.safeSummaryStatus == .failed && favoriteURL.canRetrySummarization {
-                    Button {
-                        Task {
-                            await favoritesURL.retrySummary(for: favoriteURL)
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "brain")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                            
-                            Text("Tap to retry summary")
-                                .font(.caption2)
-                                .foregroundStyle(.orange)
-                        }
-                        .padding(8)
-                        .background(.orange.opacity(0.05))
-                        .cornerRadius(6)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            
-            Spacer()
-            
-            // Bookmark Toggle
-            VStack {
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        isBookmarkAnimating = true
-                    }
-                    
-                    Task {
-                        await favoritesURL.removeFavorite(url: favoriteURL.url)
-                    }
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        isBookmarkAnimating = false
-                    }
-                } label: {
-                    Image(systemName: "bookmark.fill")
-                        .font(.title3)
-                        .foregroundStyle(.yellow)
-                        .scaleEffect(isBookmarkAnimating ? 1.2 : 1.0)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(.blue.opacity(0.2), lineWidth: 0.5)
+                    )
+                    .scaleEffect(isSummaryPressed ? 0.98 : 1.0)
                 }
                 .buttonStyle(.plain)
+                .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        isSummaryPressed = pressing
+                    }
+                }, perform: {})
                 
-                Spacer()
+            } else if favoriteURL.safeSummaryStatus == .processing {
+                HStack(spacing: 6) {
+                    Image(systemName: "brain")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                    
+                    ProgressView()
+                        .scaleEffect(0.6)
+                    
+                    Text("Generating summary...")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(8)
+                .background(.blue.opacity(0.03))
+                .cornerRadius(6)
+                
+            } else if favoriteURL.safeSummaryStatus == .failed && favoriteURL.canRetrySummarization {
+                Button {
+                    Task {
+                        await favoritesURL.retrySummary(for: favoriteURL)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "brain")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        
+                        Text("Tap to retry summary")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                    .padding(8)
+                    .background(.orange.opacity(0.05))
+                    .cornerRadius(6)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding()
@@ -262,15 +277,6 @@ struct FavoriteLinkCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture {
             router.navigateTo(.safari(url: favoriteURL.url))
-        }
-        .contextMenu {
-            Button(role: .destructive) {
-                Task {
-                    await favoritesURL.removeFavorite(url: favoriteURL.url)
-                }
-            } label: {
-                Label("Remove", systemImage: "trash")
-            }
         }
     }
 }
