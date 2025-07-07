@@ -667,6 +667,7 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         } catch let error as ATAPIError {
             if case .badRequest(let httpError) = error, httpError.error == "ExpiredToken" {
                 DevLogger.shared.log("performAuthenticatedRequest - ExpiredToken, retrying after login")
+                isAuthenticated = false
                 await login()
                 do {
                     return try await operation()
