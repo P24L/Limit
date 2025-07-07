@@ -110,6 +110,10 @@ struct AppRootView: View {
             AIExplanationBottomSheet(postWrapper: postWrapper)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.hidden)
+        case .aiSummary(let favoriteURL):
+            AISummaryBottomSheet(favoriteURL: favoriteURL)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.hidden)
         }
     }
 }
