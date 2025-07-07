@@ -69,6 +69,7 @@ enum Sheet: SheetType {
     case login
     case fullScreenImage(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID)
     case aiExplanation(postWrapper: TimelinePostWrapper)
+    case aiSummary(favoriteURL: FavoriteURL)
     
     var id: Int { hashValue }
 }
