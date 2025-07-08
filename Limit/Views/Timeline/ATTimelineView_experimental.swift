@@ -116,28 +116,29 @@ struct ATTimelineView_experimental: View {
         let safeAreaTopInset = UIApplication.shared.connectedScenes
             .compactMap { ($0 as? UIWindowScene)?.windows.first?.safeAreaInsets.top }
             .first ?? 0
-        let totalOffset = 44 + safeAreaTopInset
+        let totalOffset = 50 + safeAreaTopInset
 
         ZStack {
-            HStack {
-                AvatarView(url: currentUser.avatarURL, size: 32)
+            HStack(spacing: 0) {
+                AvatarView(url: currentUser.avatarURL, size: 36)
                     .onTapGesture {
                         if !currentUser.did.isEmpty {
                             router.navigateTo(.actor(userID: currentUser.did))
                         }
                     }
                 Spacer()
-                HStack(spacing: 8) {
+                HStack(spacing: 12) {
                     if newPostsAboveCount > 0 {
                         Text("\(newPostsAboveCount)")
-                            .font(.caption2.bold())
+                            .font(.caption2.weight(.semibold))
                             .foregroundColor(.white)
-                            .padding(6)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
                             .background(
-                                Circle()
+                                Capsule()
                                     .fill(.mintAccent)
                             )
-                            .transition(.scale)
+                            .transition(.scale.combined(with: .opacity))
                     }
 
                     Button {
@@ -157,18 +158,18 @@ struct ATTimelineView_experimental: View {
                         if client.isLoading {
                             ProgressView()
                                 .progressViewStyle(
-                                    CircularProgressViewStyle()
+                                    CircularProgressViewStyle(tint: .mintAccent)
                                 )
-                                .foregroundStyle(.mintAccent)
+                                .scaleEffect(0.8)
                         } else {
                             Image(systemName: "arrow.clockwise.circle.fill")
-                                .buttonStyle(.plain)
                                 .symbolEffect(.bounce, value: client.isLoading)
                                 .foregroundStyle(.mintAccent)
-                                .font(.caption)
+                                .font(.title3)
                         }
                     }
                     .disabled(client.isLoading)
+                    .buttonStyle(.plain)
                 }
             }
 
@@ -186,12 +187,24 @@ struct ATTimelineView_experimental: View {
                 }
             }
             .pickerStyle(.menu)
-            .font(.callout)
+            .font(.callout.weight(.medium))
             .frame(maxWidth: 200)
         }
-        .padding(.horizontal)
-        .frame(height: 44)
-        .background(Color(.secondarySystemBackground))
+        .padding(.horizontal, 20)
+        .frame(height: 44) 
+        .frame(maxWidth: .infinity)
+        .background(
+            Rectangle()
+                .fill(.cardBackground)
+                .ignoresSafeArea(.container, edges: .top)
+        )
+        .shadow(
+            color: .subtleGray.opacity(0.3),
+            radius: 1,
+            x: 0,
+            y: 1
+        )
+        .opacity(isTopbarHidden ? 0 : 1)
         .offset(y: isTopbarHidden ? (hideDirectionIsUp ? -totalOffset : totalOffset) : safeAreaTopInset)
         .animation(.easeInOut(duration: 0.25), value: isTopbarHidden)
         .zIndex(1)
