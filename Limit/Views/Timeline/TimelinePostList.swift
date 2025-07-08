@@ -11,6 +11,15 @@ import Foundation
 import SwiftData
 import SwiftUI
 
+struct ThreadConnectionView: View {
+    var body: some View {
+        Rectangle()
+            .fill(.mintInactive)
+            .frame(width: 2)
+            .frame(height: 80) // Spans between cards
+    }
+}
+
 struct TimelinePostList: View {
     let posts: [TimelinePostWrapper]
 
@@ -29,9 +38,9 @@ struct TimelinePostList: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack {
+                LazyVStack(spacing: 0) {
                     Color.clear
-                        .frame(height: 60) // Výška podle výšky topbaru
+                        .frame(height: 100) // Výška topbaru + safe area margin
                     ForEach(posts) { wrapper in
                         postView(for: wrapper)
                     }
@@ -39,7 +48,7 @@ struct TimelinePostList: View {
                         HStack {
                             Spacer()
                             ProgressView()
-                                .padding(.vertical, 16)
+                                .padding(.vertical, 20)
                             Spacer()
                         }
                     }
@@ -54,7 +63,8 @@ struct TimelinePostList: View {
                             }
                         }
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 16)
+                .background(.warmBackground)
                 .scrollTargetLayout()
             }
             .onScrollPhaseChange { old, new in
@@ -111,12 +121,29 @@ struct TimelinePostList: View {
             index + 1 < posts.count ? posts[index + 1] : nil
         }
 
-        PostItemWrappedView(
-            post: wrapper,
-            depth: 0,
-            nextPostID: nextWrapper?.uri,
-            nextPostThreadRootID: nextWrapper?.rootPost?.uri
-        )
+        ZStack(alignment: .topLeading) {
+            // Post card content
+            PostItemWrappedView(
+                post: wrapper,
+                depth: 0,
+                nextPostID: nextWrapper?.uri,
+                nextPostThreadRootID: nextWrapper?.rootPost?.uri,
+                showThreadLink: false // Disable internal thread link
+            )
+            .padding(.vertical, 10)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.cardBackground)
+                    .shadow(
+                        color: .subtleGray.opacity(0.15),
+                        radius: 2,
+                        x: 0,
+                        y: 1
+                    )
+            )
+            .zIndex(1)
+        }
         .id(wrapper.uri)
         .padding(.vertical, 4)
     }

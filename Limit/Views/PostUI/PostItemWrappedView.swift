@@ -32,6 +32,7 @@ struct PostItemWrappedView: View {
     var nextPostThreadRootID: String? = nil
     var isThreadView: Bool = false
     var postViewType: PostViewType = .timeline
+    var showThreadLink: Bool = true // Control thread link visibility
 
     @State private var selectedImageIndex: Int = 0
     @State private var fullScreenImages: [PostImage] = []
@@ -56,6 +57,8 @@ struct PostItemWrappedView: View {
                         if let threadRootID = post.rootPost?.uri  {
                             if threadRootID == nextPostThreadRootID || threadRootID == nextPostID {
                                 ThreadLinkView()
+                                    .offset(y: 20) // Extend down to bridge post gap
+                                    .offset(x: 3)
                             }
                         }
                     }
@@ -188,18 +191,7 @@ struct PostItemWrappedView: View {
                             // Action bar vždy
                             PostItemActionsView(postWrapper: post)
                             
-                            // Divider jen na timeline a podle thread podmínek
-                            if postViewType == .timeline {
-                                let showDivider = {
-                                    guard let threadRootID = post.rootPost?.uri else { return true }
-                                    return !(threadRootID == nextPostThreadRootID || threadRootID == nextPostID)
-                                }()
-                                if showDivider {
-                                    Divider()
-                                        .frame(height: 1)
-                                        .background(.mintInactive)
-                                }
-                            }
+                            // Divider removed - cards provide visual separation
                         }
                     }
                 }

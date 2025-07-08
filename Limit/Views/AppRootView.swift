@@ -38,6 +38,10 @@ struct AppRootView: View {
           }
         }
         .tint(.mintAccent)
+        .background(.warmBackground)
+        .onAppear {
+            configureTabBarAppearance()
+        }
         .task {
             if !client.isAuthenticated {
                 router.presentedSheet = .login
@@ -47,6 +51,32 @@ struct AppRootView: View {
           sheetView(for: sheet)
         }
       }
+    
+    private func configureTabBarAppearance() {
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithDefaultBackground()
+        
+        // Background
+        tabBarAppearance.backgroundColor = UIColor(.cardBackground)
+        
+        // Normal state
+        tabBarAppearance.stackedLayoutAppearance.normal.iconColor = UIColor(.postAction)
+        tabBarAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+            .foregroundColor: UIColor(.postAction)
+        ]
+        
+        // Selected state
+        tabBarAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(.mintAccent)
+        tabBarAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: UIColor(.mintAccent)
+        ]
+        
+        // Add subtle shadow
+        tabBarAppearance.shadowColor = UIColor(.subtleGray)
+        
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+    }
 
     @ViewBuilder
     private func view(for tab: AppTab) -> some View {
