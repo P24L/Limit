@@ -33,6 +33,7 @@ struct PostItemWrappedView: View {
     var isThreadView: Bool = false
     var postViewType: PostViewType = .timeline
     var showThreadLink: Bool = true // Control thread link visibility
+    var showCard: Bool = true // Control card background visibility
 
     @State private var selectedImageIndex: Int = 0
     @State private var fullScreenImages: [PostImage] = []
@@ -44,7 +45,7 @@ struct PostItemWrappedView: View {
     ) var posts: [TimelinePost]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let content = VStack(alignment: .leading, spacing: 4) {
             // MARK: Avatar
             HStack(alignment: .top) {
                 if postViewType == .timeline {
@@ -57,6 +58,7 @@ struct PostItemWrappedView: View {
                         if let threadRootID = post.rootPost?.uri  {
                             if threadRootID == nextPostThreadRootID || threadRootID == nextPostID {
                                 ThreadLinkView()
+                                    //.frame(height: 90) // Set height for GeometryReader
                                     .offset(y: 20) // Extend down to bridge post gap
                                     .offset(x: 3)
                             }
@@ -71,7 +73,7 @@ struct PostItemWrappedView: View {
                     {
                         Text("Reposted by \(post.repostedByDisplayName ?? repostHandle)")
                                 .font(.footnote)
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(.secondaryText)
                     }
 
                     HStack(alignment:.top) {
@@ -85,34 +87,36 @@ struct PostItemWrappedView: View {
                         Text(!(post.authorDisplayName ?? "").isEmpty ? (post.authorDisplayName ?? "") : post.authorHandle)
                             .font(.subheadline)
                             .foregroundColor(.mintAccent)
-                        Spacer()
+                        Spacer(minLength: 8)
                         Text(post.createdAt.relativeFormatted)
                             .font(.footnote)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(.tertiaryText)
                     }
 
                     // MARK: reply text nad postem - na co ten post reaguje - pokud to není hned ten další
-                    if let postRootID = post.rootPost?.uri, let rootPost = post.rootPost  {
-                        if postRootID != nextPostThreadRootID && postRootID != nextPostID {
+                    if let postRootID = post.rootPost?.uri,
+                    let rootPost = post.rootPost,
+                    postRootID != nextPostThreadRootID,
+                    postRootID != nextPostID {
 
-                            let replyAuthorRaw = rootPost.authorDisplayName ?? rootPost.authorHandle
-                            let replyAuthor = replyAuthorRaw.count > 20 ? String(replyAuthorRaw.prefix(20)) + ".." : replyAuthorRaw
-                            HStack {
-                                VStack(alignment:.leading) {
-                                    Text("↪︎ Reply to \(replyAuthor)")
-                                        .font(.footnote)
-                                        .foregroundStyle(.gray)
-                                    
-                                    if rootPost.text.count > 0 {
-                                        Text(rootPost.text)
-                                            .font(.footnote)
-                                            .foregroundStyle(.gray)
-                                            .lineLimit(2)
-                                    }
-                                }
+                        let replyAuthorRaw = rootPost.authorDisplayName ?? rootPost.authorHandle
+                        let replyAuthor = replyAuthorRaw.count > 20 ? String(replyAuthorRaw.prefix(20)) + ".." : replyAuthorRaw
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("↪︎ Reply to \(replyAuthor)")
+                                .font(.footnote)
+                                .foregroundStyle(.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            if !rootPost.text.isEmpty {
+                                Text(rootPost.text)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondaryText)
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
+                    
                     // MARK: Post - text
                     RichTextView(text: post.text, facets: post.facets, postWrapper: post)
 
@@ -136,10 +140,11 @@ struct PostItemWrappedView: View {
                             }
 
                     } else if post.embeds.count > 1 {
-                        ScrollView(.horizontal) {
-                            HStack {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
                                 ForEach(Array(post.embeds.enumerated()), id:\.offset) {  index,image in
                                     EmbeddedImageView(url: image.thumbURL)
+                                        .frame(width: 200, height: 200)
                                         .onTapGesture {
                                             let images = post.embeds.map { $0.toDisplayImage() }
                                             
@@ -151,8 +156,9 @@ struct PostItemWrappedView: View {
                                         }
                                 }
                             }
+                            .padding(.vertical, 4)
                         }
-                        .frame(maxHeight: 230)
+                        .frame(height: 208) // Fixed height instead of maxHeight
                     }
 
                     // MARK: Post - video
@@ -163,21 +169,22 @@ struct PostItemWrappedView: View {
                                 CGFloat(videoEmbed.width ?? 16) / CGFloat(videoEmbed.height ?? 9), 
                                 contentMode: .fit
                             )
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: .infinity, maxHeight: 400)
                             .padding(.top, 4)
                     }
 
                     // MARK: Quoted post
                     
                     if let quotedPost = post.quotedPost, depth < 2 {
-                        PostItemWrappedView(post: quotedPost, depth: depth + 1, postViewType: .quoted)
+                        PostItemWrappedView(post: quotedPost, depth: depth + 1, postViewType: .quoted, showCard: false)
                             .padding(10)
-                            .background(Color.gray.opacity(0.08))
+                            .background(Color.warmBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.gray.opacity(0.3))
+                                    .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
                             )
+                            .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
                     }
                     
                     // MARK: Enhanced Link Presentation - Facet Links + Action bar + Divider
@@ -198,6 +205,25 @@ struct PostItemWrappedView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        
+        // Apply card styling conditionally
+        if showCard {
+            content
+                .padding(.vertical, 10)
+                .padding(.horizontal, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.cardBackground)
+                        .shadow(
+                            color: Color.subtleGray.opacity(0.15),
+                            radius: 2,
+                            x: 0,
+                            y: 1
+                        )
+                )
+        } else {
+            content
+        }
     }
 }
 
@@ -207,86 +233,107 @@ struct WrappedPostLinkView: View {
     var linkExt: TimelinePostWrapper.LinkEmbed
 
     var body: some View {
-        VStack {
-            // Clickable content area (image + text)
-            Button(action: {
-                if let url = URL(string: linkExt.uri) {
-                    router.navigateTo(.safari(url: url))
-                }
-            }) {
-                VStack {
-                    if let thumbnail = linkExt.thumbnailImageURL {
-                        WebImage(url: thumbnail) { phase in
-                            switch phase {
-                            case .empty:
-                                Rectangle().foregroundStyle(.gray)
-                            case .success(let image):
-                                image.resizable()
-                            case .failure:
-                                Rectangle().foregroundStyle(.gray)
-                            }
+        Button(action: {
+            if let url = URL(string: linkExt.uri) {
+                router.navigateTo(.safari(url: url))
+            }
+        }) {
+            VStack(spacing: 0) {
+                if let thumbnail = linkExt.thumbnailImageURL {
+                    WebImage(url: thumbnail) { phase in
+                        switch phase {
+                        case .empty:
+                            Rectangle()
+                                .foregroundStyle(Color.gray.opacity(0.2))
+                                .frame(height: 160)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(height: 160)
+                                .frame(maxWidth: .infinity)
+                                .clipped()
+                        case .failure:
+                            Rectangle()
+                                .foregroundStyle(Color.gray.opacity(0.2))
+                                .frame(height: 160)
+                                .overlay(
+                                    Image(systemName: "photo")
+                                        .foregroundColor(.gray)
+                                        .font(.largeTitle)
+                                )
                         }
-                            .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity, maxHeight: 160)
-                            .clipped()
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
+                    .frame(maxWidth: .infinity)
+                    .background(Color.black)
+                    .clipShape(UnevenRoundedRectangle(
+                        topLeadingRadius: 12,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: 0,
+                        topTrailingRadius: 12
+                    ))
+                }
+                    
                     HStack(alignment: .top, spacing: 12) {
-                        
                         VStack(alignment: .leading, spacing: 4) {
                             if !linkExt.title.isEmpty {
                                 Text(linkExt.title)
                                     .font(.subheadline)
+                                    .fontWeight(.medium)
                                     .lineLimit(2)
                                     .multilineTextAlignment(.leading)
                                     .fixedSize(horizontal: false, vertical: true)
+                                    .foregroundColor(.primary)
                             }
                             Text(linkExt.desc.count > 0 ? linkExt.desc : linkExt.uri)
                                 .font(.footnote)
                                 .lineLimit(2)
                                 .multilineTextAlignment(.leading)
-                                .foregroundColor(.gray)
+                                .foregroundColor(.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
                             if let mainURL = URL(string:linkExt.uri), let hostURL = mainURL.host() {
                                 Text(hostURL)
-                                .font(.footnote)
-                                .lineLimit(1)
-                                .foregroundColor(.mintInactive)
+                                    .font(.footnote)
+                                    .lineLimit(1)
+                                    .foregroundColor(.mintInactive)
                             }
                         }
                         Spacer()
                         
                         // Bookmark button (separate action)
-                        VStack {
-                            Spacer()
-                            if let url = URL(string: linkExt.uri) {
-                                Button {
-                                    Task {
-                                        if favoritesURL.isFavorited(url) {
-                                            await favoritesURL.removeFavorite(url: url)
-                                        } else {
-                                            await favoritesURL.addFavorite(url: url, title: linkExt.title, thumbnailImageURL: linkExt.thumbnailImageURL)
-                                        }
+                        if let url = URL(string: linkExt.uri) {
+                            Button {
+                                Task {
+                                    if favoritesURL.isFavorited(url) {
+                                        await favoritesURL.removeFavorite(url: url)
+                                    } else {
+                                        await favoritesURL.addFavorite(url: url, title: linkExt.title, thumbnailImageURL: linkExt.thumbnailImageURL)
                                     }
-                                } label: {
-                                    Image(systemName: "bookmark")
-                                        .font(.title2)
                                 }
-                                .buttonStyle(.plain)
-                                .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
-                                .symbolEffect(.bounce, value: favoritesURL.isFavorited(url))
-                                .foregroundStyle(favoritesURL.isFavorited(url) ? .mintAccent : .postAction)
+                            } label: {
+                                Image(systemName: "bookmark")
+                                    .font(.title2)
                             }
-                            Spacer()
+                            .buttonStyle(.plain)
+                            .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
+                            .symbolEffect(.bounce, value: favoritesURL.isFavorited(url))
+                            .foregroundStyle(favoritesURL.isFavorited(url) ? .mintAccent : .postAction)
                         }
-                    }
-                    .frame(minHeight: 60)
                 }
+                .padding(12)
+                .frame(minHeight: 60)
+                .background(Color.warmBackground)
             }
-            .buttonStyle(.plain)
         }
-        .padding(8)
-        .background(Color(UIColor.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .buttonStyle(.plain)
+        .background(Color.warmBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -296,20 +343,21 @@ struct ThreadLinkView: View {
         GeometryReader { geometry in
             let height = geometry.size.height
             let spacing: CGFloat = 24 // rozestup mezi trojúhelníky
-            let triangleSize: CGFloat = 6
-
+            let triangleSize: CGFloat = 7
+            let triangleCount = Int(height / spacing)
+            
             ZStack(alignment: .topLeading) {
                 Rectangle()
                     .fill(Color.mintInactive)
-                    .frame(width: 1)
-                    .frame(maxHeight: .infinity, alignment: .top)
+                    .frame(width: 2)
+                    .frame(maxHeight: .infinity)
 
-                ForEach(0..<Int(height / spacing), id: \.self) { i in
+                ForEach(0..<triangleCount, id: \.self) { i in
                     Triangle()
                         .fill(Color.mintInactive)
                         .frame(width: triangleSize, height: triangleSize)
                         .rotationEffect(.degrees(0)) // směřuje nahoru
-                        .position(x: 0.5, y: CGFloat(i) * spacing + triangleSize / 2)
+                        .offset(x: (triangleSize * -0.5) + 1, y: CGFloat(i) * spacing + triangleSize / 2)
                 }
             }
         }
@@ -339,24 +387,30 @@ struct EmbeddedImageView: View {
             WebImage(url: url) { phase in
                 switch phase {
                 case .empty:
-                    Rectangle().foregroundStyle(.gray)
+                    Rectangle()
+                        .foregroundStyle(.gray)
                         .aspectRatio(4/3, contentMode: .fit)
+                        .frame(maxHeight: 300)
                 case .success(let image):
-                    image.resizable()
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: 300)
                 case .failure(_):
-                    Rectangle().foregroundStyle(.gray)
+                    Rectangle()
+                        .foregroundStyle(.gray)
                         .aspectRatio(4/3, contentMode: .fit)
+                        .frame(maxHeight: 300)
                 }
             }
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.clear)
-                        .shadow(color: .black.opacity(0.7), radius: 2)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .padding(.trailing, 8)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.clear)
+                    .shadow(color: .black.opacity(0.7), radius: 2)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.trailing, 8)
         } else {
             EmptyView()
         }
@@ -400,13 +454,21 @@ struct PostLinkView: View {
                     Text(linkExt.desc.count > 0 ? linkExt.desc : linkExt.uri)
                         .font(.footnote)
                         .lineLimit(2)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondaryText)
                 }
-                Spacer()
+                Spacer(minLength: 0)
             }
             .padding(8)
             .background(Color(UIColor.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
+    }
+}
+
+
+private struct ViewHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }

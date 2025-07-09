@@ -47,12 +47,12 @@ struct ComputedTimelineView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         ScrollView {
-                            LazyVStack {
+                            LazyVStack(spacing: 8) {
                                 Color.clear
                                     .frame(height: 60)
                                     .id("top")
                                 ForEach(feed.posts, id: \.id) { post in
-                                    PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline)
+                                    PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline, showCard: true)
                                         .id(post.id)
                                 }
                                 
@@ -77,7 +77,8 @@ struct ComputedTimelineView: View {
                             }
                             .padding(.top, 0)
                             .animation(.smooth, value: isTopbarHidden)
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, 8)
+                            .background(.warmBackground)
                             .scrollTargetLayout()
                         }
                         .onScrollPhaseChange { old, new in

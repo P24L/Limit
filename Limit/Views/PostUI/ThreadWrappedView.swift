@@ -25,22 +25,23 @@ struct ThreadWrappedView: View {
             Group {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
+                        LazyVStack(alignment: .leading, spacing: 6) {
                             ForEach(beforePosts, id: \.id) { post in
-                                PostItemWrappedView(post: post, isThreadView: true)
+                                PostItemWrappedView(post: post, isThreadView: true, showCard: true)
                                     .id(post.id)
                             }
-                            PostItemWrappedView(post: postThread, isThreadView: true)
+                            PostItemWrappedView(post: postThread, isThreadView: true, showCard: true)
                                 .id(postThread.id)
                                 .defaultScrollAnchor(.topLeading)
                                 
                             ForEach(afterPosts, id: \.id) { post in
-                                PostItemWrappedView(post: post, isThreadView: true)
+                                PostItemWrappedView(post: post, isThreadView: true, showCard: true)
                                     .id(post.id)
                             }
                             VStack {}.frame(height: 300)
                         }
-                        .padding()
+                        .padding(.horizontal, 6)
+                        .background(.warmBackground)
                         .scrollTargetLayout()
                         .onChange(of: scrollToId) { _, newID in
                             if let id = newID {

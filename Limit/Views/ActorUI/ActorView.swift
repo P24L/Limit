@@ -225,7 +225,7 @@ struct PostsSectionView: View {
   let isLoading: Bool
 
   var body: some View {
-    LazyVStack(spacing: 0) {
+    LazyVStack(spacing: 8) {
       if isLoading && posts.isEmpty {
         HStack {
           ProgressView()
@@ -237,12 +237,13 @@ struct PostsSectionView: View {
         .padding()
       } else {
         ForEach(posts, id: \.id) { post in
-          PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline)
+          PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline, showCard: true)
             .id(post.id)
         }
       }
     }
-    .padding(.horizontal, 12)
+    .padding(.horizontal, 10)
+    .background(.warmBackground)
   }
 }
 
