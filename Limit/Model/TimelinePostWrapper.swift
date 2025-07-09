@@ -554,6 +554,44 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
       facets: facets
     )
 
+    // Process embeds array
+    if let embeds = viewRecord.embeds {
+      for embed in embeds {
+        switch embed {
+        case .embedImagesView(let imagesView):
+          self.embeds = imagesView.images.map { image in
+            TimelinePostWrapper.ImageEmbed(
+              id: image.id,
+              url: image.fullSizeImageURL,
+              thumbURL: image.thumbnailImageURL,
+              altText: image.altText
+            )
+          }
+        case .embedExternalView(let externalView):
+          self.linkExt = TimelinePostWrapper.LinkEmbed(
+            desc: externalView.external.description,
+            thumbnailImageURL: externalView.external.thumbnailImageURL,
+            title: externalView.external.title,
+            uri: externalView.external.uri
+          )
+        case .embedVideoView(let videoView):
+          self.postVideo = TimelinePostWrapper.VideoEmbed(
+            id: videoView.id,
+            altText: videoView.altText,
+            playlistURI: videoView.playlistURI,
+            thumbImageURL: videoView.thumbnailImageURL,
+            height: videoView.aspectRatio?.height,
+            width: videoView.aspectRatio?.width
+          )
+        case .embedRecordWithMediaView(let combo):
+          // Process the media component
+          self.processMediaUnion(combo.media)
+        default:
+          break
+        }
+      }
+    }
+
     // Check if we need to fetch metadata for link facets
     let hasUnfetchedLinks = self.facets?.links.contains { !$0.metadataFetched } ?? false
     

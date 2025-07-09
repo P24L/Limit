@@ -73,6 +73,7 @@ struct UsersSearchView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                 }
+                .scrollDismissesKeyboard(.immediately)
                 .refreshable {
                     await searchUsers()
                 }

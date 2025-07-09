@@ -32,7 +32,7 @@ struct SearchTabView: View {
         self.initialMode = initialMode
     }
     
-    private let searchDebounceTime: TimeInterval = 0.3
+    private let searchDebounceTime: TimeInterval = 0.5
     
     private var currentPickerMode: PickerMode {
         searchState == .idle ? .browse(browseMode) : .search(searchMode)

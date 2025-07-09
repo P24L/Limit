@@ -123,7 +123,7 @@ struct VisibilityDetector: View {
     var body: some View {
         GeometryReader { geometry in
             Color.clear
-                .preference(key: VisibilityPreferenceKey.self, value: geometry.frame(in: .global).intersects(UIScreen.main.bounds))
+                .preference(key: VisibilityPreferenceKey.self, value: geometry.frame(in: .global).intersects(CGRect(x: 0, y: 0, width: 400, height: 800)))
         }
         .onPreferenceChange(VisibilityPreferenceKey.self, perform: onChange)
     }

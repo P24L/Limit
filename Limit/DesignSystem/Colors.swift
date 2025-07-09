@@ -68,3 +68,44 @@ public extension ShapeStyle where Self == Color {
     static var secondaryText: Color { .secondaryText }
     static var tertiaryText: Color { .tertiaryText }
 }
+
+// MARK: - Shadow System
+extension View {
+    // MARK: - Card Shadows
+    func cardShadow() -> some View {
+        self.shadow(
+            color: Color.black.opacity(0.12),
+            radius: 2,
+            x: 0,
+            y: 1
+        )
+    }
+    
+    func subtleShadow() -> some View {
+        self.shadow(
+            color: Color.black.opacity(0.08),
+            radius: 1.5,
+            x: 0,
+            y: 0.5
+        )
+    }
+    
+    func elevatedShadow() -> some View {
+        self.shadow(
+            color: Color.black.opacity(0.15),
+            radius: 4,
+            x: 0,
+            y: 2
+        )
+    }
+    
+    // MARK: - Image Shadows
+    func imageShadow() -> some View {
+        self.shadow(
+            color: Color.black.opacity(0.7),
+            radius: 2,
+            x: 0,
+            y: 0
+        )
+    }
+}

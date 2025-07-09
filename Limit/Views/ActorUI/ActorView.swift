@@ -413,8 +413,13 @@ struct FollowerItemView: View {
     }
     .padding(.vertical, 8)
     .padding(.horizontal, 12)
-    .background(Color.gray.opacity(0.05))
+    .background(Color.warmBackground)
     .clipShape(RoundedRectangle(cornerRadius: 12))
+    .overlay(
+      RoundedRectangle(cornerRadius: 12)
+        .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
+    )
+    .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
   }
 }
 

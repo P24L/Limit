@@ -88,6 +88,7 @@ struct PostsSearchView: View {
                     .padding(.horizontal, 6)
                     .background(.warmBackground)
                 }
+                .scrollDismissesKeyboard(.immediately)
                 .refreshable {
                     await searchPosts()
                 }
