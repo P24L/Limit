@@ -77,11 +77,17 @@ struct FavoritesViews: View {
         let posts: [TimelinePostWrapper]
 
         var body: some View {
-            ForEach(posts, id: \.id) { post in
-                PostItemWrappedView(post: post, isThreadView: true) //, postViewType: .favorites
-                    .id(post.id)
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(posts, id: \.id) { post in
+                        PostItemWrappedView(post: post, isThreadView: true) //, postViewType: .favorites
+                            .id(post.id)
+                    }
+                }
+                .padding(15)
+                //.padding(.horizontal, 10)
+                .background(.warmBackground)
             }
-            .padding(15)
         }
     }
 

@@ -29,7 +29,8 @@ struct PostItemActionsView: View {
             } label: {
                 Label("\(postWrapper.replyCount.abbreviated)", systemImage: "quote.bubble")
                     .lineLimit(1)
-                    .font(.footnote)
+                    .font(.callout)
+                    .imageScale(.medium)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -40,7 +41,8 @@ struct PostItemActionsView: View {
             } label: {
                 Label("\(postWrapper.repostCount.abbreviated)", systemImage: "arrow.2.squarepath")
                     .lineLimit(1)
-                    .font(.footnote)
+                    .font(.callout)
+                    .imageScale(.medium)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -65,75 +67,59 @@ struct PostItemActionsView: View {
                 Label("\(postWrapper.likeCount.abbreviated)", systemImage: postWrapper.isLiked ? "heart.fill" : "heart")
                     .foregroundStyle(postWrapper.isLiked ? .red : .primary)
                     .lineLimit(1)
-                    .font(.footnote)
+                    .font(.callout)
+                    .imageScale(.medium)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
             .monospacedDigit()
-            
-            Button {
-                Task {
-                    if favoritesPost.isFavorited(postWrapper.uri) {
-                        await favoritesPost.removeFavorite(postID: postWrapper.uri)
-                    } else {
-                        await favoritesPost.addFavorite(postID: postWrapper.uri)
-                    }
-                }
-            } label: {
-                Image(systemName: "bookmark")
-                    .font(.footnote)
-            }
-            .buttonStyle(.plain)
-            .symbolVariant(favoritesPost.isFavorited(postWrapper.uri) ? .fill : .none)
-            .symbolEffect(.bounce, value: favoritesPost.isFavorited(postWrapper.uri))
-            .foregroundStyle(favoritesPost.isFavorited(postWrapper.uri) ? .mintAccent : .postAction)
-            .monospacedDigit()
-            
-            Button {
-                router.presentedSheet = .aiExplanation(postWrapper: postWrapper)
-            } label: {
-                Image(systemName: "brain")
-                    .font(.footnote)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.postAction)
-            
-            /*
-            if let linkExt = postWrapper.linkExt,
-               let url = URL(string: linkExt.uri) {
-                Button {
-                    Task {
-                        if favoritesURL.isFavorited(url) {
-                            await favoritesURL.removeFavorite(url: url)
-                        } else {
-                            await favoritesURL.addFavorite(url: url, title: linkExt.title, thumbnailImageURL: linkExt.thumbnailImageURL)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "safari")
-                        .font(.caption)
-                }
-                .buttonStyle(.plain)
-                .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
-                .symbolEffect(.bounce, value: favoritesURL.isFavorited(url))
-                .foregroundStyle(favoritesURL.isFavorited(url) ? .mintAccent : .postAction)
-            }*/
-
             
             Spacer()
             
-            if !hideMoreActions {
+            // Right group with smaller spacing
+            HStack(spacing: 12) {
                 Button {
-                    // Navigate to thread view
-                    //if let postWrapper = postWrapper {
-                    router.navigateTo(.postThreadWrapped(postThread: postWrapper))
+                    Task {
+                        if favoritesPost.isFavorited(postWrapper.uri) {
+                            await favoritesPost.removeFavorite(postID: postWrapper.uri)
+                        } else {
+                            await favoritesPost.addFavorite(postID: postWrapper.uri)
+                        }
+                    }
                 } label: {
-                    Image(systemName: "ellipsis")
-                        .buttonStyle(.plain)
-                        .font(.caption)
-                        .foregroundStyle(.postAction)
+                    Image(systemName: "bookmark")
+                        .font(.callout)
+                        .imageScale(.medium)
                 }
-
+                .buttonStyle(.plain)
+                .symbolVariant(favoritesPost.isFavorited(postWrapper.uri) ? .fill : .none)
+                .symbolEffect(.bounce, value: favoritesPost.isFavorited(postWrapper.uri))
+                .foregroundStyle(favoritesPost.isFavorited(postWrapper.uri) ? .mintAccent : .postAction)
+                .monospacedDigit()
+                
+                Button {
+                    router.presentedSheet = .aiExplanation(postWrapper: postWrapper)
+                } label: {
+                    Image(systemName: "brain")
+                        .font(.callout)
+                        .imageScale(.medium)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.postAction)
+                
+                if !hideMoreActions {
+                    Button {
+                        // Navigate to thread view
+                        //if let postWrapper = postWrapper {
+                        router.navigateTo(.postThreadWrapped(postThread: postWrapper))
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.callout)
+                            .imageScale(.medium)
+                            .foregroundStyle(.postAction)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .buttonStyle(.plain)

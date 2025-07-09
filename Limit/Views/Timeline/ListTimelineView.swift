@@ -105,11 +105,11 @@ struct ListTimelineView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack {
+                        LazyVStack(spacing: 8) {
                             Color.clear
                                 .frame(height: 60)
                             ForEach(posts) { post in
-                                PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil)
+                                PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil, showCard: true)
                                     .id(post.uri)
                             }
                         }

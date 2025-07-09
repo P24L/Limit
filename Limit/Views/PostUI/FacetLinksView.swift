@@ -85,7 +85,7 @@ struct LinkCardView: View {
                 Text(displayURL)
                     .font(.caption)
                     .lineLimit(1)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.mintAccent)
             }
             
             Spacer()
@@ -113,16 +113,21 @@ struct LinkCardView: View {
         }
         .padding(8)
         .frame(maxWidth: cardWidth, minHeight: 80, maxHeight: 80)
-        .background(Color(.secondarySystemBackground))
+        .background(.warmBackground)
         .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
     }
     
     private var faviconPlaceholder: some View {
         RoundedRectangle(cornerRadius: 6)
-            .fill(Color.gray.opacity(0.2))
+            .fill(.subtleGray)
             .overlay(
                 Image(systemName: "link")
-                    .foregroundColor(.gray)
+                    .foregroundColor(.secondaryText)
                     .font(.caption)
             )
     }
@@ -136,7 +141,7 @@ struct LinkCardView: View {
     
     private var cardWidth: CGFloat {
         // Cards use full available width
-        let screenWidth = UIScreen.main.bounds.width * 0.8 //- 16 // Account for minimal padding
+        let screenWidth = UIScreen.main.bounds.width * 0.65 //- 16 // Account for minimal padding
         return screenWidth
     }
     

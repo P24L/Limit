@@ -54,7 +54,7 @@ struct PostsSearchView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 8) {
                         if let hitsTotal {
                             HStack {
                                 Text("Found \(hitsTotal) posts")
@@ -67,8 +67,7 @@ struct PostsSearchView: View {
                         }
                         
                         ForEach(posts) { post in
-                            PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil)
-                                .padding(.horizontal, 16)
+                            PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil, showCard: true)
                         }
                         
                         if cursor != nil {
@@ -86,6 +85,8 @@ struct PostsSearchView: View {
                             }
                         }
                     }
+                    .padding(.horizontal, 6)
+                    .background(.warmBackground)
                 }
                 .refreshable {
                     await searchPosts()
