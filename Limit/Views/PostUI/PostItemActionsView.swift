@@ -21,15 +21,15 @@ struct PostItemActionsView: View {
     
     @Environment(BlueskyClient.self) private var client
     var body: some View {
-        HStack(alignment:.firstTextBaseline, spacing: 16) {
+        HStack(alignment:.firstTextBaseline, spacing: 12) {
             
             
             Button {
                 
             } label: {
-                Label("\(postWrapper.replyCount.abbreviated)", systemImage: "quote.bubble")
+                Label("\(postWrapper.replyCount.abbreviatedRounded)", systemImage: "quote.bubble")
                     .lineLimit(1)
-                    .font(.callout)
+                    .font(.footnote)
                     .imageScale(.medium)
             }
             .buttonStyle(.plain)
@@ -39,35 +39,24 @@ struct PostItemActionsView: View {
             Button {
                 
             } label: {
-                Label("\(postWrapper.repostCount.abbreviated)", systemImage: "arrow.2.squarepath")
+                Label("\(postWrapper.repostCount.abbreviatedRounded)", systemImage: "arrow.2.squarepath")
                     .lineLimit(1)
-                    .font(.callout)
+                    .font(.footnote)
                     .imageScale(.medium)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
             .monospacedDigit()
-            
-            /* In Bluesky, "Quote post" is a post that contains another post as a quote, similar to "Quote Tweet" on Twitter. The user creates a new post that contains an embedded other post (as referenced content), often supplemented with their own comment.
-            Button {
-                
-            } label: {
-                Label("\(postWrapper.post.quoteCount)", systemImage: "arrow.triangle.2.circlepath")
-                    .lineLimit(1)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.blueGray)
-            .monospacedDigit() */
             
             Button {
                 Task {
                     await postWrapper.toggleLike(using: client)
                 }
             } label: {
-                Label("\(postWrapper.likeCount.abbreviated)", systemImage: postWrapper.isLiked ? "heart.fill" : "heart")
+                Label("\(postWrapper.likeCount.abbreviatedRounded)", systemImage: postWrapper.isLiked ? "heart.fill" : "heart")
                     .foregroundStyle(postWrapper.isLiked ? .red : .primary)
                     .lineLimit(1)
-                    .font(.callout)
+                    .font(.footnote)
                     .imageScale(.medium)
             }
             .buttonStyle(.plain)

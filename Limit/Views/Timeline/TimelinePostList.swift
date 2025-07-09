@@ -63,7 +63,7 @@ struct TimelinePostList: View {
                             }
                         }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 6)
                 .background(.warmBackground)
                 .scrollTargetLayout()
             }
@@ -121,29 +121,12 @@ struct TimelinePostList: View {
             index + 1 < posts.count ? posts[index + 1] : nil
         }
 
-        ZStack(alignment: .topLeading) {
-            // Post card content
-            PostItemWrappedView(
-                post: wrapper,
-                depth: 0,
-                nextPostID: nextWrapper?.uri,
-                nextPostThreadRootID: nextWrapper?.rootPost?.uri,
-                showThreadLink: false // Disable internal thread link
-            )
-            .padding(.vertical, 10)
-            .padding(.horizontal, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.cardBackground)
-                    .shadow(
-                        color: .subtleGray.opacity(0.15),
-                        radius: 2,
-                        x: 0,
-                        y: 1
-                    )
-            )
-            .zIndex(1)
-        }
+        PostItemWrappedView(
+            post: wrapper,
+            depth: 0,
+            nextPostID: nextWrapper?.uri,
+            nextPostThreadRootID: nextWrapper?.rootPost?.uri,
+        )
         .id(wrapper.uri)
         .padding(.vertical, 4)
     }

@@ -38,7 +38,7 @@ struct ThreadWrappedView: View {
                                 PostItemWrappedView(post: post, isThreadView: true, showCard: true)
                                     .id(post.id)
                             }
-                            VStack {}.frame(height: 300)
+                            VStack {}.frame(height: 500)
                         }
                         .padding(.horizontal, 6)
                         .background(.warmBackground)

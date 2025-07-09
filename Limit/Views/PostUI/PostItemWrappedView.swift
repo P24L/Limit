@@ -32,12 +32,10 @@ struct PostItemWrappedView: View {
     var nextPostThreadRootID: String? = nil
     var isThreadView: Bool = false
     var postViewType: PostViewType = .timeline
-    var showThreadLink: Bool = true // Control thread link visibility
     var showCard: Bool = true // Control card background visibility
 
     @State private var selectedImageIndex: Int = 0
     @State private var fullScreenImages: [PostImage] = []
-    //@State private var isImageFullScreen: Bool = false
 
     @Query(
         sort: \TimelinePost.createdAt,
@@ -184,7 +182,7 @@ struct PostItemWrappedView: View {
                                 RoundedRectangle(cornerRadius: 8)
                                     .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
                             )
-                            .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
+                            .cardShadow()
                     }
                     
                     // MARK: Enhanced Link Presentation - Facet Links + Action bar + Divider
@@ -214,12 +212,7 @@ struct PostItemWrappedView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.cardBackground)
-                        .shadow(
-                            color: Color.subtleGray.opacity(0.15),
-                            radius: 2,
-                            x: 0,
-                            y: 1
-                        )
+                        .subtleShadow()
                 )
         } else {
             content
@@ -332,7 +325,7 @@ struct WrappedPostLinkView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
         )
-        .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
+        .cardShadow()
         .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -407,7 +400,7 @@ struct EmbeddedImageView: View {
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.clear)
-                    .shadow(color: .black.opacity(0.7), radius: 2)
+                    .imageShadow()
             )
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(.trailing, 8)
