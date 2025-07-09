@@ -18,6 +18,9 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
   var storageID: String?
   private let uuid = UUID()
   public var id: String { uri + uuid.uuidString }
+  
+  // Track active metadata fetching tasks for cancellation
+  private var metadataFetchTask: Task<Void, Never>?
 
   let createdAt: Date
   var type: TimelinePostType
@@ -432,10 +435,17 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     let hasUnfetchedLinks = self.facets?.links.contains { !$0.metadataFetched } ?? false
     
     if hasUnfetchedLinks {
+      // Cancel any existing metadata fetch task
+      metadataFetchTask?.cancel()
+      
       // Background fetch metadata for link facets (non-blocking with delay)
-      Task.detached { [weak self] in
+      metadataFetchTask = Task { [weak self] in
         // Add small delay to prioritize main UI loading
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        // Check if task was cancelled
+        guard !Task.isCancelled else { return }
+        
         await self?.fetchLinkMetadataInWrapper()
       }
     }
@@ -596,10 +606,17 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     let hasUnfetchedLinks = self.facets?.links.contains { !$0.metadataFetched } ?? false
     
     if hasUnfetchedLinks {
+      // Cancel any existing metadata fetch task
+      metadataFetchTask?.cancel()
+      
       // Background fetch metadata for link facets (non-blocking with delay)
-      Task.detached { [weak self] in
+      metadataFetchTask = Task { [weak self] in
         // Add small delay to prioritize main UI loading
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        // Check if task was cancelled
+        guard !Task.isCancelled else { return }
+        
         await self?.fetchLinkMetadataInWrapper()
       }
     }
@@ -673,13 +690,25 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     let hasUnfetchedLinks = self.facets?.links.contains { !$0.metadataFetched } ?? false
     
     if hasUnfetchedLinks {
+      // Cancel any existing metadata fetch task
+      metadataFetchTask?.cancel()
+      
       // Background fetch metadata for link facets if not already fetched (for SwiftData loaded posts)
-      Task.detached { [weak self] in
+      metadataFetchTask = Task { [weak self] in
         // Add delay for SwiftData loaded posts to avoid blocking initial rendering
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second for cached posts
+        
+        // Check if task was cancelled
+        guard !Task.isCancelled else { return }
+        
         await self?.fetchLinkMetadataIfNeeded()
       }
     } 
+  }
+  
+  deinit {
+    // Cancel any running metadata fetch task to prevent memory leaks
+    metadataFetchTask?.cancel()
   }
 
   func toModel(context: ModelContext) -> TimelinePost {
@@ -874,6 +903,9 @@ private let urlTracker = URLFetchingTracker()
     guard let facets = self.facets else { 
       return 
     }
+    
+    // Check if task is cancelled early
+    guard !Task.isCancelled else { return }
 
     let linkFacetsTotal = facets.facets.filter { facet in
       if case .link = facet.data { return true }
@@ -882,6 +914,9 @@ private let urlTracker = URLFetchingTracker()
 
     // First check SwiftData for existing metadata
     let updatedFacetsFromData = await loadMetadataFromSwiftData(facets: facets.facets)
+    
+    // Check if task is cancelled after SwiftData check
+    guard !Task.isCancelled else { return }
     
     // Filter only link facets that still need metadata fetching after SwiftData check
     let linkFacetsToProcess = updatedFacetsFromData.filter { facet in
@@ -903,7 +938,10 @@ private let urlTracker = URLFetchingTracker()
     var updatedLinkFacets: [String: ProcessedFacet] = [:]
 
     // Process link facets in batches with concurrency control
-    for (batchIndex, batch) in linkFacetsToProcess.chunked(into: 2).enumerated() {     
+    for (batchIndex, batch) in linkFacetsToProcess.chunked(into: 2).enumerated() {
+      // Check if task is cancelled before processing each batch
+      guard !Task.isCancelled else { return }
+      
       let batchResults = await withTaskGroup(of: (String, ProcessedFacet).self, returning: [(String, ProcessedFacet)].self) { group in
         for facet in batch {
           group.addTask {
@@ -1123,6 +1161,11 @@ final class TimelineFeed {
   private let context: ModelContext
 
   private var client: BlueskyClient
+  
+  // Memory management constants
+  private let maxPostsInMemory = 2000
+  private let maxPostsInDatabase = 3000
+  private let cleanupThreshold = 2500
 
   init(context: ModelContext, client: BlueskyClient) {
     self.context = context
@@ -1169,6 +1212,9 @@ final class TimelineFeed {
     if oldestCursor == nil, let cursor = cursor {
       oldestCursor = cursor
     }
+    
+    // Apply memory management after adding posts
+    trimMemoryIfNeeded()
     saveToStorage()
   }
 
@@ -1190,6 +1236,9 @@ final class TimelineFeed {
 
     posts.insert(contentsOf: uniqueNewWrappers, at: 0)
 
+    // Apply memory management after adding posts
+    trimMemoryIfNeeded()
+    
     // Pokud cursor přišel (většinou nil), tak jej neměníme — to se používá pro oldestCursor
     saveToStorage()
   }
@@ -1219,8 +1268,8 @@ final class TimelineFeed {
       let postTypePosts = allPosts.filter { $0.type == .post }
         .sorted { $0.createdAt > $1.createdAt } // Sort newest first
       
-      if postTypePosts.count > 3000 {
-        let postsToDelete = Array(postTypePosts.dropFirst(2000)) // Keep 2000 newest
+      if postTypePosts.count > maxPostsInDatabase {
+        let postsToDelete = Array(postTypePosts.dropFirst(maxPostsInMemory)) // Keep maxPostsInMemory newest
         postsToDelete.forEach { context.delete($0) }
         try context.save()
         
@@ -1228,6 +1277,25 @@ final class TimelineFeed {
       }
     } catch {
       print("Failed to cleanup old posts: \(error)")
+    }
+  }
+  
+  /// Trim in-memory posts if we exceed the limit
+  @MainActor
+  private func trimMemoryIfNeeded() {
+    let postTypePosts = posts.filter { $0.type == .post }
+    
+    if postTypePosts.count > cleanupThreshold {
+      // Sort by creation date, newest first
+      let sortedPosts = posts.sorted { $0.createdAt > $1.createdAt }
+      
+      // Keep only the newest posts up to maxPostsInMemory
+      let postsToKeep = Array(sortedPosts.prefix(maxPostsInMemory))
+      
+      // Update the posts array
+      posts = postsToKeep
+      
+      DevLogger.shared.log("TimelineFeed.swift - trimmed memory: removed \(sortedPosts.count - postsToKeep.count) posts, keeping \(postsToKeep.count)")
     }
   }
 
