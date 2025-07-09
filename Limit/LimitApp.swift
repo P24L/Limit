@@ -11,6 +11,7 @@ import Observation
 import SwiftUI
 import SwiftData
 import FirebaseCore
+import SDWebImage
 
 
 @Observable
@@ -70,6 +71,38 @@ struct LimitApp: App {
         
         // Configure LinkMetadataService
         LinkMetadataService.shared.configure(context: container.mainContext)
+        
+        // Configure SDWebImage for memory optimization
+        configureSDWebImage()
+    }
+    
+    private func configureSDWebImage() {
+        // Configure memory cache
+        let config = SDImageCache.shared.config
+        config.maxMemoryCost = 20 * 1024 * 1024 // 100MB memory limit
+        config.maxMemoryCount = 500 // Maximum 500 images in memory
+        
+        // Configure disk cache
+        config.maxDiskSize = 40 * 1024 * 1024 // 200MB disk limit
+        config.maxDiskAge = 7 * 24 * 60 * 60 // 7 days
+        
+        // Configure download settings
+        let downloadManager = SDWebImageDownloader.shared
+        downloadManager.config.maxConcurrentDownloads = 6 // Limit concurrent downloads
+        downloadManager.config.downloadTimeout = 15.0 // 15 second timeout
+        
+        // Enable memory pressure monitoring
+        if #available(iOS 13.0, *) {
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.didReceiveMemoryWarningNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                // Clear memory cache on memory warning
+                SDImageCache.shared.clearMemory()
+                DevLogger.shared.log("LimitApp.swift - Memory warning: cleared SDWebImage cache")
+            }
+        }
     }
     
     var body: some Scene  {

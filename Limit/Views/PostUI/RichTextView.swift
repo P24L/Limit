@@ -48,8 +48,10 @@ private struct InteractiveRichText: View {
     let font: Font
     let postWrapper: TimelinePostWrapper?
     
-    // Cache the attributedText to prevent infinite re-computation
+    // Enhanced caching with content hash
     @State private var cachedAttributedText: AttributedString?
+    @State private var cachedContentHash: Int?
+    @State private var cachedSegments: [TextSegment]?
     
     var body: some View {
         let attributedText = getCachedAttributedText()
@@ -73,12 +75,30 @@ private struct InteractiveRichText: View {
     }
     
     private func getCachedAttributedText() -> AttributedString {
-        if let cached = cachedAttributedText {
+        let currentHash = computeContentHash()
+        
+        if let cached = cachedAttributedText, 
+           let existingHash = cachedContentHash,
+           existingHash == currentHash {
             return cached
         }
+        
         let attributed = buildAttributedText()
         cachedAttributedText = attributed
+        cachedContentHash = currentHash
         return attributed
+    }
+    
+    private func computeContentHash() -> Int {
+        var hasher = Hasher()
+        hasher.combine(text)
+        hasher.combine(facets.facets.count)
+        for facet in facets.facets {
+            hasher.combine(facet.range.location)
+            hasher.combine(facet.range.length)
+            hasher.combine(facet.type)
+        }
+        return hasher.finalize()
     }
     
     private func handleCustomURL(_ url: URL) {
@@ -145,6 +165,11 @@ private struct InteractiveRichText: View {
     }
     
     private func createTextSegments() -> [TextSegment] {
+        // Use cached segments if available
+        if let cached = cachedSegments {
+            return cached
+        }
+        
         var segments: [TextSegment] = []
         let sortedFacets = facets.facets.sorted { $0.range.location < $1.range.location }
         
@@ -203,6 +228,8 @@ private struct InteractiveRichText: View {
             ))
         }
         
+        // Cache the segments for future use
+        cachedSegments = segments
         return segments
     }
     

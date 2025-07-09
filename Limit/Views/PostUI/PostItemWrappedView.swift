@@ -119,38 +119,26 @@ struct PostItemWrappedView: View {
                     RichTextView(text: post.text, facets: post.facets, postWrapper: post)
 
                     // MARK: Weblink
-                    if let linkExt = post.linkExt {
+                    if let linkExt = post.linkExt, depth < 2 {
                         WrappedPostLinkView(linkExt: linkExt)
                     }
 
 
-                    // MARK: Post - images
+                    // MARK: Post - images (optimized)
                     if post.embeds.count == 1, let image = post.embeds.first {
                         EmbeddedImageView(url: image.thumbURL)
                             .onTapGesture {
-                                let images = post.embeds.map { $0.toDisplayImage() }
-                                
-                                router.presentedSheet = .fullScreenImage(
-                                    images: images,
-                                    initialIndex: 0,
-                                    namespace: namespace
-                                )
+                                self.openImageGallery(at: 0)
                             }
 
                     } else if post.embeds.count > 1 {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
+                            LazyHStack(spacing: 8) {
                                 ForEach(Array(post.embeds.enumerated()), id:\.offset) {  index,image in
                                     EmbeddedImageView(url: image.thumbURL)
                                         .frame(width: 200, height: 200)
                                         .onTapGesture {
-                                            let images = post.embeds.map { $0.toDisplayImage() }
-                                            
-                                            router.presentedSheet = .fullScreenImage(
-                                                images: images,
-                                                initialIndex: index,
-                                                namespace: namespace
-                                            )
+                                            self.openImageGallery(at: index)
                                         }
                                 }
                             }
@@ -217,6 +205,18 @@ struct PostItemWrappedView: View {
         } else {
             content
         }
+    }
+
+        // MARK: - Optimized Image Gallery Helper
+    private func openImageGallery(at index: Int) {
+        // Lazy evaluation: create images array only when needed
+        let images = self.post.embeds.map { $0.toDisplayImage() }
+        
+        self.router.presentedSheet = .fullScreenImage(
+            images: images,
+            initialIndex: index,
+            namespace: self.namespace
+        )
     }
 }
 
@@ -380,33 +380,37 @@ struct EmbeddedImageView: View {
             WebImage(url: url) { phase in
                 switch phase {
                 case .empty:
-                    Rectangle()
-                        .foregroundStyle(.gray)
-                        .aspectRatio(4/3, contentMode: .fit)
-                        .frame(maxHeight: 300)
+                    placeholderView
                 case .success(let image):
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(maxHeight: 300)
                 case .failure(_):
-                    Rectangle()
-                        .foregroundStyle(.gray)
-                        .aspectRatio(4/3, contentMode: .fit)
-                        .frame(maxHeight: 300)
+                    placeholderView
                 }
             }
             .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.clear)
-                    .imageShadow()
-            )
+            .background(backgroundView)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(.trailing, 8)
         } else {
             EmptyView()
         }
+    }
+    
+    // MARK: - Optimized Subviews
+    private var placeholderView: some View {
+        Rectangle()
+            .foregroundStyle(.gray)
+            .aspectRatio(4/3, contentMode: .fit)
+            .frame(maxHeight: 300)
+    }
+    
+    private var backgroundView: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color.clear)
+            .imageShadow()
     }
 }
 
