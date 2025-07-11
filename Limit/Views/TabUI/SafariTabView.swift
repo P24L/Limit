@@ -16,35 +16,15 @@ struct SafariTabView: View {
         if let safariURL = safariURL {
             CustomWebViewContainer(url: safariURL)
                 .id(id)
-                .toolbar(.automatic, for: .navigationBar)
+                //.toolbar(.automatic, for: .navigationBar)
                 .onChange(of: safariURL) { oldValue, newValue in
                     guard oldValue != newValue else { return }
                     id = UUID()
                 }
+                .toolbar(.hidden, for: .navigationBar)
         } else {
-            //FavoritesViews(selectedCategories: [.links])
             FavoriteLinksSectionView()
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
-}
-
-#Preview {
-    struct SafariTabPreviewContainer: View {
-        @State private var safariURL: URL? = URL(string: "https://www.example.com")
-        @State private var navigation = NavigationState()
-
-        var body: some View {
-            TabView(selection: $navigation.selectedTab) {
-                SafariTabView(safariURL: safariURL)
-                    .environment(navigation)
-                    .modelContainer(SampleData.shared.modelContainer)
-                    .tabItem {
-                        Label("Safari", systemImage: "safari.fill")
-                    }
-                    .tag(1)
-            }
-        }
-    }
-
-    return SafariTabPreviewContainer()
 }

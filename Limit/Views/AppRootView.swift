@@ -12,6 +12,7 @@ struct AppRootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(BlueskyClient.self) private var client
     
+    @State private var isTopbarHidden = false
     
     var body: some View {
         @Bindable var router = router
@@ -83,8 +84,8 @@ struct AppRootView: View {
         switch tab {
         case .timeline:
             ATTimelineView_experimental()
-        case .computedTimeline:
-            ComputedTimelineView()
+        case .safari:
+            SafariTabView()
         case .search:
             SearchTabView()
         case .favorites:
@@ -116,7 +117,7 @@ struct AppRootView: View {
         case .actor(let actorDID):
             ActorView(actorDID: actorDID)
         case .listTimeline(let source):
-            ListTimelineView(source: source)
+            ListTimelineView(source: source, isTopbarHidden: $isTopbarHidden)
         }
     }
     

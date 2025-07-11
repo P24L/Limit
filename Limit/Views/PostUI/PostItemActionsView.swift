@@ -89,7 +89,7 @@ struct PostItemActionsView: View {
                 Button {
                     router.presentedSheet = .aiExplanation(postWrapper: postWrapper)
                 } label: {
-                    Image(systemName: "brain")
+                    Image(systemName: "sparkles")
                         .font(.callout)
                         .imageScale(.medium)
                 }

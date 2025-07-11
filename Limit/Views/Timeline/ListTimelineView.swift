@@ -82,10 +82,8 @@ enum TimelineContentSource: Hashable {
 struct ListTimelineView: View {
     let source: TimelineContentSource
     @Environment(BlueskyClient.self) private var client
-    // Pro budoucí rozšíření lze přidat bindingy jako u TimelinePostList
-    // @Binding var newPostsAboveCount: Int
-    // @Binding var hideDirectionIsUp: Bool
-    // @Binding var isTopbarHidden: Bool
+    
+    @Binding var isTopbarHidden: Bool
 
     @State private var posts: [TimelinePostWrapper] = []
     @State private var isLoading = false
@@ -107,7 +105,7 @@ struct ListTimelineView: View {
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             Color.clear
-                                .frame(height: 60)
+                                .frame(height: 100)
                             ForEach(posts) { post in
                                 PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil, showCard: true)
                                     .id(post.uri)
@@ -115,6 +113,13 @@ struct ListTimelineView: View {
                         }
                         .padding(.horizontal, 12)
                         .scrollTargetLayout()
+                    }
+                    .onScrollPhaseChange { old, new in
+                        if new == .tracking || new == .interacting {
+                            isTopbarHidden = true
+                        } else if new == .idle {
+                            isTopbarHidden = false
+                        }
                     }
                     .onScrollTargetVisibilityChange(idType: String.self) { visibleIDs in
                         guard !isRestoringScrollPosition else { return }

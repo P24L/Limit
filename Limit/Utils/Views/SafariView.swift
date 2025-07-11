@@ -287,14 +287,3 @@ struct CustomWebViewContainer: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: task)
     }
 }
-
-#Preview {
-    TabView {
-        CustomWebViewContainer(url: URL(string: "https://seznam.cz")!)
-        .modelContainer(SampleData.shared.modelContainer)
-        .environment( NavigationState())
-        .tabItem {
-            Label("", systemImage: "safari.fill")
-        }
-    }
-}

@@ -33,7 +33,10 @@ struct FacetLinksView: View {
                             )
                             .onTapGesture {
                                 if let url = URL(string: uri) {
-                                    router.navigateTo(.safari(url: url))
+                                    //router.navigateTo(.safari(url: url))
+                                    router.popToRoot(for: .safari)
+                                    router.selectedTab = .safari
+                                    router.navigateTo(.safari(url: url), for: .safari)
                                 }
                             }
                         }
@@ -150,38 +153,4 @@ struct LinkCardView: View {
         }
         return uri
     }
-}
-
-#Preview {
-    let samplePost = TimelinePostWrapper(
-        uri: "at://sample.post/123",
-        cid: "sample123",
-        createdAt: Date(),
-        type: .post,
-        authorID: "did:plc:sample",
-        authorHandle: "sample.user",
-        authorDisplayName: "Sample User",
-        authorAvatarURL: nil,
-        text: "Check out these links: https://example.com and https://github.com",
-        likeCount: 0,
-        replyCount: 0,
-        repostCount: 0,
-        quoteCount: 0,
-        facets: TimelinePostWrapper.PostFacets(facets: [
-            TimelinePostWrapper.ProcessedFacet(
-                range: NSRange(location: 0, length: 10),
-                type: .link,
-                data: .link(uri: "https://example.com")
-            ),
-            TimelinePostWrapper.ProcessedFacet(
-                range: NSRange(location: 20, length: 10),
-                type: .link,
-                data: .link(uri: "https://github.com")
-            )
-        ])
-    )
-    
-    FacetLinksView(post: samplePost)
-        .environment(AppRouter(initialTab: .timeline))
-        .modelContainer(for: [TimelinePost.self, PostFacet.self])
 }
