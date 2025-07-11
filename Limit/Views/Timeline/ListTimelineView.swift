@@ -16,6 +16,7 @@ enum TimelineContentSource: Hashable {
     case feed(AppBskyLexicon.Feed.GeneratorViewDefinition)
     case feedUri(String, String) // uri, displayName
     case trendingFeed(String, String) // link, displayName
+    case trendingPosts //trending posts through search
     
     func hash(into hasher: inout Hasher) {
         switch self {
@@ -33,7 +34,10 @@ enum TimelineContentSource: Hashable {
             hasher.combine("trendingFeed")
             hasher.combine(link)
             hasher.combine(displayName)
+        case .trendingPosts:
+            hasher.combine("trendingPosts")
         }
+
     }
     
     static func == (lhs: TimelineContentSource, rhs: TimelineContentSource) -> Bool {
@@ -46,6 +50,8 @@ enum TimelineContentSource: Hashable {
             return lhsUri == rhsUri && lhsName == rhsName
         case (.trendingFeed(let lhsLink, let lhsName), .trendingFeed(let rhsLink, let rhsName)):
             return lhsLink == rhsLink && lhsName == rhsName
+        case (.trendingPosts, .trendingPosts):
+            return true
         default:
             return false
         }
@@ -57,6 +63,7 @@ enum TimelineContentSource: Hashable {
         case .feed(let feed): return feed.displayName
         case .feedUri(_, let displayName): return displayName
         case .trendingFeed(_, let displayName): return displayName
+        case .trendingPosts: return "trendingPosts"
         }
     }
     
@@ -66,6 +73,7 @@ enum TimelineContentSource: Hashable {
         case .feed(let feed): return feed.feedURI
         case .feedUri(let uri, _): return uri
         case .trendingFeed(let link, _): return link // Return link for trending feeds
+        case .trendingPosts: return ""
         }
     }
     
@@ -75,6 +83,7 @@ enum TimelineContentSource: Hashable {
         case .feed: return "feed"
         case .feedUri: return "feed"
         case .trendingFeed: return "trendingFeed"
+        case .trendingPosts: return "trendingPosts"
         }
     }
 }
@@ -105,7 +114,7 @@ struct ListTimelineView: View {
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             Color.clear
-                                .frame(height: 100)
+                                .frame(height: 120)
                             ForEach(posts) { post in
                                 PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil, showCard: true)
                                     .id(post.uri)
@@ -174,6 +183,18 @@ struct ListTimelineView: View {
             case .trendingFeed(let link, _):
                 let result = try await client.bskyClient?.viewTrendingFeed(link, limit: 50)
                 wrappers = result?.posts.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            case .trendingPosts:
+                let calendar = Calendar.current
+                let weekAgo = calendar.date(byAdding: .day, value: -2, to: Date())
+                let output = try await client.protoClient?.searchPosts(
+                    matching: "*",  // Všechny posty
+                    sortRanking: .top,
+                    sinceDate: weekAgo,
+                    untilDate: Date(),
+                    limit: 50
+                )
+                wrappers = output?.posts.compactMap { TimelinePostWrapper(from: $0) } ?? []
+
             }
             
             await MainActor.run {
