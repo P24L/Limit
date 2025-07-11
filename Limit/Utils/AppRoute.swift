@@ -26,7 +26,7 @@ enum AppTab: String, TabType, CaseIterable {
         case .favorites:
             return "star"
         case .settings:
-            return "gear"
+            return "person.crop.circle"
         }
     }
     
@@ -41,7 +41,7 @@ enum AppTab: String, TabType, CaseIterable {
         case .favorites:
             return "Favorites"
         case .settings:
-            return "Settings"
+            return "Profile"
         }
     }
 }
