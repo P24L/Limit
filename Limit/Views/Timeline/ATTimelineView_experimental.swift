@@ -31,6 +31,7 @@ struct ATTimelineView_experimental: View {
     enum TopbarTab: Equatable {
         case timeline
         case aline
+        case trendingPosts
         case list(Int)
         case feed(Int)
         
@@ -40,6 +41,8 @@ struct ATTimelineView_experimental: View {
                 return .mintAccent
             case .aline:
                 return .blue
+            case .trendingPosts:
+                return Color(red: 0.557, green: 0.267, blue: 0.678) // #8E44AD royalPurple
             case .list:
                 return .yellow
             case .feed:
@@ -53,6 +56,8 @@ struct ATTimelineView_experimental: View {
                 return "house.fill"
             case .aline:
                 return "sparkles"
+            case .trendingPosts:
+                return "arrowshape.up.fill"
             case .list:
                 return "list.bullet"
             case .feed:
@@ -63,9 +68,11 @@ struct ATTimelineView_experimental: View {
         var title: String {
             switch self {
             case .timeline:
-                return "Timeline"
+                return "Home"
             case .aline:
                 return "A-line"
+            case .trendingPosts:
+                return "Trending"
             case .list:
                 return "Lists"
             case .feed:
@@ -115,7 +122,7 @@ struct ATTimelineView_experimental: View {
                 // For A-line, we'll show computed timeline posts
                 await computedFeed.loadPosts(client: client)
                 viewState = .posts(computedFeed.posts)
-            case .list, .feed:
+            case .list, .feed, .trendingPosts:
                 viewState = getSelectedContent()
             }
         }
@@ -131,7 +138,7 @@ struct ATTimelineView_experimental: View {
             case .aline:
                 // A-line uses its own refresh button
                 break
-            case .list, .feed:
+            case .list, .feed, .trendingPosts:
                 viewState = getSelectedContent()
             }
         }
@@ -163,7 +170,7 @@ struct ATTimelineView_experimental: View {
                         await computedFeed.loadPosts(client: client)
                     }
                     viewState = .posts(computedFeed.posts)
-                case .list, .feed:
+                case .list, .feed, .trendingPosts:
                     viewState = getSelectedContent()
                 }
             }
@@ -183,6 +190,8 @@ struct ATTimelineView_experimental: View {
                 return .loading
             }
             return .content(.feed(feed))
+        case .trendingPosts:
+            return .content(.trendingPosts)
         default:
             return .loading
         }
@@ -230,7 +239,7 @@ struct ATTimelineView_experimental: View {
                 tab: .timeline,
                 isSelected: selectedTab == .timeline,
                 showText: selectedTab == .timeline,
-                badge: selectedTab == .timeline && newPostsAboveCount > 0 ? "\(newPostsAboveCount)" : nil,
+                badge: selectedTab == .timeline && newPostsAboveCount > 0 ? "\(newPostsAboveCount.abbreviatedRounded)" : nil,
                 action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .timeline } }
             )
             
@@ -249,6 +258,23 @@ struct ATTimelineView_experimental: View {
                     }
                 },
                 action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .aline } }
+            )
+
+                        // A-line tab
+            TabButton(
+                tab: .trendingPosts,
+                isSelected: selectedTab == .trendingPosts,
+                showText: selectedTab == .trendingPosts,
+                showRefresh: selectedTab == .trendingPosts,
+                //isRefreshing: isRefreshingAline,
+                /*refreshAction: {
+                    Task {
+                        isRefreshingAline = true
+                        await computedFeed.fastRefresh(client: client)
+                        isRefreshingAline = false
+                    }
+                },*/
+                action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .trendingPosts } }
             )
             
             // Lists tab (if available)
@@ -287,7 +313,7 @@ struct ATTimelineView_experimental: View {
                 )
             }
             
-            Spacer()
+            //Spacer()
         }
         .padding(.horizontal, 16)
         .frame(height: 44)
