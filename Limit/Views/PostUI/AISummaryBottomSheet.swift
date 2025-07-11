@@ -30,7 +30,7 @@ struct AISummaryBottomSheet: View {
                     // Header with close button
                     HStack {
                         HStack(spacing: 8) {
-                            Image(systemName: "brain")
+                            Image(systemName: "sparkles")
                                 .font(.title2)
                                 .foregroundStyle(.blue)
                             

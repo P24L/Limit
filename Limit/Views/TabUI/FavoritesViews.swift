@@ -204,7 +204,7 @@ struct FavoriteLinkCardView: View {
                     router.presentedSheet = .aiSummary(favoriteURL: favoriteURL)
                 } label: {
                     HStack(alignment: .top, spacing: 6) {
-                        Image(systemName: "brain")
+                        Image(systemName: "sparkles")
                             .font(.caption)
                             .foregroundStyle(.blue)
                         
@@ -241,7 +241,7 @@ struct FavoriteLinkCardView: View {
                 
             } else if favoriteURL.safeSummaryStatus == .processing {
                 HStack(spacing: 6) {
-                    Image(systemName: "brain")
+                    Image(systemName: "sparkles")
                         .font(.caption)
                         .foregroundStyle(.blue)
                     
@@ -263,7 +263,7 @@ struct FavoriteLinkCardView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "brain")
+                        Image(systemName: "sparkles")
                             .font(.caption)
                             .foregroundStyle(.orange)
                         
