@@ -30,6 +30,7 @@ class CurrentUser {
             self.displayName = profile.displayName ?? ""
             self.avatarURL = profile.avatarImageURL
         }
+        DevLogger.shared.log("CurrentUser - refreshProfile - did: \(self.did)")
         await refreshLists(client: client)
         await refreshFeeds(client: client)
 
@@ -40,12 +41,20 @@ class CurrentUser {
         handle = ""
         displayName = ""
         avatarURL = nil
+        DevLogger.shared.log("CurrentUser - clear - clear!")
     }
     
     // Načte seznam vlastních lists
     func refreshLists(client: BlueskyClient, limit: Int = 50) async {
-        guard let protoClient = await client.protoClient else { return }
-        guard !did.isEmpty else { return }
+        guard let protoClient = await client.protoClient else {
+            DevLogger.shared.log("CurrentUser - refreshLists - protoClient empty")
+            return 
+        }
+        guard !did.isEmpty else { 
+            DevLogger.shared.log("CurrentUser - refreshLists - did empty")
+            return 
+        }
+        DevLogger.shared.log("CurrentUser - refreshLists - starting")
         do {
             let output = try await protoClient.getLists(
                 from: did,
@@ -53,6 +62,7 @@ class CurrentUser {
                 cursor: listsLastCursor
             )
             listsLastCursor = output.cursor
+            DevLogger.shared.log("CurrentUser - refreshLists - old count: \(lists.count),new count:\(output.lists.count)")
             await MainActor.run {
                 self.lists = output.lists
             }

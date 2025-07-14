@@ -9,6 +9,7 @@
 import AppRouter
 import Foundation
 import SwiftUI
+import ATProtoKit
 
 enum AppTab: String, TabType, CaseIterable {
     case timeline, favorites, search, safari, settings
@@ -57,6 +58,8 @@ enum Destination: DestinationType {
     case settings
     case actor(userID: String)
     case listTimeline(source: TimelineContentSource)
+    case listManagement
+    case listMembers(list: AppBskyLexicon.Graph.ListViewDefinition)
     
     static func from(path: String, fullPath: [String], parameters: [String : String]) -> Destination? {
         return nil // Nepotřebuješ prozatím deep-linking, lze doplnit později.
