@@ -53,24 +53,22 @@ struct SettingsView: View {
                 
                 // Lists section
                 if client.isAuthenticated {
-                    Button(action: {
-                        router.navigateTo(.listManagement)
-                    }) {
-                        HStack {
-                            Image(systemName: "list.bullet")
-                                .foregroundColor(.blue)
-                                .frame(width: 24)
-                            Text("Lists")
-                            Spacer()
-                            Text("\(currentUser.lists.count)")
-                                .foregroundColor(.secondary)
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                        }
+                    HStack {
+                        Image(systemName: "list.bullet")
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+                        Text("Lists")
+                        Spacer()
+                        Text("\(currentUser.lists.count)")
+                            .foregroundColor(.secondary)
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
                     }
                     .contentShape(Rectangle())
-                    .buttonStyle(PlainButtonStyle())
+                    .onTapGesture {
+                        router.navigateTo(.listManagement)
+                    }
                 }
                 
                 // Restore Logout/Login button
