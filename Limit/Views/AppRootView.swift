@@ -118,6 +118,10 @@ struct AppRootView: View {
             ActorView(actorDID: actorDID)
         case .listTimeline(let source):
             ListTimelineView(source: source, isTopbarHidden: $isTopbarHidden)
+        case .listManagement:
+            ListManagementView()
+        case .listMembers(let list):
+            ListMembersView(list: list)
         }
     }
     

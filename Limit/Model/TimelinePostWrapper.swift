@@ -1163,9 +1163,9 @@ final class TimelineFeed {
   private var client: BlueskyClient
   
   // Memory management constants
-  private let maxPostsInMemory = 2000
-  private let maxPostsInDatabase = 3000
-  private let cleanupThreshold = 2500
+  private let maxPostsInMemory = 1000
+  private let maxPostsInDatabase = 2000
+  private let cleanupThreshold = 1500
 
   init(context: ModelContext, client: BlueskyClient) {
     self.context = context

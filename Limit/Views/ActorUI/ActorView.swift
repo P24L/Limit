@@ -38,8 +38,10 @@ struct ActorView: View {
 struct UserProfileView: View {
   var actorWrapped: ActorWrapper
   @Environment(BlueskyClient.self) private var client
+  @Environment(CurrentUser.self) private var currentUser
   @State private var selectedSection: ProfileSection = .posts
   @State private var interimFollowingURI: String?
+  @State private var showAddToListSheet = false
 
   enum ProfileSection: String, CaseIterable {
     case posts = "Posts"
@@ -88,6 +90,18 @@ struct UserProfileView: View {
             FeedsSectionView(feeds: actorWrapped.feedGenerators, isLoading: actorWrapped.isLoadingFeeds)
           }
         }
+      }
+    }
+    .sheet(isPresented: $showAddToListSheet) {
+      if let profile = actorWrapped.profile {
+        AddToListSheet(
+          actorDID: actorWrapped.actorDID,
+          actorHandle: profile.actorHandle,
+          actorDisplayName: profile.displayName,
+          actorAvatarURL: profile.avatarImageURL
+        )
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
       }
     }
     .navigationTitle("Profil")
@@ -155,39 +169,66 @@ struct UserProfileView: View {
         Spacer()
 
         if let did = actorWrapped.actorDID as String? {
-          Button {
-            Task {
-              if let uri = followingURI {
-                // UNFOLLOW: Set interim state, no refresh wait needed
-                interimFollowingURI = "UNFOLLOWED"
-                await client.deleteFollowRecord(recordID: uri)
-              } else {
-                // FOLLOW: Set interim state, then refresh to get real URI
-                let tempURI = "temp_follow_uri"
-                interimFollowingURI = tempURI
-                _ = await client.followActor(actor: did)
-                await actorWrapped.refreshProfile()
-                interimFollowingURI = nil
+          VStack(spacing: 8) {
+            // Follow/Unfollow button
+            Button {
+              Task {
+                if let uri = followingURI {
+                  // UNFOLLOW: Set interim state, no refresh wait needed
+                  interimFollowingURI = "UNFOLLOWED"
+                  await client.deleteFollowRecord(recordID: uri)
+                } else {
+                  // FOLLOW: Set interim state, then refresh to get real URI
+                  let tempURI = "temp_follow_uri"
+                  interimFollowingURI = tempURI
+                  _ = await client.followActor(actor: did)
+                  await actorWrapped.refreshProfile()
+                  interimFollowingURI = nil
+                }
+              }
+            } label: {
+              Text(followingURI == nil ? "Follow" : "Unfollow")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                  followingURI == nil ? Color.mintAccent : Color.mintInactive
+                )
+                .foregroundColor(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .overlay(
+                  RoundedRectangle(cornerRadius: 20)
+                    .stroke(
+                      followingURI == nil
+                        ? Color.mintInactive : Color.mintAccent,
+                      lineWidth: 1)
+                )
+            }
+            
+            // Lists button - only show if currentUser has lists
+            if !currentUser.lists.isEmpty {
+              Button {
+                showAddToListSheet = true
+              } label: {
+                HStack(spacing: 6) {
+                  Image(systemName: "arrow.left.arrow.right")
+                    .font(.caption)
+                  Text("Lists")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.blue.opacity(0.1))
+                .foregroundColor(.blue)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .overlay(
+                  RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                )
               }
             }
-          } label: {
-            Text(followingURI == nil ? "Follow" : "Unfollow")
-              .font(.subheadline)
-              .fontWeight(.medium)
-              .padding(.horizontal, 16)
-              .padding(.vertical, 8)
-              .background(
-                followingURI == nil ? Color.mintAccent : Color.mintInactive
-              )
-              .foregroundColor(.white)
-              .clipShape(RoundedRectangle(cornerRadius: 20))
-              .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                  .stroke(
-                    followingURI == nil
-                      ? Color.mintInactive : Color.mintAccent,
-                    lineWidth: 1)
-              )
           }
         }
       }

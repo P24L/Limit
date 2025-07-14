@@ -60,7 +60,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
 
     
     internal private(set) var isAuthenticated: Bool = false   // Aktuální stav připojení/přihlášení.
-    internal private(set) var currentUser: CurrentUser? = nil  //Handle nebo DID přihlášeného uživatele.
     internal private(set) var currentDID: String? = nil
     internal private(set) var userSession: UserSession?
 
@@ -94,10 +93,8 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                 self.userSession = try await protoClient.getUserSession()
                 self.currentDID = userSession?.didDocument?.id
             }
-            self.currentUser = CurrentUser() // You can store DID or handle, depending on your preference
             isAuthenticated = true
-            let logHandle = self.currentUser?.handle ?? "unknown user"
-            DevLogger.shared.log("BlueskyClient.swift - Login successful for \(logHandle)")
+            DevLogger.shared.log("BlueskyClient.swift - Login successful")
             if let atProtoClient = protoClient {
                 DevLogger.shared.log("BlueskyClient.swift - ProtoClient initialized successfully")
             } else {
@@ -106,7 +103,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         } catch {
             // On error, set error message and update state
             self.isAuthenticated = false
-            self.currentUser = nil
             DevLogger.shared.log("BlueskyClient.swift - Login error: \(error.localizedDescription)")
         }
     }
@@ -123,8 +119,6 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         self.protoClient = nil
         self.bskyClient = nil
         self.isAuthenticated = false
-        self.currentUser?.clear()
-        self.currentUser = nil
         self.userSession = nil
         self.handle = ""
         self.appPassword = ""
@@ -681,6 +675,172 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             DevLogger.shared.log("performAuthenticatedRequest - General error: \(error)")
         }
         return nil
+    }
+    
+    // MARK: - Lists Management
+    
+    /// Creates a new list with the specified name
+    @MainActor
+    func createList(name: String) async -> String? {
+        guard isAuthenticated, let bskyClient = bskyClient else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - createList")
+            return nil
+        }
+        
+        let result = await performAuthenticatedRequest {
+            try await bskyClient.createListRecord(
+                named: name,
+                ofType: .curation
+            )
+        }
+        
+        guard let listURI = result?.recordURI else {
+            DevLogger.shared.log("BlueskyClient.swift - createList - Failed to create list: \(name)")
+            return nil
+        }
+        
+        DevLogger.shared.log("BlueskyClient.swift - createList - Successfully created list: \(name)")
+        
+        return listURI
+    }
+    
+    /// Deletes a list by its URI
+    @MainActor
+    func deleteList(listURI: String) async -> Bool {
+        guard isAuthenticated, let protoClient = protoClient, let currentDID = currentDID else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - deleteList")
+            return false
+        }
+        
+        // Extract recordKey from URI format: "at://did:plc:user/app.bsky.graph.list/recordkey"
+        guard let recordKey = extractRecordKey(from: listURI) else {
+            DevLogger.shared.log("BlueskyClient.swift - deleteList - Invalid listURI format: \(listURI)")
+            return false
+        }
+        
+        let result = await performAuthenticatedRequest {
+            try await protoClient.deleteRecord(
+                repositoryDID: currentDID,
+                collection: "app.bsky.graph.list",
+                recordKey: recordKey
+            )
+        }
+        
+        let success = result != nil
+        if success {
+            DevLogger.shared.log("BlueskyClient.swift - deleteList - Successfully deleted list: \(listURI)")
+        } else {
+            DevLogger.shared.log("BlueskyClient.swift - deleteList - Failed to delete list: \(listURI)")
+        }
+        
+        return success
+    }
+    
+    /// Adds an actor to a list
+    @MainActor
+    func addActorToList(listURI: String, actorDID: String) async -> Bool {
+        guard isAuthenticated, let bskyClient = bskyClient else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - addActorToList")
+            return false
+        }
+        
+        let result = await performAuthenticatedRequest {
+            try await bskyClient.createListItemRecord(
+                for: listURI,
+                subjectDID: actorDID
+            )
+        }
+        
+        let success = result != nil
+        if success {
+            DevLogger.shared.log("BlueskyClient.swift - addActorToList - Successfully added actor \(actorDID) to list \(listURI)")
+        } else {
+            DevLogger.shared.log("BlueskyClient.swift - addActorToList - Failed to add actor \(actorDID) to list \(listURI)")
+        }
+        
+        return success
+    }
+    
+    /// Removes an actor from a list
+    @MainActor
+    func removeActorFromList(listURI: String, actorDID: String) async -> Bool {
+        guard isAuthenticated, let protoClient = protoClient, let currentDID = currentDID else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - removeActorFromList")
+            return false
+        }
+        
+        // First, get the list to find the specific list item record
+        let listOutput = await performAuthenticatedRequest {
+            try await protoClient.getList(from: listURI)
+        }
+        
+        guard let output = listOutput else {
+            DevLogger.shared.log("BlueskyClient.swift - removeActorFromList - Failed to get list: \(listURI)")
+            return false
+        }
+        
+        // Find the list item for the specific actor
+        guard let listItem = output.items.first(where: { $0.subject.actorDID == actorDID }) else {
+            DevLogger.shared.log("BlueskyClient.swift - removeActorFromList - Actor \(actorDID) not found in list \(listURI)")
+            return false
+        }
+        
+        // Extract recordKey from listItemURI format: "at://did:plc:user/app.bsky.graph.listitem/recordkey"
+        guard let recordKey = extractRecordKey(from: listItem.listItemURI) else {
+            DevLogger.shared.log("BlueskyClient.swift - removeActorFromList - Invalid listItemURI format: \(listItem.listItemURI)")
+            return false
+        }
+        
+        let result = await performAuthenticatedRequest {
+            try await protoClient.deleteRecord(
+                repositoryDID: currentDID,
+                collection: "app.bsky.graph.listitem",
+                recordKey: recordKey
+            )
+        }
+        
+        let success = result != nil
+        if success {
+            DevLogger.shared.log("BlueskyClient.swift - removeActorFromList - Successfully removed actor \(actorDID) from list \(listURI)")
+        } else {
+            DevLogger.shared.log("BlueskyClient.swift - removeActorFromList - Failed to remove actor \(actorDID) from list \(listURI)")
+        }
+        
+        return success
+    }
+    
+    /// Checks if an actor is in a specific list
+    nonisolated func checkActorInList(listURI: String, actorDID: String) async -> Bool {
+        let (authenticated, protoClient) = await MainActor.run {
+            (isAuthenticated, self.protoClient)
+        }
+        
+        guard authenticated, let client = protoClient else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - checkActorInList")
+            return false
+        }
+        
+        do {
+            let output = try await client.getList(from: listURI)
+            let isInList = output.items.contains { (listItem: AppBskyLexicon.Graph.ListItemViewDefinition) in
+                listItem.subject.actorDID == actorDID
+            }
+            DevLogger.shared.log("BlueskyClient.swift - checkActorInList - Actor \(actorDID) in list \(listURI): \(isInList)")
+            return isInList
+        } catch {
+            DevLogger.shared.log("BlueskyClient.swift - checkActorInList - Error: \(error)")
+            return false
+        }
+    }
+    
+    
+    // MARK: - Helper Methods
+    
+    /// Extracts recordKey from AT URI format
+    /// URI format: "at://did:plc:user/collection/recordkey"
+    private func extractRecordKey(from uri: String) -> String? {
+        let components = uri.components(separatedBy: "/")
+        return components.count >= 5 ? components.last : nil
     }
 }
 

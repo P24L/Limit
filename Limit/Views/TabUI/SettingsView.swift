@@ -50,6 +50,29 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
+                
+                // Lists section
+                if client.isAuthenticated {
+                    Button(action: {
+                        router.navigateTo(.listManagement)
+                    }) {
+                        HStack {
+                            Image(systemName: "list.bullet")
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+                            Text("Lists")
+                            Spacer()
+                            Text("\(currentUser.lists.count)")
+                                .foregroundColor(.secondary)
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .buttonStyle(PlainButtonStyle())
+                }
+                
                 // Restore Logout/Login button
                 if client.isAuthenticated {
                     Button("Logout") {
@@ -181,6 +204,12 @@ struct SettingsView: View {
                 .windows
                 .first?
                 .overrideUserInterfaceStyle = isDarkMode ? .dark : .light
+        }
+        .task {
+            // Refresh lists when view appears
+            if client.isAuthenticated {
+                await currentUser.refreshLists(client: client)
+            }
         }
     }
 

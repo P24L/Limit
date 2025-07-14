@@ -91,6 +91,10 @@ struct ATTimelineView_experimental: View {
     @State private var selectedTab: TopbarTab = .timeline
     @State private var isRefreshingAline = false
     
+    // Swipe gesture states
+    @State private var dragOffset: CGSize = .zero
+    @State private var isDragging = false
+    
     private var shouldShowSecondaryBar: Bool {
         switch selectedTab {
         case .list, .feed:
@@ -178,6 +182,53 @@ struct ATTimelineView_experimental: View {
     }
     
     // MARK: Helper Functions
+    
+    // Computed property for available tabs
+    private var availableTabs: [TopbarTab] {
+        var tabs: [TopbarTab] = [.timeline, .aline, .trendingPosts]
+        if !currentUser.lists.isEmpty {
+            tabs.append(.list(0))
+        }
+        if !currentUser.feeds.isEmpty {
+            tabs.append(.feed(0))
+        }
+        return tabs
+    }
+    
+    // Helper function to get current tab index
+    private func currentTabIndex() -> Int? {
+        availableTabs.firstIndex { tab in
+            switch (tab, selectedTab) {
+            case (.timeline, .timeline), (.aline, .aline), (.trendingPosts, .trendingPosts):
+                return true
+            case (.list, .list), (.feed, .feed):
+                return true
+            default:
+                return false
+            }
+        }
+    }
+    
+    // Get next tab
+    private func nextTab() -> TopbarTab? {
+        guard let currentIndex = currentTabIndex() else { return nil }
+        let nextIndex = currentIndex + 1
+        if nextIndex < availableTabs.count {
+            return availableTabs[nextIndex]
+        }
+        return nil
+    }
+    
+    // Get previous tab
+    private func previousTab() -> TopbarTab? {
+        guard let currentIndex = currentTabIndex() else { return nil }
+        let previousIndex = currentIndex - 1
+        if previousIndex >= 0 {
+            return availableTabs[previousIndex]
+        }
+        return nil
+    }
+    
     private func getSelectedContent() -> ViewState {
         switch selectedTab {
         case .list(let index):
@@ -500,47 +551,84 @@ struct ATTimelineView_experimental: View {
     
     @ViewBuilder
     var timelineContent: some View {
-        switch viewState {
-        case .loading:
-            ProgressPostsRedacted()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .error(let error):
-            ErrorView(title: "Chyba",
-                      message: error.localizedDescription,
-                      buttonTitle: "Zkusit znovu") {
-                Task {
-                    await feed.refreshTimeline()
-                }
-            }
-        case .posts(let wrappers):
-            if selectedTab == .aline {
-                // A-line computed timeline
-                ComputedTimelineContainer(
-                    posts: wrappers,
-                    isTopbarHidden: $isTopbarHidden
-                )
-                .onReceive(NotificationCenter.default.publisher(for: .didLoadComputedPosts)) { _ in
+        Group {
+            switch viewState {
+            case .loading:
+                ProgressPostsRedacted()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .error(let error):
+                ErrorView(title: "Chyba",
+                          message: error.localizedDescription,
+                          buttonTitle: "Zkusit znovu") {
                     Task {
-                        viewState = .posts(computedFeed.posts)
+                        await feed.refreshTimeline()
                     }
                 }
-            } else {
-                // Regular timeline
-                TimelinePostList(
-                    posts: wrappers,
-                    newPostsAboveCount: $newPostsAboveCount,
-                    hideDirectionIsUp: $hideDirectionIsUp,
-                    isTopbarHidden: $isTopbarHidden
-                )
-                .onReceive(NotificationCenter.default.publisher(for: .didLoadOlderPosts)) { _ in
-                    Task {
-                        viewState = .posts(feed.postTimeline)
+            case .posts(let wrappers):
+                if selectedTab == .aline {
+                    // A-line computed timeline
+                    ComputedTimelineContainer(
+                        posts: wrappers,
+                        isTopbarHidden: $isTopbarHidden
+                    )
+                    .onReceive(NotificationCenter.default.publisher(for: .didLoadComputedPosts)) { _ in
+                        Task {
+                            viewState = .posts(computedFeed.posts)
+                        }
+                    }
+                } else {
+                    // Regular timeline
+                    TimelinePostList(
+                        posts: wrappers,
+                        newPostsAboveCount: $newPostsAboveCount,
+                        hideDirectionIsUp: $hideDirectionIsUp,
+                        isTopbarHidden: $isTopbarHidden
+                    )
+                    .onReceive(NotificationCenter.default.publisher(for: .didLoadOlderPosts)) { _ in
+                        Task {
+                            viewState = .posts(feed.postTimeline)
+                        }
                     }
                 }
+            case .content(let source):
+                ListTimelineView(source: source, isTopbarHidden: $isTopbarHidden)
             }
-        case .content(let source):
-            ListTimelineView(source: source, isTopbarHidden: $isTopbarHidden)
         }
+        .offset(x: dragOffset.width)
+        .opacity(isDragging ? 0.8 : 1.0)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    // Only start dragging if horizontal movement is significant
+                    if abs(value.translation.width) > 10 && abs(value.translation.height) < 50 {
+                        isDragging = true
+                        // Limit drag offset to make it feel more controlled
+                        dragOffset = CGSize(
+                            width: min(max(value.translation.width, -150), 150),
+                            height: 0
+                        )
+                    }
+                }
+                .onEnded { value in
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        // Swipe right - go to previous tab
+                        if value.translation.width > 100 {
+                            if let prevTab = previousTab() {
+                                selectedTab = prevTab
+                            }
+                        }
+                        // Swipe left - go to next tab
+                        else if value.translation.width < -100 {
+                            if let nextTab = nextTab() {
+                                selectedTab = nextTab
+                            }
+                        }
+                        // Reset drag state
+                        dragOffset = .zero
+                        isDragging = false
+                    }
+                }
+        )
     }
 }
 

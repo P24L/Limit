@@ -43,7 +43,7 @@ struct FavoritesViews: View {
             if ids.count > 0 {
                 let rawPosts = await client.fetchPostWrappersByID(for: ids)
                 if rawPosts.count > 0 {
-                    posts = rawPosts
+                    posts = rawPosts.sorted { $0.createdAt > $1.createdAt }
                 }
             }
         }
