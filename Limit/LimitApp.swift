@@ -51,6 +51,7 @@ struct LimitApp: App {
     @State private var computedFeed = ComputedTimelineFeed()
     @State private var currentUser = CurrentUser()
     @State private var aiService = AIService()
+    @State private var notificationManager = NotificationManager.shared
     
     let container: ModelContainer = {
         let config = ModelConfiguration(
@@ -135,10 +136,19 @@ struct LimitApp: App {
                         .environment(currentUser)
                         .environment(appState)
                         .environment(aiService)
+                        .environment(notificationManager)
                 }
             }
             .task {
                 await tryAutoLogin()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                if client.isAuthenticated {
+                    notificationManager.startPeriodicRefresh()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                notificationManager.stopPeriodicRefresh()
             }
         }
     }
@@ -153,8 +163,12 @@ struct LimitApp: App {
             await client.login()
             if client.isAuthenticated {
                 feed.updateClient(client)
+                notificationManager.setClient(client)
                 await currentUser.refreshProfile(client: client)
                 appState.setAuthenticated()
+                
+                // Start notification refresh
+                notificationManager.startPeriodicRefresh()
                 
                 // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
                 Task.detached { [weak computedFeed, weak client] in
@@ -172,8 +186,12 @@ struct LimitApp: App {
     private func handleLoginSuccess() async {
         if client.isAuthenticated {
             feed.updateClient(client)
+            notificationManager.setClient(client)
             await currentUser.refreshProfile(client: client)
             appState.setAuthenticated()
+            
+            // Start notification refresh
+            notificationManager.startPeriodicRefresh()
             
             // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
             Task.detached { [weak computedFeed, weak client] in
@@ -183,6 +201,7 @@ struct LimitApp: App {
             }
         } else {
             computedFeed.clearSession()
+            notificationManager.clearNotifications()
         }
     }
 }

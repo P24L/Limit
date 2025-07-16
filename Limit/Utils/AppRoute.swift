@@ -19,13 +19,13 @@ enum AppTab: String, TabType, CaseIterable {
     var icon: String {
         switch self {
         case .timeline:
-            return "clock"
+            return "house"
         case .safari:
             return "safari.fill"
         case .search:
             return "magnifyingglass"
         case .favorites:
-            return "star"
+            return "heart.fill"
         case .settings:
             return "person.crop.circle"
         }
@@ -34,13 +34,13 @@ enum AppTab: String, TabType, CaseIterable {
     var description: String {
         switch self {
         case .timeline:
-            return "Timeline"
+            return "Home"
         case .safari:
             return "Safari"
         case .search:
             return "Search"
         case .favorites:
-            return "Favorites"
+            return "You"
         case .settings:
             return "Profile"
         }

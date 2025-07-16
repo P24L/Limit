@@ -15,9 +15,11 @@ struct FavoritesViews: View {
     @Environment(BlueskyClient.self) private var client
     @Environment(FavoriteURLManager.self) private var favoritesURL
     @Environment(FavoritePostManager.self) private var favoritesPost
+    @Environment(NotificationManager.self) private var notificationManager
     
     @State private var selectedCategory: FavoriteCategory? = .links
     @State private var posts: [TimelinePostWrapper]? = nil
+    @State private var showMarkAllReadButton = false
     
     var selectedCategories: [FavoriteCategory] = FavoriteCategory.allCases
     
@@ -32,6 +34,8 @@ struct FavoritesViews: View {
                         if let posts {
                             FavoritePostsSectionView(posts: posts)
                         }
+                    case .notifications:
+                        NotificationsListView()
                     case .none:
                         EmptyView()
                     }
@@ -47,25 +51,67 @@ struct FavoritesViews: View {
                 }
             }
         }
-        .navigationTitle("Favorites")
+        .navigationTitle("You")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Mark All Read button for notifications
+            if selectedCategory == .notifications && notificationManager.unreadCount > 0 {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        Task {
+                            await notificationManager.markAllAsRead()
+                        }
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.mintAccent)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Section Picker
     @ViewBuilder
     private var sectionPicker: some View {
-        HStack {
-            Picker("Category", selection: $selectedCategory) {
-                ForEach(FavoriteCategory.allCases, id: \.self) { category in
-                    Text(category.rawValue).tag(category as FavoriteCategory?)
+        HStack(spacing: 0) {
+            ForEach(FavoriteCategory.allCases, id: \.self) { category in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = category
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(category.rawValue)
+                            .font(.footnote)
+                            .fontWeight(selectedCategory == category ? .semibold : .regular)
+                            .foregroundColor(selectedCategory == category ? .white : .primary)
+                        
+                        // Badge pro notifikace
+                        if category == .notifications && notificationManager.unreadCount > 0 {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 8, height: 8)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(selectedCategory == category ? Color.accentColor : Color.clear)
+                    )
                 }
+                .buttonStyle(.borderless)
+                .contentShape(Rectangle())
             }
-            .pickerStyle(SegmentedPickerStyle())
-            
-            Spacer()
         }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.secondary.opacity(0.1))
+        )
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(.background)
     }
     
     // MARK: - Helpers
@@ -100,12 +146,35 @@ struct FavoriteLinksSectionView: View {
     var body: some View {
         ScrollView {
             let sortedFavorites = favoritesURL.favorites.sorted { $0.saveTime > $1.saveTime }
-            LazyVStack(spacing: 12) {
-                ForEach(sortedFavorites, id: \.id) { favURL in
-                    FavoriteLinkCardView(favoriteURL: favURL)
+            
+            if sortedFavorites.isEmpty {
+                // Empty state
+                VStack(spacing: 16) {
+                    Image(systemName: "bookmark.fill")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.yellow)
+                    
+                    Text("No Saved Links")
+                        .font(.title2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                    
+                    Text("Save links from posts and web pages to find them here")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minHeight: 300)
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(sortedFavorites, id: \.id) { favURL in
+                        FavoriteLinkCardView(favoriteURL: favURL)
+                    }
+                }
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
         }
     }
 }
