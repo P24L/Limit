@@ -33,6 +33,8 @@ extension Color {
             : UIColor(red: 0.94, green: 0.94, blue: 0.94, alpha: 1.0) // Light subtle borders
     })
     
+    static let systemBackground = Color(UIColor.systemBackground)
+    
     // MARK: - Text & Action Colors
     static let postAction = Color(UIColor { traitCollection in
         return traitCollection.userInterfaceStyle == .dark 
@@ -62,6 +64,7 @@ public extension ShapeStyle where Self == Color {
     static var warmBackground: Color { .warmBackground }
     static var cardBackground: Color { .cardBackground }
     static var subtleGray: Color { .subtleGray }
+    static var systemBackground: Color { .systemBackground }
     
     // MARK: - Text & Action Colors
     static var postAction: Color { .postAction }

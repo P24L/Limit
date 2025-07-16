@@ -449,6 +449,9 @@ struct FollowerItemView: View {
             .foregroundColor(.secondary)
             .lineLimit(3)
             .multilineTextAlignment(.leading)
+            .onTapGesture {
+              router.navigateTo(.actor(userID: profile.actorDID))
+            }
         }
       }
     }

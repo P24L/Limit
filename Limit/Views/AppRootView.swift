@@ -11,6 +11,7 @@ import SwiftUI
 struct AppRootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(BlueskyClient.self) private var client
+    @Environment(NotificationManager.self) private var notificationManager
     
     @State private var isTopbarHidden = false
     
@@ -29,16 +30,13 @@ struct AppRootView: View {
               }
                   .ignoresSafeArea()
             .tabItem {
-                Label {
-                    Text(tab.description)
-                } icon: {
-                    Image(systemName: tab.icon)
-                }
+                Label(tab.description, systemImage: tab.icon)
             }
+            .badge(tab == .favorites && notificationManager.unreadCount > 0 ? notificationManager.unreadCount : 0)
             .tag(tab)
           }
         }
-        .tint(.mintAccent)
+        //.tint(.mintAccent)
         .background(.warmBackground)
         .onAppear {
             configureTabBarAppearance()
@@ -65,7 +63,7 @@ struct AppRootView: View {
         tabBarAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor(.postAction)
         ]
-        
+
         // Selected state
         tabBarAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(.mintAccent)
         tabBarAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [

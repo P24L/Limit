@@ -18,6 +18,7 @@ enum URLSummaryStatus: String, Codable {
 enum FavoriteCategory: String, CaseIterable, Identifiable {
     case links = "Links"
     case posts = "Posts"
+    case notifications = "Notifications"
     
     var id: String { rawValue }
     
@@ -27,6 +28,8 @@ enum FavoriteCategory: String, CaseIterable, Identifiable {
             return "link"
         case .posts:
             return "text.bubble"
+        case .notifications:
+            return "bell.fill"
         }
     }
 }
