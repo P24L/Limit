@@ -13,50 +13,66 @@ struct NotificationsListView: View {
     @Environment(BlueskyClient.self) private var client
     @State private var isLoading = false
     @State private var hasLoadedInitial = false
+    @State private var errorMessage: String? = nil
     
     var body: some View {
         Group {
-            if notificationManager.allNotifications.isEmpty && !isLoading {
-                // Empty state
-                VStack(spacing: 16) {
-                    Image(systemName: "bell.slash")
-                        .font(.system(size: 60))
-                        .foregroundColor(.secondary)
-                    Text("No notifications")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
-                    Text("When someone interacts with your posts, you'll see it here")
-                        .font(.subheadline)
-                        .foregroundColor(.tertiaryText)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
+            if let error = errorMessage {
+                errorStateView(error: error)
+            } else if isLoading && notificationManager.allNotifications.isEmpty {
+                // Show skeleton loading for initial load
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(0..<5, id: \.self) { _ in
+                            NotificationSkeletonRow()
+                        }
+                    }
+                    .padding(.vertical, 8)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.warmBackground)
+            } else if notificationManager.allNotifications.isEmpty && !isLoading {
+                emptyStateView
             } else {
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ForEach(notificationManager.allNotifications) { notification in
+                        ForEach(Array(notificationManager.allNotifications.enumerated()), id: \.element.id) { index, notification in
                             NotificationRowView(notification: notification)
                                 .padding(.horizontal, 10)
+                                .onAppear {
+                                    // Když se zobrazí jedna z posledních 5 notifikací, načíst další
+                                    if index >= notificationManager.allNotifications.count - 5 {
+                                        Task {
+                                            await notificationManager.loadMoreNotifications()
+                                        }
+                                    }
+                                }
                         }
                         
-                        if isLoading {
+                        // Loading indicator na konci seznamu
+                        if notificationManager.isLoadingMore {
                             HStack {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                Text("Loading notifications...")
+                                Text("Loading more notifications...")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                             }
                             .padding()
+                        }
+                        
+                        // End of list indicator
+                        if !notificationManager.hasMoreNotifications && notificationManager.allNotifications.count > 0 {
+                            Text("No more notifications")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding()
                         }
                     }
                     .padding(.vertical, 8)
                 }
                 .background(Color.warmBackground)
                 .refreshable {
-                    await loadNotifications()
+                    await loadNotifications(refresh: true)
                 }
             }
         }
@@ -68,16 +84,71 @@ struct NotificationsListView: View {
         }
     }
     
-    private func loadNotifications() async {
+    private func loadNotifications(refresh: Bool = false) async {
         guard !isLoading else { return }
         
         isLoading = true
-        await notificationManager.loadNotifications()
+        errorMessage = nil // Clear any previous error
         
-        // Mark all as read after displaying
-        //await notificationManager.markAllAsRead()
+        await notificationManager.loadNotifications(append: false)
         
         isLoading = false
+    }
+    
+    @ViewBuilder
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "bell.slash")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary)
+            Text("No notifications")
+                .font(.title2)
+                .foregroundColor(.secondary)
+            Text("When someone interacts with your posts, you'll see it here")
+                .font(.subheadline)
+                .foregroundColor(.tertiaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.warmBackground)
+    }
+    
+    @ViewBuilder
+    private func errorStateView(error: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 50))
+                .foregroundStyle(.red)
+            
+            Text("Failed to load notifications")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text(error)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            
+            Button(action: {
+                errorMessage = nil
+                Task {
+                    await loadNotifications()
+                }
+            }) {
+                Label("Try Again", systemImage: "arrow.clockwise")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(Color.mintAccent)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.warmBackground)
     }
 }
 
@@ -171,7 +242,7 @@ struct NotificationRowView: View {
                             /*HStack {
                                 Text(likeRepostLabel)
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .fontWeight(.medium)
                                 Spacer()
                             }*/
@@ -187,7 +258,7 @@ struct NotificationRowView: View {
                                     Text("\(post.embeds.count) image\(post.embeds.count > 1 ? "s" : "")")
                                         .font(.caption2)
                                 }
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                             }
                         }
                         .padding(8)
@@ -211,7 +282,7 @@ struct NotificationRowView: View {
                             /*HStack {
                                 Text(replyMentionQuoteLabel)
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundStyle(.secondary)
                                     .fontWeight(.medium)
                                 Spacer()
                             }*/
@@ -298,6 +369,88 @@ struct NotificationRowView: View {
         default:
             return .gray
         }
+    }
+}
+
+// MARK: - Loading Skeleton
+
+struct NotificationSkeletonRow: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Avatar skeleton
+            Circle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 48, height: 48)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                // Name skeleton
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 120, height: 16)
+                
+                // Action text skeleton
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 200, height: 14)
+                
+                // Post preview skeleton
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 60)
+                    .frame(maxWidth: .infinity)
+            }
+            
+            Spacer()
+            
+            // Time skeleton
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 40, height: 12)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color.systemBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .padding(.horizontal, 10)
+        .redacted(reason: isAnimating ? .placeholder : [])
+        .shimmering(active: isAnimating)
+        .onAppear {
+            isAnimating = true
+        }
+    }
+}
+
+// Shimmer effect modifier
+extension View {
+    func shimmering(active: Bool = true) -> some View {
+        self
+            .overlay(
+                Group {
+                    if active {
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0),
+                                Color.white.opacity(0.3),
+                                Color.white.opacity(0)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .rotationEffect(.degrees(30))
+                        .offset(x: -200)
+                        .animation(
+                            Animation.linear(duration: 1.5)
+                                .repeatForever(autoreverses: false),
+                            value: active
+                        )
+                        .offset(x: active ? 400 : 0)
+                    }
+                }
+            )
+            .mask(self)
     }
 }
 

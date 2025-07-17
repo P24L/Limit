@@ -109,7 +109,7 @@ struct LoginTabView: View {
 
         Task {
             do {
-                try await client.login()
+                await client.login()
                 if client.isAuthenticated {
                     // Persist to keychain
                     let keychain = KeychainSwift()

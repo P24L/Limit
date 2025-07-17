@@ -801,7 +801,7 @@ private let urlTracker = URLFetchingTracker()
     await MainActor.run {
       if needsMetadata {
         let unprocessedLinks = facets.links.filter { !$0.metadataFetched }
-        let linkUrls = unprocessedLinks.compactMap { facet in
+        _ = unprocessedLinks.compactMap { facet in
           if case .link(let uri) = facet.data { return uri }
           return nil
         }
@@ -907,7 +907,7 @@ private let urlTracker = URLFetchingTracker()
     // Check if task is cancelled early
     guard !Task.isCancelled else { return }
 
-    let linkFacetsTotal = facets.facets.filter { facet in
+    _ = facets.facets.filter { facet in
       if case .link = facet.data { return true }
       return false
     }.count
@@ -938,7 +938,7 @@ private let urlTracker = URLFetchingTracker()
     var updatedLinkFacets: [String: ProcessedFacet] = [:]
 
     // Process link facets in batches with concurrency control
-    for (batchIndex, batch) in linkFacetsToProcess.chunked(into: 2).enumerated() {
+    for (_, batch) in linkFacetsToProcess.chunked(into: 2).enumerated() {
       // Check if task is cancelled before processing each batch
       guard !Task.isCancelled else { return }
       
@@ -1009,7 +1009,7 @@ private let urlTracker = URLFetchingTracker()
       try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
     }
 
-    let updatedCount = updatedLinkFacets.count
+    _ = updatedLinkFacets.count
 
     // Create final facets array combining SwiftData results with newly fetched data
     let finalFacets = updatedFacetsFromData.map { facet in
@@ -1027,7 +1027,7 @@ private let urlTracker = URLFetchingTracker()
 
     // Update facets with new metadata on main thread
     await MainActor.run {
-      let linkFacetsInFinal = finalFacets.filter { facet in
+      _ = finalFacets.filter { facet in
         if case .link = facet.data { return true }
         return false
       }
