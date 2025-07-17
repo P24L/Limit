@@ -715,15 +715,13 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             return false
         }
         
-        let result = await performAuthenticatedRequest {
+        let success = await performAuthenticatedRequest {
             try await protoClient.deleteRecord(
                 repositoryDID: currentDID,
                 collection: "app.bsky.graph.list",
                 recordKey: recordKey
             )
-        }
-        
-        let success = result != nil
+        } != nil
         if success {
             DevLogger.shared.log("BlueskyClient.swift - deleteList - Successfully deleted list: \(listURI)")
         } else {
@@ -788,15 +786,13 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             return false
         }
         
-        let result = await performAuthenticatedRequest {
+        let success = await performAuthenticatedRequest {
             try await protoClient.deleteRecord(
                 repositoryDID: currentDID,
                 collection: "app.bsky.graph.listitem",
                 recordKey: recordKey
             )
-        }
-        
-        let success = result != nil
+        } != nil
         if success {
             DevLogger.shared.log("BlueskyClient.swift - removeActorFromList - Successfully removed actor \(actorDID) from list \(listURI)")
         } else {
@@ -859,7 +855,7 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
                httpError.error == "InvalidRequest" && 
                httpError.message.contains("seenAt parameter is unsupported") {
                 DevLogger.shared.log("BlueskyClient.swift - getUnreadNotificationCount - seenAt parameter error (known issue), returning 0")
-                return 10
+                return 0
             } else {
                 DevLogger.shared.log("BlueskyClient.swift - getUnreadNotificationCount - API error: \(error)")
                 return 0

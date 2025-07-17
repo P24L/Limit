@@ -73,6 +73,17 @@ struct FavoritesViews: View {
     // MARK: - Section Picker
     @ViewBuilder
     private var sectionPicker: some View {
+        ViewThatFits(in: .horizontal) {
+            // Plná verze s textem
+            pickerWithText
+            
+            // Kompaktní verze pouze s ikonami
+            pickerWithIcons
+        }
+    }
+    
+    @ViewBuilder
+    private var pickerWithText: some View {
         HStack(spacing: 0) {
             ForEach(FavoriteCategory.allCases, id: \.self) { category in
                 Button {
@@ -80,7 +91,7 @@ struct FavoritesViews: View {
                         selectedCategory = category
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 2) {
                         Text(category.rawValue)
                             .font(.footnote)
                             .fontWeight(selectedCategory == category ? .semibold : .regular)
@@ -94,11 +105,11 @@ struct FavoritesViews: View {
                         }
                     }
                     .padding(.vertical, 8)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 12)
                     .frame(maxWidth: .infinity)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(selectedCategory == category ? Color.accentColor : Color.clear)
+                            .fill(selectedCategory == category ? Color.mintAccent : Color.clear)
                     )
                 }
                 .buttonStyle(.borderless)
@@ -108,7 +119,50 @@ struct FavoritesViews: View {
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.secondary.opacity(0.1))
+                .fill(Color.cardBackground)
+        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+    
+    @ViewBuilder
+    private var pickerWithIcons: some View {
+        HStack(spacing: 0) {
+            ForEach(FavoriteCategory.allCases, id: \.self) { category in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = category
+                    }
+                } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: category.systemImage)
+                            .font(.system(size: 16))
+                            .fontWeight(selectedCategory == category ? .semibold : .regular)
+                            .foregroundColor(selectedCategory == category ? .white : .primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(selectedCategory == category ? Color.mintAccent : Color.clear)
+                            )
+                        
+                        // Badge pro notifikace
+                        if category == .notifications && notificationManager.unreadCount > 0 {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 8, height: 8)
+                                .offset(x: -8, y: 8)
+                        }
+                    }
+                }
+                .buttonStyle(.borderless)
+                .contentShape(Rectangle())
+            }
+        }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.cardBackground)
         )
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

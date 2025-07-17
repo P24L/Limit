@@ -17,11 +17,14 @@ final class NotificationManager {
     private var notifications: [String: NotificationWrapper] = [:]
     private var lastFetchTime: Date?
     private var refreshTimer: Timer?
+    private var nextCursor: String? = nil
     
     @ObservationIgnored
     private var client: BlueskyClient?
     
     var unreadCount: Int = 0
+    var hasMoreNotifications = true
+    var isLoadingMore = false
     var allNotifications: [NotificationWrapper] {
         Array(notifications.values).sorted { $0.indexedAt > $1.indexedAt }
     }
@@ -46,7 +49,7 @@ final class NotificationManager {
         // Nastavit nový timer na 20 minut
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 1200, repeats: true) { _ in
             Task { @MainActor in
-                await self.updateUnreadCount()
+                await self.refreshNotifications()
             }
         }
     }
@@ -57,23 +60,57 @@ final class NotificationManager {
         refreshTimer = nil
     }
     
-    func loadNotifications(cursor: String? = nil) async {
+    func loadNotifications(cursor: String? = nil, append: Bool = false) async {
         guard let client = client else {
             DevLogger.shared.log("NotificationManager.swift - loadNotifications - no client available")
             return
         }
         
-        let result = await client.fetchNotifications(limit: 50, cursor: cursor)
+        guard !isLoadingMore else { return } // Zabránit duplicitnímu načítání
         
-        // Přidat nové notifikace do dictionary
+        if append {
+            isLoadingMore = true
+        }
+        
+        let result = await client.fetchNotifications(
+            limit: 50, 
+            cursor: cursor ?? (append ? nextCursor : nil)
+        )
+        
+        if !append {
+            // Při refresh vymazat staré notifikace
+            notifications.removeAll()
+        }
+        
+        // Přidat nové notifikace
         for notification in result.notifications {
             notifications[notification.uri] = notification
         }
         
+        // Uložit cursor pro další načítání
+        nextCursor = result.cursor
+        hasMoreNotifications = result.cursor != nil
+        
         // Aktualizovat počet nepřečtených
         await updateUnreadCount()
         
-        DevLogger.shared.log("NotificationManager.swift - loaded \(result.notifications.count) notifications")
+        isLoadingMore = false
+        
+        DevLogger.shared.log("NotificationManager.swift - loaded \(result.notifications.count) notifications, hasMore: \(hasMoreNotifications)")
+    }
+    
+    func loadMoreNotifications() async {
+        guard hasMoreNotifications && !isLoadingMore else { return }
+        await loadNotifications(append: true)
+    }
+    
+    private func refreshNotifications() async {
+        DevLogger.shared.log("NotificationManager.swift - refreshing notifications")
+        
+        // Vždy refresh od začátku, ne append
+        await loadNotifications(cursor: nil, append: false)
+        
+        lastFetchTime = Date()
     }
     
     func markAllAsRead() async {
