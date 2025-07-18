@@ -12,7 +12,7 @@ import SwiftUI
 import ATProtoKit
 
 enum AppTab: String, TabType, CaseIterable {
-    case timeline, favorites, search, safari, settings
+    case timeline, favorites, post, search, settings
     
     var id: String { rawValue}
     
@@ -20,12 +20,12 @@ enum AppTab: String, TabType, CaseIterable {
         switch self {
         case .timeline:
             return "house"
-        case .safari:
-            return "safari.fill"
-        case .search:
-            return "magnifyingglass"
         case .favorites:
             return "heart.fill"
+        case .post:
+            return "plus.circle.fill"
+        case .search:
+            return "magnifyingglass"
         case .settings:
             return "person.crop.circle"
         }
@@ -35,12 +35,12 @@ enum AppTab: String, TabType, CaseIterable {
         switch self {
         case .timeline:
             return "Home"
-        case .safari:
-            return "Safari"
-        case .search:
-            return "Search"
         case .favorites:
             return "You"
+        case .post:
+            return "Post"
+        case .search:
+            return "Search"
         case .settings:
             return "Profile"
         }
@@ -70,6 +70,7 @@ enum Destination: DestinationType {
 enum Sheet: SheetType {
     case none // nebo můžeš později přidat např. compose post apod.
     case login
+    case composePost
     case fullScreenImage(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID)
     case aiExplanation(postWrapper: TimelinePostWrapper)
     case aiSummary(favoriteURL: FavoriteURL)

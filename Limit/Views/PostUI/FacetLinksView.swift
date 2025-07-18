@@ -33,10 +33,7 @@ struct FacetLinksView: View {
                             )
                             .onTapGesture {
                                 if let url = URL(string: uri) {
-                                    //router.navigateTo(.safari(url: url))
-                                    router.popToRoot(for: .safari)
-                                    router.selectedTab = .safari
-                                    router.navigateTo(.safari(url: url), for: .safari)
+                                    router.navigateTo(.safari(url: url))
                                 }
                             }
                         }

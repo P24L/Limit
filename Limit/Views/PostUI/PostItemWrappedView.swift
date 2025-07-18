@@ -228,10 +228,7 @@ struct WrappedPostLinkView: View {
     var body: some View {
         Button(action: {
             if let url = URL(string: linkExt.uri) {
-                //router.navigateTo(.safari(url: url))
-                router.popToRoot(for: .safari)
-                router.selectedTab = .safari
-                router.navigateTo(.safari(url: url), for: .safari)
+                router.navigateTo(.safari(url: url))
             }
         }) {
             VStack(spacing: 0) {

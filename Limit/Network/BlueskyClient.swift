@@ -13,6 +13,25 @@ import SwiftData
 import SwiftUI
 import Observation
 
+// MARK: - BlueskyClient Errors
+
+enum BlueskyClientError: LocalizedError {
+    case notAuthenticated
+    case invalidSession
+    case networkError(Error)
+    
+    var errorDescription: String? {
+        switch self {
+        case .notAuthenticated:
+            return "User is not authenticated"
+        case .invalidSession:
+            return "Invalid session"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v konkurentních kontextech
@@ -892,6 +911,46 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         }
         
         return (notifications: wrappers, cursor: response.cursor)
+    }
+    
+    // MARK: - Post Creation
+    
+    /// Creates a new post with the given parameters
+    @MainActor
+    func createPost(
+        text: String,
+        facets: [AppBskyLexicon.RichText.Facet]? = nil,
+        languages: [Locale] = [],
+        replyTo: AppBskyLexicon.Feed.PostRecord.ReplyReference? = nil,
+        embed: ATProtoBluesky.EmbedIdentifier? = nil
+    ) async throws -> ComAtprotoLexicon.Repository.StrongReference {
+        guard let bsky = bskyClient else {
+            DevLogger.shared.log("BlueskyClient.swift - createPost - no bskyClient")
+            throw BlueskyClientError.notAuthenticated
+        }
+        
+        DevLogger.shared.log("BlueskyClient.swift - createPost - Creating post with text: \(text.prefix(50))...")
+        
+        do {
+            let result = try await bsky.createPostRecord(
+                text: text,
+                locales: languages,
+                replyTo: replyTo,
+                embed: embed,
+                creationDate: Date()
+            )
+            
+            DevLogger.shared.log("BlueskyClient.swift - createPost - Success! URI: \(result.recordURI)")
+            return result
+        } catch {
+            DevLogger.shared.log("BlueskyClient.swift - createPost - Failed: \(error)")
+            throw error
+        }
+    }
+    
+    /// Gets the current session for creating reply references
+    var currentSession: UserSession? {
+        return userSession
     }
     
 }

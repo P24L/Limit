@@ -49,6 +49,12 @@ struct AppRootView: View {
         .sheet(item: $router.presentedSheet) { sheet in
           sheetView(for: sheet)
         }
+        .onChange(of: router.presentedSheet) { oldValue, newValue in
+            // When compose sheet is dismissed and we're on post tab, go to home
+            if oldValue == .composePost && newValue == nil && router.selectedTab == .post {
+                router.selectedTab = .timeline
+            }
+        }
       }
     
     private func configureTabBarAppearance() {
@@ -82,12 +88,16 @@ struct AppRootView: View {
         switch tab {
         case .timeline:
             ATTimelineView_experimental()
-        case .safari:
-            SafariTabView()
-        case .search:
-            SearchTabView()
         case .favorites:
             FavoritesViews()
+        case .post:
+            // Empty view - we'll show compose sheet instead
+            Color.clear
+                .onAppear {
+                    router.presentedSheet = .composePost
+                }
+        case .search:
+            SearchTabView()
         case .settings:
             SettingsView()
         }
@@ -139,6 +149,8 @@ struct AppRootView: View {
             LoginTabView(
                 onDismiss: { router.presentedSheet = nil }
             )
+        case .composePost:
+            ComposePostView()
         case .aiExplanation(let postWrapper):
             AIExplanationBottomSheet(postWrapper: postWrapper)
                 .presentationDetents([.medium, .large])

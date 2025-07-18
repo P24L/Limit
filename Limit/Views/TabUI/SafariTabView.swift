@@ -21,10 +21,10 @@ struct SafariTabView: View {
                     guard oldValue != newValue else { return }
                     id = UUID()
                 }
-                .toolbar(.hidden, for: .navigationBar)
+                .toolbar(.automatic, for: .navigationBar)
         } else {
             FavoriteLinksSectionView()
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar(.automatic, for: .navigationBar)
         }
     }
 }
