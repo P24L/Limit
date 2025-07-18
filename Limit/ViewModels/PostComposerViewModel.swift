@@ -32,6 +32,9 @@ class PostComposerViewModel {
     private var mentionCache: [String: Bool] = [:]
     private var lastParsedText: String = ""
     
+    // Version tracking to prevent race conditions
+    private var parseVersion = 0
+    
     // MARK: - Initialization
     init() {
         allDrafts = [currentDraft]
@@ -41,8 +44,18 @@ class PostComposerViewModel {
     func textDidChange(_ newText: String) {
         currentDraft.text = newText
         
-        // Cancel previous parse task
+        // Increment version for this text change
+        parseVersion += 1
+        let currentVersion = parseVersion
+        
+        // Log only significant text changes
+        if newText.count > 0 && (newText.count == 1 || abs(newText.count - lastParsedText.count) > 5) {
+            DevLogger.shared.log("PostComposerViewModel.swift - Text changed (v\(currentVersion)): \(newText.count) chars")
+        }
+        
+        // Cancel previous parse tasks
         parseTask?.cancel()
+        fullParseTask?.cancel()
         
         // Debounced parsing
         parseTask = Task { @MainActor in
@@ -53,14 +66,14 @@ class PostComposerViewModel {
             }
             
             guard !Task.isCancelled else { return }
+            guard self.parseVersion == currentVersion else { return }
             
-            await self.parseText(newText)
+            await self.parseText(newText, version: currentVersion)
         }
     }
     
     @MainActor
-    private func parseText(_ text: String) async {
-        DevLogger.shared.log("PostComposerViewModel.swift - Parsing text: \(text.prefix(50))...")
+    private func parseText(_ text: String, version: Int) async {
         
         // Quick parse for local highlighting (URLs and hashtags only)
         let urls = ATFacetParser.parseURLs(from: text)
@@ -74,7 +87,7 @@ class PostComposerViewModel {
         for url in urls {
             if let start = url["start"] as? Int,
                let end = url["end"] as? Int,
-               let urlText = url["text"] as? String,
+               let urlText = url["link"] as? String,
                let urlObj = URL(string: urlText) {
                 let facet = AppBskyLexicon.RichText.Facet(
                     index: AppBskyLexicon.RichText.Facet.ByteSlice(byteStart: start, byteEnd: end),
@@ -88,7 +101,7 @@ class PostComposerViewModel {
         for hashtag in hashtags {
             if let start = hashtag["start"] as? Int,
                let end = hashtag["end"] as? Int,
-               let tag = hashtag["text"] as? String {
+               let tag = hashtag["tag"] as? String {
                 let cleanTag = tag.hasPrefix("#") ? String(tag.dropFirst()) : tag
                 let facet = AppBskyLexicon.RichText.Facet(
                     index: AppBskyLexicon.RichText.Facet.ByteSlice(byteStart: start, byteEnd: end),
@@ -102,7 +115,8 @@ class PostComposerViewModel {
         for mention in mentions {
             if let start = mention["start"] as? Int,
                let end = mention["end"] as? Int,
-               let mentionText = mention["text"] as? String {
+               let mentionText = mention["mention"] as? String {
+                
                 // Skip if we know it's invalid from cache
                 if mentionCache[mentionText] == false {
                     continue
@@ -120,7 +134,12 @@ class PostComposerViewModel {
         // Truncate URLs for display
         let (displayText, _) = ATFacetParser.truncateAndReplaceLinks(in: text)
         
-        // Update UI immediately with quick facets
+        // Update UI immediately with quick facets (only if version still matches)
+        guard parseVersion == version else {
+            DevLogger.shared.log("PostComposerViewModel.swift - MENTIONS: Version mismatch in quick parse (current: \(parseVersion), expected: \(version)) - skipping update")
+            return
+        }
+        
         currentDraft.facets = quickFacets
         currentDraft.displayText = displayText
         
@@ -212,7 +231,7 @@ class PostComposerViewModel {
         
         // Also schedule a full parse after longer timeout (for mentions that user stopped typing)
         fullParseTask?.cancel()
-        if !mentions.isEmpty || !hashtags.isEmpty || !urls.isEmpty {
+        if true { // Always run full parse to catch all facets including URLs
             fullParseTask = Task { @MainActor in
                 do {
                     try await Task.sleep(nanoseconds: UInt64(fullParseDebounce * 1_000_000_000))
@@ -225,12 +244,15 @@ class PostComposerViewModel {
                 // Do full parse if we have any mentions
                 Task.detached { [weak self] in
                     let fullFacets = await ATFacetParser.parseFacets(from: text)
+                    
                     await MainActor.run {
-                        if self?.currentDraft.text == text {
-                            self?.currentDraft.facets = fullFacets
+                        guard let self = self else { return }
+                        // Check both text and version to ensure we're still relevant
+                        if self.currentDraft.text == text && self.parseVersion == version {
+                            self.currentDraft.facets = fullFacets
                             // Update cache
                             for mention in mentions {
-                                if let mentionText = mention["text"] as? String {
+                                if let mentionText = mention["mention"] as? String {
                                     let found = fullFacets.contains { facet in
                                         facet.features.contains { feature in
                                             if case .mention(_) = feature {
@@ -244,7 +266,7 @@ class PostComposerViewModel {
                                             return false
                                         }
                                     }
-                                    self?.mentionCache[mentionText] = found
+                                    self.mentionCache[mentionText] = found
                                 }
                             }
                         }
@@ -253,7 +275,13 @@ class PostComposerViewModel {
             }
         }
         
-        DevLogger.shared.log("PostComposerViewModel.swift - Found \(quickFacets.count) facets")
+    }
+    
+    // Overload for calls without version (e.g., from switchToThreadPost)
+    @MainActor
+    private func parseText(_ text: String) async {
+        parseVersion += 1
+        await parseText(text, version: parseVersion)
     }
     
     // MARK: - External Link Handling

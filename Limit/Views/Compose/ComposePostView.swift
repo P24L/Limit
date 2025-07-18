@@ -19,7 +19,7 @@ struct ComposePostView: View {
     @State private var showImagePicker = false
     @State private var showVideoPicker = false
     @State private var selectedImages: [PhotosPickerItem] = []
-    @State private var selectedVideo: PhotosPickerItem?
+    @State private var selectedVideos: [PhotosPickerItem] = []
     @State private var keyboardHeight: CGFloat = 0
     
     @FocusState private var isTextFieldFocused: Bool
@@ -164,13 +164,13 @@ struct ComposePostView: View {
             }
             .photosPicker(
                 isPresented: $showVideoPicker,
-                selection: $selectedVideo,
+                selection: $selectedVideos,
                 maxSelectionCount: 1,
                 matching: .videos
             )
-            .onChange(of: selectedVideo) { _, newVideo in
+            .onChange(of: selectedVideos) { _, newVideos in
                 Task {
-                    guard let video = newVideo else { return }
+                    guard let video = newVideos.first else { return }
                     
                     do {
                         if let data = try await video.loadTransferable(type: Data.self) {
@@ -181,7 +181,7 @@ struct ComposePostView: View {
                         DevLogger.shared.log("ComposePostView - Failed to load video: \(error)")
                     }
                     
-                    selectedVideo = nil
+                    selectedVideos = []
                 }
             }
             .alert("Error", isPresented: $viewModel.showError) {
