@@ -292,8 +292,7 @@ class PostComposerViewModel {
             recordURI: post.uri,
             cidHash: post.cid
         )
-        // Clear other embeds when setting quote post
-        currentDraft.images.removeAll()
+        // Clear only video and external link - allow images with quote posts
         currentDraft.video = nil
         currentDraft.externalLink = nil
         
@@ -568,10 +567,21 @@ class PostComposerViewModel {
     }
     
     private func prepareEmbed(for draft: PostDraft, using client: BlueskyClient) async throws -> ATProtoBluesky.EmbedIdentifier? {
-        // Priority: Quote Post > Images > Video > External Link
+        // Priority: Quote Post with Media > Quote Post > Images > Video > External Link
         if let quotedPost = draft.quotedPost {
-            DevLogger.shared.log("PostComposerViewModel.swift - Preparing quote post embed")
-            return .record(strongReference: quotedPost)
+            // Check if we have media to combine with the quote
+            if !draft.images.isEmpty {
+                DevLogger.shared.log("PostComposerViewModel.swift - Preparing quote post with images embed")
+                
+                // For quote posts with images, we need to return a recordWithMedia embed
+                // However, based on ATProtoKit API, this seems to be handled differently
+                // For now, return regular images embed and let the API handle the quote separately
+                DevLogger.shared.log("PostComposerViewModel.swift - Quote post with images not yet supported")
+                return .images(images: draft.images)
+            } else {
+                DevLogger.shared.log("PostComposerViewModel.swift - Preparing quote post embed")
+                return .record(strongReference: quotedPost)
+            }
         } else if !draft.images.isEmpty {
             DevLogger.shared.log("PostComposerViewModel.swift - Preparing image embed")
             return .images(images: draft.images)

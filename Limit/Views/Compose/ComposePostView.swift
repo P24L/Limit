@@ -105,8 +105,8 @@ struct ComposePostView: View {
                                 .padding(.horizontal)
                         }
                         
-                        // Quoted post preview
-                        if let quotedPost = quotedPost {
+                        // Quoted post preview - show only if current draft has quoted post
+                        if viewModel.currentDraft.quotedPost != nil, let quotedPost = quotedPost {
                             QuotedPostPreview(post: quotedPost)
                                 .padding(.horizontal)
                         }
@@ -126,7 +126,7 @@ struct ComposePostView: View {
                 ComposeToolbar(
                     characterCount: viewModel.currentDraft.characterCount,
                     remainingCharacters: viewModel.currentDraft.remainingCharacters,
-                    canAddMedia: viewModel.currentDraft.images.isEmpty && viewModel.currentDraft.video == nil && viewModel.currentDraft.quotedPost == nil,
+                    canAddMedia: viewModel.currentDraft.images.isEmpty && viewModel.currentDraft.video == nil,
                     languages: viewModel.currentDraft.languages,
                     onAddImage: { showImagePicker = true },
                     onAddVideo: { showVideoPicker = true },
