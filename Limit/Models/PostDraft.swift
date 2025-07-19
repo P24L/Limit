@@ -9,9 +9,9 @@ import Foundation
 import ATProtoKit
 
 /// Model representing a draft post being composed
-struct PostDraft: Identifiable {
+struct PostDraft: Identifiable, Codable {
     /// Unique identifier for thread management
-    let id = UUID()
+    var id = UUID()
     
     /// The raw text entered by the user
     var text: String = ""
@@ -56,10 +56,50 @@ struct PostDraft: Identifiable {
         characterCount <= 300 &&
         images.count <= 4
     }
+    
+    // MARK: - Initialization
+    init() {
+        // Default initializer
+    }
+    
+    // MARK: - Codable
+    enum CodingKeys: String, CodingKey {
+        case id, text, displayText, languages, threadPosts
+        case externalLink, video
+        // Note: facets, images, and replyTo are not persisted
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        text = try container.decode(String.self, forKey: .text)
+        displayText = try container.decode(String.self, forKey: .displayText)
+        languages = try container.decode([Locale].self, forKey: .languages)
+        threadPosts = try container.decode([PostDraft].self, forKey: .threadPosts)
+        externalLink = try container.decodeIfPresent(ExternalLinkPreview.self, forKey: .externalLink)
+        video = try container.decodeIfPresent(VideoAttachment.self, forKey: .video)
+        
+        // Initialize non-persisted properties
+        facets = []
+        images = []
+        replyTo = nil
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(text, forKey: .text)
+        try container.encode(displayText, forKey: .displayText)
+        try container.encode(languages, forKey: .languages)
+        try container.encode(threadPosts, forKey: .threadPosts)
+        try container.encodeIfPresent(externalLink, forKey: .externalLink)
+        try container.encodeIfPresent(video, forKey: .video)
+        // Note: We don't encode facets, images, or replyTo as they need to be regenerated
+    }
 }
 
 /// Video attachment details
-struct VideoAttachment {
+struct VideoAttachment: Codable {
     let data: Data
     let captions: [ATProtoBluesky.Caption]?
     let altText: String?
@@ -74,10 +114,40 @@ struct VideoAttachment {
     var isWithinSizeLimit: Bool {
         sizeInMB <= 100
     }
+    
+    init(data: Data, captions: [ATProtoBluesky.Caption]?, altText: String?, aspectRatio: AppBskyLexicon.Embed.AspectRatioDefinition?) {
+        self.data = data
+        self.captions = captions
+        self.altText = altText
+        self.aspectRatio = aspectRatio
+    }
+    
+    // MARK: - Codable
+    enum CodingKeys: String, CodingKey {
+        case data, altText
+        // Note: captions and aspectRatio are not persisted
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        data = try container.decode(Data.self, forKey: .data)
+        altText = try container.decodeIfPresent(String.self, forKey: .altText)
+        
+        // Initialize non-persisted properties
+        captions = nil
+        aspectRatio = nil
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(data, forKey: .data)
+        try container.encodeIfPresent(altText, forKey: .altText)
+        // Note: We don't encode captions or aspectRatio
+    }
 }
 
 /// External link preview data
-struct ExternalLinkPreview: Equatable {
+struct ExternalLinkPreview: Equatable, Codable {
     let url: URL
     let title: String
     let description: String?
