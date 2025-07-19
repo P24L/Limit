@@ -20,6 +20,15 @@ struct PostItemActionsView: View {
     let hideMoreActions = false
     
     @Environment(BlueskyClient.self) private var client
+    
+    private var isOwnPost: Bool {
+        postWrapper.authorHandle == client.handle || postWrapper.authorID == client.currentDID
+    }
+    
+    private var isRepostedByMe: Bool {
+        postWrapper.repostedByHandle == client.handle || postWrapper.repostedByID == client.currentDID
+    }
+    
     var body: some View {
         HStack(alignment:.firstTextBaseline, spacing: 12) {
             
@@ -39,15 +48,23 @@ struct PostItemActionsView: View {
             Button {
                 router.presentedSheet = .repostOptions(post: postWrapper)
             } label: {
-                Label("\(postWrapper.repostCount.abbreviatedRounded)", systemImage: postWrapper.isReposted ? "arrow.2.squarepath" : "arrow.2.squarepath")
-                    .foregroundStyle(postWrapper.isReposted ? .mintAccent : .postAction)
-                    .lineLimit(1)
-                    .font(.footnote)
-                    .imageScale(.medium)
+                if isRepostedByMe {
+                    Label("Reposted", systemImage: "arrow.2.squarepath")
+                        .foregroundStyle(.orange)
+                        .lineLimit(1)
+                        .font(.footnote)
+                        .imageScale(.medium)
+                } else {
+                    Label("\(postWrapper.repostCount.abbreviatedRounded)", systemImage: postWrapper.isReposted ? "arrow.2.squarepath" : "arrow.2.squarepath")
+                        .foregroundStyle(postWrapper.isReposted ? .mintAccent : .postAction)
+                        .lineLimit(1)
+                        .font(.footnote)
+                        .imageScale(.medium)
+                }
             }
             .buttonStyle(.plain)
-            .symbolVariant(postWrapper.isReposted ? .fill : .none)
-            .symbolEffect(.bounce, value: postWrapper.isReposted)
+            .symbolVariant(postWrapper.isReposted || isRepostedByMe ? .fill : .none)
+            .symbolEffect(.bounce, value: postWrapper.isReposted || isRepostedByMe)
             .monospacedDigit()
             
             Button {
@@ -100,9 +117,13 @@ struct PostItemActionsView: View {
                 
                 if !hideMoreActions {
                     Button {
-                        // Navigate to thread view
-                        //if let postWrapper = postWrapper {
-                        router.navigateTo(.postThreadWrapped(postThread: postWrapper))
+                        if isOwnPost {
+                            // Show post actions sheet for own posts
+                            router.presentedSheet = .repostOptions(post: postWrapper)
+                        } else {
+                            // Navigate to thread view for other posts
+                            router.navigateTo(.postThreadWrapped(postThread: postWrapper))
+                        }
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.callout)

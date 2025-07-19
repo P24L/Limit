@@ -953,6 +953,31 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         return userSession
     }
     
+    // MARK: - Post Management
+    
+    /// Deletes a post by its URI
+    @MainActor
+    func deletePost(uri: String) async -> Bool {
+        guard isAuthenticated, let bskyClient = bskyClient else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - deletePost")
+            return false
+        }
+        
+        DevLogger.shared.log("BlueskyClient.swift - deletePost - Deleting post: \(uri)")
+        
+        let success = await performAuthenticatedRequest {
+            try await bskyClient.deleteRecord(.recordURI(atURI: uri))
+        } != nil
+        
+        if success {
+            DevLogger.shared.log("BlueskyClient.swift - deletePost - Successfully deleted post")
+        } else {
+            DevLogger.shared.log("BlueskyClient.swift - deletePost - Failed to delete post")
+        }
+        
+        return success
+    }
+    
 }
 
 // MARK: - Helper Extensions
