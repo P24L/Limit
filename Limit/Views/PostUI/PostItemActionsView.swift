@@ -25,7 +25,7 @@ struct PostItemActionsView: View {
             
             
             Button {
-                
+                router.presentedSheet = .composePost(replyTo: postWrapper)
             } label: {
                 Label("\(postWrapper.replyCount.abbreviatedRounded)", systemImage: "quote.bubble")
                     .lineLimit(1)

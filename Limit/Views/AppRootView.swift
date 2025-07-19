@@ -149,8 +149,8 @@ struct AppRootView: View {
             LoginTabView(
                 onDismiss: { router.presentedSheet = nil }
             )
-        case .composePost(let quotedPost):
-            ComposePostView(quotedPost: quotedPost)
+        case .composePost(let quotedPost, let replyTo):
+            ComposePostView(quotedPost: quotedPost, replyTo: replyTo)
         case .aiExplanation(let postWrapper):
             AIExplanationBottomSheet(postWrapper: postWrapper)
                 .presentationDetents([.medium, .large])

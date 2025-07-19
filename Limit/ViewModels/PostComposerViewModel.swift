@@ -22,6 +22,9 @@ class PostComposerViewModel {
     var isThreadMode = false
     var allDrafts: [PostDraft] = []
     
+    // Store replyTo reference for thread drafts
+    private var threadReplyTo: AppBskyLexicon.Feed.PostRecord.ReplyReference?
+    
     // Real-time parsing
     private var parseTask: Task<Void, Never>?
     private let parseDebounce: TimeInterval = 0.3
@@ -47,11 +50,6 @@ class PostComposerViewModel {
         // Increment version for this text change
         parseVersion += 1
         let currentVersion = parseVersion
-        
-        // Log only significant text changes
-        if newText.count > 0 && (newText.count == 1 || abs(newText.count - lastParsedText.count) > 5) {
-            DevLogger.shared.log("PostComposerViewModel.swift - Text changed (v\(currentVersion)): \(newText.count) chars")
-        }
         
         // Cancel previous parse tasks
         parseTask?.cancel()
@@ -299,6 +297,44 @@ class PostComposerViewModel {
         DevLogger.shared.log("PostComposerViewModel.swift - Set quoted post: \(post.uri)")
     }
     
+    // MARK: - Reply
+    func setReplyTo(_ post: TimelinePostWrapper) {
+        // Create parent reference from the post we're replying to
+        let parentRef = ComAtprotoLexicon.Repository.StrongReference(
+            recordURI: post.uri,
+            cidHash: post.cid
+        )
+        
+        // Determine root reference:
+        // If the post we're replying to has a rootPost, use that as root
+        // Otherwise, the post we're replying to IS the root
+        let rootRef: ComAtprotoLexicon.Repository.StrongReference
+        if let rootPost = post.rootPost {
+            // This is a reply to a reply - use the original root
+            rootRef = ComAtprotoLexicon.Repository.StrongReference(
+                recordURI: rootPost.uri,
+                cidHash: rootPost.cid
+            )
+        } else {
+            // This is a reply to a root post - parent is also root
+            rootRef = parentRef
+        }
+        
+        // Create the reply reference
+        let replyReference = AppBskyLexicon.Feed.PostRecord.ReplyReference(
+            root: rootRef,
+            parent: parentRef
+        )
+        
+        // Set on current draft
+        currentDraft.replyTo = replyReference
+        
+        // Store for thread drafts
+        threadReplyTo = replyReference
+        
+        DevLogger.shared.log("PostComposerViewModel.swift - Reply set")
+    }
+    
     // MARK: - External Link Handling
     @MainActor
     private func extractFirstURLForEmbed(from facets: [AppBskyLexicon.RichText.Facet]) async {
@@ -424,16 +460,22 @@ class PostComposerViewModel {
             // Create and switch to new draft immediately
             var newDraft = PostDraft()
             newDraft.languages = currentDraft.languages
+            // Preserve replyTo for thread drafts
+            newDraft.replyTo = threadReplyTo
             allDrafts.append(newDraft)
             currentDraft = newDraft
+            
             return
         }
         
         // Already in thread mode - create new draft
         var newDraft = PostDraft()
         newDraft.languages = currentDraft.languages
+        // Preserve replyTo for thread drafts
+        newDraft.replyTo = threadReplyTo
         allDrafts.append(newDraft)
         currentDraft = newDraft
+        
     }
     
     func removeThreadPost(at index: Int) {
@@ -549,20 +591,50 @@ class PostComposerViewModel {
     
     private func postThread(using client: BlueskyClient) async throws {
         var lastPostRef: ComAtprotoLexicon.Repository.StrongReference?
+        var rootRef: ComAtprotoLexicon.Repository.StrongReference?
         
         for (index, draft) in allDrafts.enumerated() where draft.isValid {
             DevLogger.shared.log("PostComposerViewModel.swift - Posting thread item \(index + 1)/\(allDrafts.count)")
             
-            // Create reply reference if this is not the first post
+            // Create reply reference
             var replyRef: AppBskyLexicon.Feed.PostRecord.ReplyReference?
-            if let lastRef = lastPostRef {
-                replyRef = try await ATProtoTools().createReplyReference(
-                    from: lastRef,
-                    session: client.currentSession!
-                )
+            
+            if index == 0 {
+                // First post - use the draft's existing replyTo if it exists
+                replyRef = draft.replyTo
+                
+                // Extract and store the root reference for subsequent posts
+                if let existingReply = draft.replyTo {
+                    rootRef = existingReply.root
+                }
+            } else if let lastRef = lastPostRef {
+                // Subsequent posts in thread
+                if let rootRef = rootRef {
+                    // We're continuing a reply thread - preserve the original root
+                    replyRef = AppBskyLexicon.Feed.PostRecord.ReplyReference(
+                        root: rootRef,
+                        parent: lastRef
+                    )
+                } else {
+                    // This is a new thread (not a reply thread) - first post becomes root
+                    let firstPostRef = rootRef ?? lastRef
+                    replyRef = AppBskyLexicon.Feed.PostRecord.ReplyReference(
+                        root: firstPostRef,
+                        parent: lastRef
+                    )
+                    // Store the root for future posts
+                    rootRef = firstPostRef
+                }
             }
             
-            lastPostRef = try await postSingle(draft, using: client, replyTo: replyRef)
+            let postRef = try await postSingle(draft, using: client, replyTo: replyRef)
+            
+            // If this was the first post and we didn't have a root yet, this post becomes the root
+            if index == 0 && rootRef == nil {
+                rootRef = postRef
+            }
+            
+            lastPostRef = postRef
         }
     }
     
