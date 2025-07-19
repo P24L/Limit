@@ -26,7 +26,10 @@
       "mcp__XcodeBuildMCP__type_text",
       "Bash(firebase functions:log:*)",
       "Bash(xcrun simctl spawn:*)",
-      "Bash(log stream:*)"
+      "Bash(log stream:*)",
+      "Bash(while:*)",
+      "Bash(do sleep:*)",
+      "Bash(done)"
     ],
     "deny": []
   }

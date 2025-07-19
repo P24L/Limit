@@ -64,7 +64,7 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     /// Instance ATProtoKit klienta pro komunikaci s PDS.
     /// Je nil, pokud uživatel není přihlášen.
 
-    private var configuration: ATProtocolConfiguration
+    internal private(set) var configuration: ATProtocolConfiguration
     internal private(set) var protoClient: ATProtoKit?
     internal private(set) var bskyClient: ATProtoBluesky?
 

@@ -171,6 +171,8 @@ enum PostComposerError: LocalizedError {
     case noContent
     case networkError(Error)
     case uploadFailed(reason: String)
+    case notAuthenticated
+    case imageUploadFailed(Error)
     
     var errorDescription: String? {
         switch self {
@@ -188,6 +190,10 @@ enum PostComposerError: LocalizedError {
             return "Network error: \(error.localizedDescription)"
         case .uploadFailed(let reason):
             return "Upload failed: \(reason)"
+        case .notAuthenticated:
+            return "Not authenticated"
+        case .imageUploadFailed(let error):
+            return "Image upload failed: \(error.localizedDescription)"
         }
     }
 }
