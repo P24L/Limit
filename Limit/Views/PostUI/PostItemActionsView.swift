@@ -37,15 +37,17 @@ struct PostItemActionsView: View {
             .monospacedDigit()
             
             Button {
-                
+                router.presentedSheet = .repostOptions(post: postWrapper)
             } label: {
-                Label("\(postWrapper.repostCount.abbreviatedRounded)", systemImage: "arrow.2.squarepath")
+                Label("\(postWrapper.repostCount.abbreviatedRounded)", systemImage: postWrapper.isReposted ? "arrow.2.squarepath" : "arrow.2.squarepath")
+                    .foregroundStyle(postWrapper.isReposted ? .mintAccent : .postAction)
                     .lineLimit(1)
                     .font(.footnote)
                     .imageScale(.medium)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.postAction)
+            .symbolVariant(postWrapper.isReposted ? .fill : .none)
+            .symbolEffect(.bounce, value: postWrapper.isReposted)
             .monospacedDigit()
             
             Button {

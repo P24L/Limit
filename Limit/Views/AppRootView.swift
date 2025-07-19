@@ -51,7 +51,7 @@ struct AppRootView: View {
         }
         .onChange(of: router.presentedSheet) { oldValue, newValue in
             // When compose sheet is dismissed and we're on post tab, go to home
-            if oldValue == .composePost && newValue == nil && router.selectedTab == .post {
+            if case .composePost = oldValue, newValue == nil, router.selectedTab == .post {
                 router.selectedTab = .timeline
             }
         }
@@ -94,7 +94,7 @@ struct AppRootView: View {
             // Empty view - we'll show compose sheet instead
             Color.clear
                 .onAppear {
-                    router.presentedSheet = .composePost
+                    router.presentedSheet = .composePost()
                 }
         case .search:
             SearchTabView()
@@ -149,8 +149,8 @@ struct AppRootView: View {
             LoginTabView(
                 onDismiss: { router.presentedSheet = nil }
             )
-        case .composePost:
-            ComposePostView()
+        case .composePost(let quotedPost):
+            ComposePostView(quotedPost: quotedPost)
         case .aiExplanation(let postWrapper):
             AIExplanationBottomSheet(postWrapper: postWrapper)
                 .presentationDetents([.medium, .large])
@@ -158,6 +158,10 @@ struct AppRootView: View {
         case .aiSummary(let favoriteURL):
             AISummaryBottomSheet(favoriteURL: favoriteURL)
                 .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.hidden)
+        case .repostOptions(let post):
+            RepostOptionsSheet(post: post)
+                .presentationDetents([.height(280)])
                 .presentationDragIndicator(.hidden)
         }
     }

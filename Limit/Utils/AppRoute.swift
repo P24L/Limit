@@ -70,10 +70,11 @@ enum Destination: DestinationType {
 enum Sheet: SheetType {
     case none // nebo můžeš později přidat např. compose post apod.
     case login
-    case composePost
+    case composePost(quotedPost: TimelinePostWrapper? = nil)
     case fullScreenImage(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID)
     case aiExplanation(postWrapper: TimelinePostWrapper)
     case aiSummary(favoriteURL: FavoriteURL)
+    case repostOptions(post: TimelinePostWrapper)
     
     var id: Int { hashValue }
 }

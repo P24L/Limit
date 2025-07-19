@@ -24,6 +24,12 @@ struct ComposePostView: View {
     
     @FocusState private var isTextFieldFocused: Bool
     
+    let quotedPost: TimelinePostWrapper?
+    
+    init(quotedPost: TimelinePostWrapper? = nil) {
+        self.quotedPost = quotedPost
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -99,6 +105,12 @@ struct ComposePostView: View {
                                 .padding(.horizontal)
                         }
                         
+                        // Quoted post preview
+                        if let quotedPost = quotedPost {
+                            QuotedPostPreview(post: quotedPost)
+                                .padding(.horizontal)
+                        }
+                        
                         // Validation error
                         if let error = viewModel.validationError {
                             Text(error)
@@ -114,7 +126,7 @@ struct ComposePostView: View {
                 ComposeToolbar(
                     characterCount: viewModel.currentDraft.characterCount,
                     remainingCharacters: viewModel.currentDraft.remainingCharacters,
-                    canAddMedia: viewModel.currentDraft.images.isEmpty && viewModel.currentDraft.video == nil,
+                    canAddMedia: viewModel.currentDraft.images.isEmpty && viewModel.currentDraft.video == nil && viewModel.currentDraft.quotedPost == nil,
                     languages: viewModel.currentDraft.languages,
                     onAddImage: { showImagePicker = true },
                     onAddVideo: { showVideoPicker = true },
@@ -134,6 +146,9 @@ struct ComposePostView: View {
             }
             .onAppear {
                 isTextFieldFocused = true
+                if let quotedPost = quotedPost {
+                    viewModel.setQuotedPost(quotedPost)
+                }
             }
             .onReceive(keyboardPublisher) { height in
                 withAnimation(.easeOut(duration: 0.16)) {

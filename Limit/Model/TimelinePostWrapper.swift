@@ -64,6 +64,10 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
   var isLiked: Bool {
     viewerLikeURI != nil
   }
+  
+  var isReposted: Bool {
+    viewerRepostURI != nil
+  }
 
   struct ImageEmbed {
     let id: String
@@ -1079,6 +1083,36 @@ private let urlTracker = URLFetchingTracker()
       } catch {
         viewerLikeURI = originalURI
         likeCount = max(0, likeCount - 1)
+      }
+    }
+  }
+  
+  // MARK: - ToggleRepost
+  func toggleRepost(using client: BlueskyClient) async {
+    let originalURI = viewerRepostURI
+    if let repostURI = viewerRepostURI {
+      viewerRepostURI = nil
+      repostCount = max(0, repostCount - 1)
+      do {
+        try await client.bskyClient?.deleteRecord(.recordURI(atURI: repostURI))
+      } catch {
+        viewerRepostURI = repostURI
+        repostCount += 1
+      }
+    } else {
+      viewerRepostURI = "optimistic"
+      repostCount += 1
+      do {
+        let strongRef = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
+        let result = try await client.bskyClient?.createRepostRecord(
+          strongRef,
+          createdAt: Date(),
+          shouldValidate: true
+        )
+        viewerRepostURI = result?.recordURI
+      } catch {
+        viewerRepostURI = originalURI
+        repostCount = max(0, repostCount - 1)
       }
     }
   }

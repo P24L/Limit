@@ -143,8 +143,8 @@ class PostComposerViewModel {
         currentDraft.facets = quickFacets
         currentDraft.displayText = displayText
         
-        // Extract first URL for potential embed (only if no media attached)
-        if currentDraft.images.isEmpty && currentDraft.video == nil {
+        // Extract first URL for potential embed (only if no media attached and no quoted post)
+        if currentDraft.images.isEmpty && currentDraft.video == nil && currentDraft.quotedPost == nil {
             await extractFirstURLForEmbed(from: quickFacets)
         }
         
@@ -247,7 +247,7 @@ class PostComposerViewModel {
                 Task.detached { [weak self] in
                     let fullFacets = await ATFacetParser.parseFacets(from: textCopy)
                     
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
                         guard let self = self else { return }
                         // Check both text and version to ensure we're still relevant
                         if self.currentDraft.text == textCopy && self.parseVersion == versionCopy {
@@ -284,6 +284,20 @@ class PostComposerViewModel {
     private func parseText(_ text: String) async {
         parseVersion += 1
         await parseText(text, version: parseVersion)
+    }
+    
+    // MARK: - Quote Post
+    func setQuotedPost(_ post: TimelinePostWrapper) {
+        currentDraft.quotedPost = ComAtprotoLexicon.Repository.StrongReference(
+            recordURI: post.uri,
+            cidHash: post.cid
+        )
+        // Clear other embeds when setting quote post
+        currentDraft.images.removeAll()
+        currentDraft.video = nil
+        currentDraft.externalLink = nil
+        
+        DevLogger.shared.log("PostComposerViewModel.swift - Set quoted post: \(post.uri)")
     }
     
     // MARK: - External Link Handling
@@ -347,8 +361,8 @@ class PostComposerViewModel {
         guard index < currentDraft.images.count else { return }
         currentDraft.images.remove(at: index)
         
-        // Re-parse to potentially extract URL embed if no media left
-        if currentDraft.images.isEmpty && currentDraft.video == nil {
+        // Re-parse to potentially extract URL embed if no media left and no quoted post
+        if currentDraft.images.isEmpty && currentDraft.video == nil && currentDraft.quotedPost == nil {
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 await self.parseText(self.currentDraft.text)
@@ -381,10 +395,12 @@ class PostComposerViewModel {
     func removeVideo() {
         currentDraft.video = nil
         
-        // Re-parse to potentially extract URL embed
-        Task { @MainActor [weak self] in
-            guard let self = self else { return }
-            await self.parseText(self.currentDraft.text)
+        // Re-parse to potentially extract URL embed if no quoted post
+        if currentDraft.quotedPost == nil {
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                await self.parseText(self.currentDraft.text)
+            }
         }
     }
     
@@ -552,8 +568,11 @@ class PostComposerViewModel {
     }
     
     private func prepareEmbed(for draft: PostDraft, using client: BlueskyClient) async throws -> ATProtoBluesky.EmbedIdentifier? {
-        // Priority: Images > Video > External Link
-        if !draft.images.isEmpty {
+        // Priority: Quote Post > Images > Video > External Link
+        if let quotedPost = draft.quotedPost {
+            DevLogger.shared.log("PostComposerViewModel.swift - Preparing quote post embed")
+            return .record(strongReference: quotedPost)
+        } else if !draft.images.isEmpty {
             DevLogger.shared.log("PostComposerViewModel.swift - Preparing image embed")
             return .images(images: draft.images)
         } else if let video = draft.video {
