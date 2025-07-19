@@ -25,9 +25,11 @@ struct ComposePostView: View {
     @FocusState private var isTextFieldFocused: Bool
     
     let quotedPost: TimelinePostWrapper?
+    let replyTo: TimelinePostWrapper?
     
-    init(quotedPost: TimelinePostWrapper? = nil) {
+    init(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil) {
         self.quotedPost = quotedPost
+        self.replyTo = replyTo
     }
     
     var body: some View {
@@ -54,6 +56,11 @@ struct ComposePostView: View {
                 
                 ScrollView {
                     VStack(spacing: 16) {
+                        // Reply preview - show if this is a reply
+                        if let replyTo = replyTo {
+                            ReplyPreview(post: replyTo)
+                        }
+                        
                         // Thread mode indicator
                         if viewModel.isThreadMode {
                             ThreadModeIndicator(
@@ -148,6 +155,9 @@ struct ComposePostView: View {
                 isTextFieldFocused = true
                 if let quotedPost = quotedPost {
                     viewModel.setQuotedPost(quotedPost)
+                }
+                if let replyTo = replyTo {
+                    viewModel.setReplyTo(replyTo)
                 }
             }
             .onReceive(keyboardPublisher) { height in
