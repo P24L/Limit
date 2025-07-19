@@ -149,7 +149,6 @@ class PostComposerViewModel {
         }
         
         // Check if we have any mentions that are ready to validate
-        var hasCompleteMentions = false
         var completeMentions: [String] = []
         
         for mention in mentions {
@@ -173,7 +172,6 @@ class PostComposerViewModel {
                      mentionText.count > 10)
                 
                 if looksComplete && (isFollowedBySpace || isAtEndOfText) {
-                    hasCompleteMentions = true
                     completeMentions.append(mentionText)
                 }
             }
@@ -242,21 +240,25 @@ class PostComposerViewModel {
                 guard !Task.isCancelled else { return }
                 
                 // Do full parse if we have any mentions
+                let textCopy = text
+                let versionCopy = version
+                let mentionsCopy = mentions
+                
                 Task.detached { [weak self] in
-                    let fullFacets = await ATFacetParser.parseFacets(from: text)
+                    let fullFacets = await ATFacetParser.parseFacets(from: textCopy)
                     
                     await MainActor.run {
                         guard let self = self else { return }
                         // Check both text and version to ensure we're still relevant
-                        if self.currentDraft.text == text && self.parseVersion == version {
+                        if self.currentDraft.text == textCopy && self.parseVersion == versionCopy {
                             self.currentDraft.facets = fullFacets
                             // Update cache
-                            for mention in mentions {
+                            for mention in mentionsCopy {
                                 if let mentionText = mention["mention"] as? String {
                                     let found = fullFacets.contains { facet in
                                         facet.features.contains { feature in
                                             if case .mention(_) = feature {
-                                                if let facetText = text.substring(
+                                                if let facetText = textCopy.substring(
                                                     fromByte: facet.index.byteStart,
                                                     toByte: facet.index.byteEnd
                                                 ) {
@@ -347,8 +349,9 @@ class PostComposerViewModel {
         
         // Re-parse to potentially extract URL embed if no media left
         if currentDraft.images.isEmpty && currentDraft.video == nil {
-            Task { @MainActor in
-                await parseText(currentDraft.text)
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                await self.parseText(self.currentDraft.text)
             }
         }
     }
@@ -379,8 +382,9 @@ class PostComposerViewModel {
         currentDraft.video = nil
         
         // Re-parse to potentially extract URL embed
-        Task { @MainActor in
-            await parseText(currentDraft.text)
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            await self.parseText(self.currentDraft.text)
         }
     }
     
@@ -443,8 +447,9 @@ class PostComposerViewModel {
         currentDraft = allDrafts[index]
         
         // Re-parse text to update facets and highlighting
-        Task { @MainActor in
-            await parseText(currentDraft.text)
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            await self.parseText(self.currentDraft.text)
         }
     }
     
