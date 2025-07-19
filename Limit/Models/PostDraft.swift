@@ -37,6 +37,9 @@ struct PostDraft: Identifiable, Codable {
     /// Reply reference if this is a reply
     var replyTo: AppBskyLexicon.Feed.PostRecord.ReplyReference?
     
+    /// Quote post reference if this is a quote post
+    var quotedPost: ComAtprotoLexicon.Repository.StrongReference?
+    
     /// Additional posts for thread creation
     var threadPosts: [PostDraft] = []
     
@@ -66,7 +69,7 @@ struct PostDraft: Identifiable, Codable {
     enum CodingKeys: String, CodingKey {
         case id, text, displayText, languages, threadPosts
         case externalLink, video
-        // Note: facets, images, and replyTo are not persisted
+        // Note: facets, images, replyTo, and quotedPost are not persisted
     }
     
     init(from decoder: Decoder) throws {
@@ -83,6 +86,7 @@ struct PostDraft: Identifiable, Codable {
         facets = []
         images = []
         replyTo = nil
+        quotedPost = nil
     }
     
     func encode(to encoder: Encoder) throws {
