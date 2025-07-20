@@ -103,6 +103,8 @@ struct LoginTabView: View {
     private func login() {
         isLoading = true
         errorMessage = nil
+        
+        DevLogger.shared.log("LoginTabView - Starting login for handle: \(handle)")
 
         client.handle = handle
         client.appPassword = appPassword
@@ -111,22 +113,31 @@ struct LoginTabView: View {
             do {
                 await client.login()
                 if client.isAuthenticated {
-                    // Persist to keychain
-                    let keychain = KeychainSwift()
-                    keychain.set(handle, forKey: "cz.P24L.limit.handle")
-                    keychain.set(appPassword, forKey: "cz.P24L.limit.appPassword")
+                    // Get the real DID from the authenticated session
+                    guard let realDID = client.currentDID else {
+                        throw NSError(domain: "LoginFailed", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not get user DID"])
+                    }
                     
-                    // Refresh profile
+                    // Refresh profile to get display name and avatar
                     await currentUser.refreshProfile(client: client)
-                    // Notify app that credentials are good
+                    
+                    // Add or update account in AccountManager
                     await MainActor.run {
-                        //areCredentialsAvailable = true
+                        AccountManager.shared.addOrUpdateAccount(
+                            did: realDID,
+                            handle: handle,
+                            appPassword: appPassword,
+                            displayName: currentUser.displayName,
+                            avatarURL: currentUser.avatarURL
+                        )
+                        
                         onDismiss()
                     }
                 } else {
                     throw NSError(domain: "LoginFailed", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid credentials"])
                 }
             } catch {
+                DevLogger.shared.log("LoginTabView - Login error: \(error.localizedDescription)")
                 await MainActor.run {
                     errorMessage = error.localizedDescription
                     isLoading = false
