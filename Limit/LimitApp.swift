@@ -55,7 +55,7 @@ struct LimitApp: App {
     
     let container: ModelContainer = {
         let config = ModelConfiguration(
-            "LimitDB_v40",
+            "LimitDB_v41",
             schema: Schema(AppSchema.allModels)
         )
         return try! ModelContainer(
@@ -63,11 +63,22 @@ struct LimitApp: App {
             configurations: config
         )
     }()
+    
+    let favoritesContainer: ModelContainer = {
+        let config = ModelConfiguration(
+            "FavoritesDB_v1",
+            schema: Schema(FavoritesSchema.allModels)
+        )
+        return try! ModelContainer(
+            for: Schema(FavoritesSchema.allModels),
+            configurations: config
+        )
+    }()
 
     init() {
         _client = State(initialValue: BlueskyClient())
-        _favoritesURLManager = State(initialValue: FavoriteURLManager(context: container.mainContext))
-        _favoritesPostManager = State(initialValue: FavoritePostManager(context: container.mainContext))
+        _favoritesURLManager = State(initialValue: FavoriteURLManager(context: favoritesContainer.mainContext))
+        _favoritesPostManager = State(initialValue: FavoritePostManager(context: favoritesContainer.mainContext))
         _feed = State(initialValue: TimelineFeed(context: container.mainContext, client: BlueskyClient()))
         
         // Configure LinkMetadataService

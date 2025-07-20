@@ -174,6 +174,6 @@ struct SearchTabView: View {
         .environment(AppRouter(initialTab: .search))
         .environment(BlueskyClient())
         .environment(CurrentUser())
-        .environment(FavoriteURLManager(context: SampleData.shared.modelContainer.mainContext))
-        .environment(FavoritePostManager(context: SampleData.shared.modelContainer.mainContext))
+        .environment(FavoriteURLManager(context: SampleData.shared.favoritesContainer.mainContext))
+        .environment(FavoritePostManager(context: SampleData.shared.favoritesContainer.mainContext))
 }

@@ -16,8 +16,9 @@ enum AppSchema {
     static let allModels: [any PersistentModel.Type] = [
         TimelinePost.self,
         PostImage.self,
-        FavoriteURL.self,
-        FavoritePost.self
+        PostLinkExt.self,
+        PostVideo.self,
+        PostFacet.self
     ]
 }
 
