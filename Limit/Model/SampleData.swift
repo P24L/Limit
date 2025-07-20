@@ -12,22 +12,30 @@ import SwiftData
 final class SampleData {
     static var shared = SampleData()
     let modelContainer: ModelContainer
+    let favoritesContainer: ModelContainer
     
     var context: ModelContext {
         modelContainer.mainContext
     }
     
+    var favoritesContext: ModelContext {
+        favoritesContainer.mainContext
+    }
+    
     init() {
         let modelConfiguration = ModelConfiguration(schema: Schema(AppSchema.allModels), isStoredInMemoryOnly: true)
+        let favoritesConfiguration = ModelConfiguration(schema: Schema(FavoritesSchema.allModels), isStoredInMemoryOnly: true)
         
         do {
             modelContainer = try ModelContainer(for: Schema(AppSchema.allModels), configurations: [modelConfiguration])
+            favoritesContainer = try ModelContainer(for: Schema(FavoritesSchema.allModels), configurations: [favoritesConfiguration])
+            
             for favURL in makeFiveSampleFavoriteURLs() {
-                context.insert(favURL)
+                favoritesContext.insert(favURL)
             }
-            try context.save()
+            try favoritesContext.save()
         } catch {
-            fatalError("Could not initiate modelContainer, error: \(error)")
+            fatalError("Could not initiate containers, error: \(error)")
         }
     }
 

@@ -20,6 +20,9 @@ struct SettingsView: View {
     @Environment(TimelineFeed.self) private var feed
     @Environment(\.modelContext) var context
     @Environment(AppState.self) private var appState
+    @Environment(ComputedTimelineFeed.self) private var computedFeed
+    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(FavoritePostManager.self) private var favoritesPost
     
     @Query(
         sort: \TimelinePost.createdAt,
@@ -287,7 +290,8 @@ struct SettingsView: View {
         
         // Clear current data
         currentUser.clear()
-        feed.clearStorage()
+        feed.clearStorage()  // This clears only current account's posts
+        computedFeed.clearSession()  // Clear computed timeline cache
         
         // Switch account
         let success = await client.switchAccount(to: account, password: password)
@@ -308,8 +312,9 @@ struct SettingsView: View {
                 AccountManager.shared.deleteAccount(account)
             }
             
-            // Refresh user data
+            // Refresh user data and reload timeline for new account
             feed.updateClient(client)
+            feed.loadFromStorage()  // Load posts for the new account
             await currentUser.refreshProfile(client: client)
             
             // Update profile info in AccountManager
@@ -318,6 +323,13 @@ struct SettingsView: View {
                 displayName: currentUser.displayName,
                 avatarURL: currentUser.avatarURL
             )
+            
+            // Start preparing ComputedTimeline cache for new account
+            Task.detached { [weak computedFeed, weak client] in
+                guard let computedFeed = computedFeed, let client = client else { return }
+                try? await Task.sleep(for: .seconds(4))
+                await computedFeed.prepareSessionCacheInBackground(client: client)
+            }
         }
     }
     
@@ -352,7 +364,8 @@ struct SettingsView: View {
         currentUser.clear()
         
         // Clear timeline feed from memory
-        feed.clearStorage()
+        feed.clearStorage(forAllAccounts: true)
+        computedFeed.clearSession()
         
         // Logout from client
         await client.logout()
@@ -365,6 +378,8 @@ struct SettingsView: View {
 
 struct SwiftDataCountView: View {
     @Environment(\.modelContext) private var context
+    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(FavoritePostManager.self) private var favoritesPost
     @State private var timelinePostCount: Int = 0
     @State private var postImageCount: Int = 0
     @State private var favoriteURLCount: Int = 0
@@ -430,16 +445,14 @@ struct SwiftDataCountView: View {
                     postImageCount = postImages.count
                 }
                 
-                // Count FavoriteURL
-                let favoriteURLs = try context.fetch(FetchDescriptor<FavoriteURL>())
+                // Count FavoriteURL from manager
                 await MainActor.run {
-                    favoriteURLCount = favoriteURLs.count
+                    favoriteURLCount = favoritesURL.favorites.count
                 }
                 
-                // Count FavoritePost
-                let favoritePosts = try context.fetch(FetchDescriptor<FavoritePost>())
+                // Count FavoritePost from manager
                 await MainActor.run {
-                    favoritePostCount = favoritePosts.count
+                    favoritePostCount = favoritesPost.favorites.count
                 }
                 
                 // Count PostFacet (Links)

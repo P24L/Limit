@@ -50,6 +50,9 @@ final class TimelinePost: Identifiable {
     var repostedByHandle: String? = nil
     var repostedByDisplayName: String? = nil
     var repostedByAvatarURL: URL? = nil
+    
+    // Multi-account support
+    var accountDID: String
 
     // Viewer state - interakce přihlášeného uživatele
     var viewerLikeURI: String? = nil
@@ -83,6 +86,7 @@ final class TimelinePost: Identifiable {
         repostedByHandle: String? = nil,
         repostedByDisplayName: String? = nil,
         repostedByAvatarURL: URL? = nil,
+        accountDID: String,
         viewerLikeURI: String? = nil,
         viewerRepostURI: String? = nil,
         viewerIsPinned: Bool = false,
@@ -112,6 +116,7 @@ final class TimelinePost: Identifiable {
         self.repostedByHandle = repostedByHandle
         self.repostedByDisplayName = repostedByDisplayName
         self.repostedByAvatarURL = repostedByAvatarURL
+        self.accountDID = accountDID
         self.viewerLikeURI = viewerLikeURI
         self.viewerRepostURI = viewerRepostURI
         self.viewerIsPinned = viewerIsPinned

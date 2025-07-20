@@ -715,7 +715,7 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
     metadataFetchTask?.cancel()
   }
 
-  func toModel(context: ModelContext) -> TimelinePost {
+  func toModel(context: ModelContext, accountDID: String) -> TimelinePost {
     let model = TimelinePost(
       id: storageID ?? uri + UUID().uuidString,
       uri: uri,
@@ -732,14 +732,15 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
       replyCount: replyCount,
       repostCount: repostCount,
       quoteCount: quoteCount,
-      quotedPost: quotedPost?.toModel(context: context),
+      quotedPost: quotedPost?.toModel(context: context, accountDID: accountDID),
       fetchedWithCursor: fetchedWithCursor,
-      parentPost: parentPost?.toModel(context: context),
-      rootPost: rootPost?.toModel(context: context),
+      parentPost: parentPost?.toModel(context: context, accountDID: accountDID),
+      rootPost: rootPost?.toModel(context: context, accountDID: accountDID),
       repostedByID: repostedByID,
       repostedByHandle: repostedByHandle,
       repostedByDisplayName: repostedByDisplayName,
       repostedByAvatarURL: repostedByAvatarURL,
+      accountDID: accountDID,
       viewerLikeURI: viewerLikeURI,
       viewerRepostURI: viewerRepostURI,
       viewerIsPinned: viewerIsPinned,
@@ -1195,6 +1196,7 @@ final class TimelineFeed {
   private let context: ModelContext
 
   private var client: BlueskyClient
+  private var currentAccountDID: String?
   
   // Memory management constants
   private let maxPostsInMemory = 1000
@@ -1204,16 +1206,31 @@ final class TimelineFeed {
   init(context: ModelContext, client: BlueskyClient) {
     self.context = context
     self.client = client
+    Task { @MainActor in
+      self.currentAccountDID = client.currentDID
+    }
   }
 
   func updateClient(_ newClient: BlueskyClient) {
     self.client = newClient
+    Task { @MainActor in
+      self.currentAccountDID = newClient.currentDID
+    }
   }
 
   func loadFromStorage() {
+    guard let accountDID = currentAccountDID else {
+      print("No current account DID available for loading posts")
+      posts = []
+      oldestCursor = nil
+      return
+    }
+    
     do {
-
       var descriptor = FetchDescriptor<TimelinePost>(
+        predicate: #Predicate<TimelinePost> { post in
+          post.accountDID == accountDID
+        },
         sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
       )
       descriptor.relationshipKeyPathsForPrefetching = [
@@ -1229,7 +1246,7 @@ final class TimelineFeed {
       let storedPosts = try context.fetch(descriptor)
       self.posts = storedPosts.map { TimelinePostWrapper(from: $0) }
       self.oldestCursor = storedPosts.last?.fetchedWithCursor
-      print("Load from storage finished")
+      print("Load from storage finished for account: \(accountDID)")
     } catch {
       print("Failed to load timeline from storage: \(error)")
     }
@@ -1280,10 +1297,15 @@ final class TimelineFeed {
   @MainActor
   func saveToStorage() {
     let newWrappers = posts.filter { $0.storageID == nil }
+    guard let accountDID = currentAccountDID else {
+      print("No current account DID available for saving posts")
+      return
+    }
+    
     do {
       for wrapper in newWrappers {
         // Create and insert the model, letting SwiftData cascade to relationships
-        let postModel = wrapper.toModel(context: context)
+        let postModel = wrapper.toModel(context: context, accountDID: accountDID)
         context.insert(postModel)
         wrapper.storageID = postModel.id
       }
@@ -1297,8 +1319,15 @@ final class TimelineFeed {
   }
   
   private func cleanupOldPostsIfNeeded() {
+    guard let accountDID = currentAccountDID else { return }
+    
     do {
-      let allPosts = try context.fetch(FetchDescriptor<TimelinePost>())
+      let descriptor = FetchDescriptor<TimelinePost>(
+        predicate: #Predicate<TimelinePost> { post in
+          post.accountDID == accountDID
+        }
+      )
+      let allPosts = try context.fetch(descriptor)
       let postTypePosts = allPosts.filter { $0.type == .post }
         .sorted { $0.createdAt > $1.createdAt } // Sort newest first
       
@@ -1307,7 +1336,7 @@ final class TimelineFeed {
         postsToDelete.forEach { context.delete($0) }
         try context.save()
         
-        DevLogger.shared.log("TimelineFeed.swift - cleaned up \(postsToDelete.count) old posts, keeping \(postTypePosts.count - postsToDelete.count)")
+        DevLogger.shared.log("TimelineFeed.swift - cleaned up \(postsToDelete.count) old posts for account \(accountDID), keeping \(postTypePosts.count - postsToDelete.count)")
       }
     } catch {
       print("Failed to cleanup old posts: \(error)")
@@ -1333,9 +1362,26 @@ final class TimelineFeed {
     }
   }
 
-  func clearStorage() {
+  func clearStorage(forAllAccounts: Bool = false) {
     do {
-      let descriptor = FetchDescriptor<TimelinePost>()
+      let descriptor: FetchDescriptor<TimelinePost>
+      
+      if forAllAccounts {
+        // Clear all posts regardless of account
+        descriptor = FetchDescriptor<TimelinePost>()
+      } else {
+        // Clear only posts for current account
+        guard let accountDID = currentAccountDID else {
+          print("No current account DID available for clearing posts")
+          return
+        }
+        descriptor = FetchDescriptor<TimelinePost>(
+          predicate: #Predicate<TimelinePost> { post in
+            post.accountDID == accountDID
+          }
+        )
+      }
+      
       let stored = try context.fetch(descriptor)
       for post in stored {
         context.delete(post)
