@@ -155,27 +155,51 @@ struct LimitApp: App {
     
     
     private func tryAutoLogin() async {
-        let keychain = KeychainSwift()
-        if let handle = keychain.get("cz.P24L.limit.handle"),
-           let appPassword = keychain.get("cz.P24L.limit.appPassword") {
-            client.handle = handle
-            client.appPassword = appPassword
-            await client.login()
-            if client.isAuthenticated {
-                feed.updateClient(client)
-                notificationManager.setClient(client)
-                await currentUser.refreshProfile(client: client)
-                appState.setAuthenticated()
-                
-                // Start notification refresh
-                notificationManager.startPeriodicRefresh()
-                
-                // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
-                Task.detached { [weak computedFeed, weak client] in
-                    guard let computedFeed = computedFeed, let client = client else { return }
-                    try? await Task.sleep(for: .seconds(4))
-                    await computedFeed.prepareSessionCacheInBackground(client: client)
-                }
+        guard let currentAccount = AccountManager.shared.currentAccount,
+              let appPassword = AccountManager.shared.getAppPassword(for: currentAccount) else {
+            computedFeed.clearSession()
+            appState.setUnauthenticated()
+            return
+        }
+        
+        client.handle = currentAccount.handle
+        client.appPassword = appPassword
+        await client.login()
+        
+        if client.isAuthenticated {
+            feed.updateClient(client)
+            notificationManager.setClient(client)
+            await currentUser.refreshProfile(client: client)
+            
+            // Update account profile info if changed
+            AccountManager.shared.updateAccountProfile(
+                for: client.currentDID ?? currentAccount.did,
+                displayName: currentUser.displayName,
+                avatarURL: currentUser.avatarURL
+            )
+            
+            // Update DID if it was a legacy account
+            if currentAccount.did.hasPrefix("legacy:"), let realDID = client.currentDID {
+                AccountManager.shared.addAccount(
+                    did: realDID,
+                    handle: currentAccount.handle,
+                    appPassword: appPassword,
+                    displayName: currentUser.displayName,
+                    avatarURL: currentUser.avatarURL
+                )
+                AccountManager.shared.deleteAccount(currentAccount)
+            }
+            
+            appState.setAuthenticated()
+            
+            // Start notification refresh
+            notificationManager.startPeriodicRefresh()
+            
+            // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
+            Task.detached { [weak computedFeed, weak client] in
+                guard let computedFeed = computedFeed, let client = client else { return }
+                try? await Task.sleep(for: .seconds(4))
+                await computedFeed.prepareSessionCacheInBackground(client: client)
             }
         } else {
             computedFeed.clearSession()

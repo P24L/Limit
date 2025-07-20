@@ -29,6 +29,12 @@ struct SettingsView: View {
     @AppStorage("debugMode") private var debugMode: Bool = false
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
     
+    @State private var showAddAccountSheet = false
+    @State private var isSwitchingAccount = false
+    @State private var accountToDelete: UserAccount? = nil
+    @State private var showDeleteConfirmation = false
+    @State private var showLogoutConfirmation = false
+    
     var body: some View {
         Form {
             // Profile Section
@@ -70,56 +76,64 @@ struct SettingsView: View {
                         router.navigateTo(.listManagement)
                     }
                 }
-                
-                // Restore Logout/Login button
-                if client.isAuthenticated {
-                    Button("Logout") {
-                        Task {
-                            // Clear keychain credentials
-                            let keychain = KeychainSwift()
-                            keychain.delete("cz.P24L.limit.handle")
-                            keychain.delete("cz.P24L.limit.appPassword")
-                            
-                            // Clear SwiftData
-                            do {
-                                let allPosts = try context.fetch(FetchDescriptor<TimelinePost>())
-                                allPosts.forEach { context.delete($0) }
-                                let allImages = try context.fetch(FetchDescriptor<PostImage>())
-                                allImages.forEach { context.delete($0) }
-                                let allLinks = try context.fetch(FetchDescriptor<PostLinkExt>())
-                                allLinks.forEach { context.delete($0) }
-                                let allVideos = try context.fetch(FetchDescriptor<PostVideo>())
-                                allVideos.forEach { context.delete($0) }
-                                // let allFavoriteURLs = try context.fetch(FetchDescriptor<FavoriteURL>())
-                                // allFavoriteURLs.forEach { context.delete($0) }
-                                // let allFavoritePosts = try context.fetch(FetchDescriptor<FavoritePost>())
-                                // allFavoritePosts.forEach { context.delete($0) }
-                                try context.save()
-                            } catch {
-                                DevLogger.shared.log("SettingsView.swift - error while clearing SwiftData during logout: \(error)")
+            }
+            
+            // Accounts Section
+            Section(header: Text("Accounts")) {
+                ForEach(AccountManager.shared.accounts) { account in
+                    AccountRowView(
+                        account: account,
+                        isCurrent: account.id == AccountManager.shared.currentAccount?.id
+                    )
+                    .onTapGesture {
+                        if account.id != AccountManager.shared.currentAccount?.id {
+                            Task {
+                                await switchToAccount(account)
                             }
-                            
-                            // Clear currentUser
-                            currentUser.clear()
-                            
-                            // Clear timeline feed from memory
-                            feed.clearStorage()
-                            
-                            // Logout from client
-                            await client.logout()
-                            
-                            // Switch to unauthenticated state
-                            appState.setUnauthenticated()
                         }
                     }
-                    .foregroundColor(.red)
-                } else {
-                    Button("Login") {
-                        router.presentedSheet = .login
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if AccountManager.shared.accounts.count > 1 && account.id != AccountManager.shared.currentAccount?.id {
+                            Button(role: .destructive) {
+                                deleteAccount(account)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
-                    .foregroundColor(.blue)
+                }
+                
+                // Add Account button
+                Button(action: {
+                    Task {
+                        // Logout current session before adding new account
+                        await client.logout()
+                        showAddAccountSheet = true
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                        Text("Add Account")
+                            .foregroundColor(.blue)
+                    }
+                }
+                
+                // Sign Out of All Accounts button
+                if client.isAuthenticated {
+                    Button(action: {
+                        showLogoutConfirmation = true
+                    }) {
+                        HStack {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .foregroundColor(.red)
+                            Text("Sign Out of All Accounts")
+                                .foregroundColor(.red)
+                        }
+                    }
                 }
             }
+            
             // Options Section
             Section(header: Text("Options")) {
                 Toggle("Dark Mode", isOn: $isDarkMode)
@@ -209,6 +223,142 @@ struct SettingsView: View {
                 await currentUser.refreshLists(client: client)
             }
         }
+        .disabled(isSwitchingAccount)
+        .overlay {
+            if isSwitchingAccount {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                ProgressView("Switching account...")
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+            }
+        }
+        .sheet(isPresented: $showAddAccountSheet) {
+            LoginView { success in
+                if success {
+                    DevLogger.shared.log("SettingsView - Add account successful")
+                    
+                    // The account was already added and made current in LoginTabView
+                    // We just need to close the sheet and update the feed
+                    showAddAccountSheet = false
+                    
+                    // Update feed with new client
+                    feed.updateClient(client)
+                }
+            }
+            .environment(client)
+            .environment(currentUser)
+            .environment(appState)
+            .environment(feed)
+        }
+        .alert("Delete Account", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                if let account = accountToDelete {
+                    AccountManager.shared.deleteAccount(account)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete the account @\(accountToDelete?.handle ?? "")?")
+        }
+        .alert("Sign Out", isPresented: $showLogoutConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Sign Out", role: .destructive) {
+                Task {
+                    await signOutAllAccounts()
+                }
+            }
+        } message: {
+            Text("This will sign you out of all accounts")
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func switchToAccount(_ account: UserAccount) async {
+        guard let password = AccountManager.shared.getAppPassword(for: account) else {
+            DevLogger.shared.log("SettingsView - No password found for account")
+            return
+        }
+        
+        isSwitchingAccount = true
+        defer { isSwitchingAccount = false }
+        
+        // Clear current data
+        currentUser.clear()
+        feed.clearStorage()
+        
+        // Switch account
+        let success = await client.switchAccount(to: account, password: password)
+        
+        if success {
+            // Update AccountManager
+            AccountManager.shared.switchToAccount(account)
+            
+            // Update real DID if needed
+            if account.did.hasPrefix("legacy:"), let realDID = client.currentDID {
+                AccountManager.shared.addAccount(
+                    did: realDID,
+                    handle: account.handle,
+                    appPassword: password,
+                    displayName: currentUser.displayName,
+                    avatarURL: currentUser.avatarURL
+                )
+                AccountManager.shared.deleteAccount(account)
+            }
+            
+            // Refresh user data
+            feed.updateClient(client)
+            await currentUser.refreshProfile(client: client)
+            
+            // Update profile info in AccountManager
+            AccountManager.shared.updateAccountProfile(
+                for: client.currentDID ?? account.did,
+                displayName: currentUser.displayName,
+                avatarURL: currentUser.avatarURL
+            )
+        }
+    }
+    
+    private func deleteAccount(_ account: UserAccount) {
+        accountToDelete = account
+        showDeleteConfirmation = true
+    }
+    
+    private func signOutAllAccounts() async {
+        // Clear all accounts and their passwords
+        let allAccounts = AccountManager.shared.accounts
+        for account in allAccounts {
+            AccountManager.shared.deleteAccount(account)
+        }
+        
+        // Clear SwiftData
+        do {
+            let allPosts = try context.fetch(FetchDescriptor<TimelinePost>())
+            allPosts.forEach { context.delete($0) }
+            let allImages = try context.fetch(FetchDescriptor<PostImage>())
+            allImages.forEach { context.delete($0) }
+            let allLinks = try context.fetch(FetchDescriptor<PostLinkExt>())
+            allLinks.forEach { context.delete($0) }
+            let allVideos = try context.fetch(FetchDescriptor<PostVideo>())
+            allVideos.forEach { context.delete($0) }
+            try context.save()
+        } catch {
+            DevLogger.shared.log("SettingsView.swift - error while clearing SwiftData during logout: \(error)")
+        }
+        
+        // Clear currentUser
+        currentUser.clear()
+        
+        // Clear timeline feed from memory
+        feed.clearStorage()
+        
+        // Logout from client
+        await client.logout()
+        
+        // Switch to unauthenticated state
+        appState.setUnauthenticated()
     }
 
 }

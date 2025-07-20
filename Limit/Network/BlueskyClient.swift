@@ -122,6 +122,38 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             DevLogger.shared.log("BlueskyClient.swift - Login error: \(error.localizedDescription)")
         }
     }
+    
+    /// Switch to a different account without full logout
+    @MainActor
+    func switchAccount(to account: UserAccount, password: String) async -> Bool {
+        DevLogger.shared.log("BlueskyClient.swift - Switching to account: \(account.handle)")
+        
+        // Clear current session
+        cachedHotPosts = []
+        hotPostIDsTimestamp = .distantPast
+        
+        // Update credentials
+        self.handle = account.handle
+        self.appPassword = password
+        
+        // Reset authentication state
+        self.isAuthenticated = false
+        self.protoClient = nil
+        self.bskyClient = nil
+        self.userSession = nil
+        self.currentDID = nil
+        
+        // Attempt to login with new credentials
+        await login()
+        
+        if isAuthenticated {
+            DevLogger.shared.log("BlueskyClient.swift - Account switch successful")
+            return true
+        } else {
+            DevLogger.shared.log("BlueskyClient.swift - Account switch failed")
+            return false
+        }
+    }
 
     /// Logout method.
     @MainActor
