@@ -90,16 +90,12 @@ struct ListMembersView: View {
         isLoading = true
         defer { isLoading = false }
         
-        do {
-            let output = try await client.protoClient?.getList(from: list.uri)
-            await MainActor.run {
-                self.members = output?.items ?? []
-                self.cursor = output?.cursor
-            }
-            DevLogger.shared.log("ListMembersView.swift - Loaded \(members.count) members for list: \(list.name)")
-        } catch {
-            DevLogger.shared.log("ListMembersView.swift - Error loading members: \(error)")
+        let output = await client.getListWithMembers(listURI: list.uri)
+        await MainActor.run {
+            self.members = output?.items ?? []
+            self.cursor = output?.cursor
         }
+        DevLogger.shared.log("ListMembersView.swift - Loaded \(members.count) members for list: \(list.name)")
     }
     
     private func removeMember(_ member: AppBskyLexicon.Graph.ListItemViewDefinition) async {

@@ -1067,21 +1067,19 @@ private let urlTracker = URLFetchingTracker()
     if let likeURI = viewerLikeURI {
       viewerLikeURI = nil
       likeCount = max(0, likeCount - 1)
-      do {
-        try await client.bskyClient?.deleteRecord(.recordURI(atURI: likeURI))
-      } catch {
+      let success = await client.deleteRecord(.recordURI(atURI: likeURI))
+      if !success {
         viewerLikeURI = likeURI
         likeCount += 1
       }
     } else {
       viewerLikeURI = "optimistic"
       likeCount += 1
-      do {
-        let result = try await client.bskyClient?.createLikeRecord(
-          .init(recordURI: uri, cidHash: cid)
-        )
-        viewerLikeURI = result?.recordURI
-      } catch {
+      let strongRef = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
+      let result = await client.createLikeRecord(strongRef)
+      if let recordURI = result?.recordURI {
+        viewerLikeURI = recordURI
+      } else {
         viewerLikeURI = originalURI
         likeCount = max(0, likeCount - 1)
       }
@@ -1094,24 +1092,23 @@ private let urlTracker = URLFetchingTracker()
     if let repostURI = viewerRepostURI {
       viewerRepostURI = nil
       repostCount = max(0, repostCount - 1)
-      do {
-        try await client.bskyClient?.deleteRecord(.recordURI(atURI: repostURI))
-      } catch {
+      let success = await client.deleteRecord(.recordURI(atURI: repostURI))
+      if !success {
         viewerRepostURI = repostURI
         repostCount += 1
       }
     } else {
       viewerRepostURI = "optimistic"
       repostCount += 1
-      do {
-        let strongRef = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
-        let result = try await client.bskyClient?.createRepostRecord(
-          strongRef,
-          createdAt: Date(),
-          shouldValidate: true
-        )
-        viewerRepostURI = result?.recordURI
-      } catch {
+      let strongRef = ComAtprotoLexicon.Repository.StrongReference(recordURI: uri, cidHash: cid)
+      let result = await client.createRepostRecord(
+        strongRef,
+        createdAt: Date(),
+        shouldValidate: true
+      )
+      if let recordURI = result?.recordURI {
+        viewerRepostURI = recordURI
+      } else {
         viewerRepostURI = originalURI
         repostCount = max(0, repostCount - 1)
       }

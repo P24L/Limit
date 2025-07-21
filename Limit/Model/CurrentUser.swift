@@ -52,35 +52,30 @@ class CurrentUser {
     
     // Načte seznam vlastních lists
     func refreshLists(client: BlueskyClient, limit: Int = 50) async {
-        guard let protoClient = await client.protoClient else {
-            DevLogger.shared.log("CurrentUser - refreshLists - protoClient empty")
-            return 
-        }
         guard !did.isEmpty else { 
             DevLogger.shared.log("CurrentUser - refreshLists - did empty")
             return 
         }
         DevLogger.shared.log("CurrentUser - refreshLists - starting")
-        do {
-            let output = try await protoClient.getLists(
-                from: did,
-                limit: limit,
-                cursor: listsLastCursor
-            )
-            listsLastCursor = output.cursor
-            DevLogger.shared.log("CurrentUser - refreshLists - old count: \(lists.count),new count:\(output.lists.count)")
-            
-            // Get preferences to fetch pinned status and order
-            await refreshListPreferences(client: client)
-            
-            // Sort lists based on preferences
-            let sortedLists = sortListsByPreferences(output.lists)
-            
-            await MainActor.run {
-                self.lists = sortedLists
-            }
-        } catch {
+        
+        let output = await client.getUserLists(for: did, limit: limit, cursor: listsLastCursor)
+        
+        guard let listsOutput = output else {
             DevLogger.shared.log("CurrentUser - refreshLists unsucessfull")
+            return
+        }
+        
+        listsLastCursor = listsOutput.cursor
+        DevLogger.shared.log("CurrentUser - refreshLists - old count: \(lists.count),new count:\(listsOutput.lists.count)")
+        
+        // Get preferences to fetch pinned status and order
+        await refreshListPreferences(client: client)
+        
+        // Sort lists based on preferences
+        let sortedLists = sortListsByPreferences(listsOutput.lists)
+        
+        await MainActor.run {
+            self.lists = sortedLists
         }
     }
     

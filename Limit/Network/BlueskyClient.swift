@@ -404,13 +404,16 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         return timelineWrappers
     }
 
+    @MainActor
     func getProfile(for actor: String) async -> AppBskyLexicon.Actor.ProfileViewDetailedDefinition? {
-        do {
-            return try await protoClient?.getProfile(for: actor)
-        } catch {
-            DevLogger.shared.log("BlueskyClient.swift - getProfile - actor: \(actor), error: \(error)")
+        guard protoClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - getProfile")
+            return nil
         }
-        return nil
+        
+        return await performAuthenticatedRequest {
+            try await self.protoClient!.getProfile(for: actor)
+        }
     }
 
     func followActor(actor: String) async -> ComAtprotoLexicon.Repository.StrongReference? {
@@ -877,6 +880,102 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         }
     }
     
+    /// Gets list details with members - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func getListWithMembers(listURI: String, cursor: String? = nil) async -> AppBskyLexicon.Graph.GetListOutput? {
+        guard protoClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - getListWithMembers")
+            return nil
+        }
+        
+        return await performAuthenticatedRequest {
+            try await self.protoClient!.getList(from: listURI, limit: 50, cursor: cursor)
+        }
+    }
+    
+    /// Gets user's lists - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func getUserLists(for did: String, limit: Int = 50, cursor: String? = nil) async -> AppBskyLexicon.Graph.GetListsOutput? {
+        guard protoClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - getUserLists")
+            return nil
+        }
+        
+        return await performAuthenticatedRequest {
+            try await self.protoClient!.getLists(from: did, limit: limit, cursor: cursor)
+        }
+    }
+    
+    /// Gets list feed - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func getListFeed(listURI: String, limit: Int = 50, cursor: String? = nil) async -> AppBskyLexicon.Feed.GetListFeedOutput? {
+        guard protoClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - getListFeed")
+            return nil
+        }
+        
+        return await performAuthenticatedRequest {
+            try await self.protoClient!.getListFeed(from: listURI, limit: limit, cursor: cursor)
+        }
+    }
+    
+    /// Gets custom feed - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func getCustomFeed(feedURI: String, limit: Int = 50, cursor: String? = nil) async -> AppBskyLexicon.Feed.GetFeedOutput? {
+        guard protoClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - getCustomFeed")
+            return nil
+        }
+        
+        return await performAuthenticatedRequest {
+            try await self.protoClient!.getFeed(by: feedURI, limit: limit, cursor: cursor)
+        }
+    }
+    
+    /// Views trending feed - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func viewTrendingFeed(link: String, limit: Int = 50) async -> (atURI: String, posts: AppBskyLexicon.Feed.GetFeedOutput)? {
+        guard bskyClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - viewTrendingFeed")
+            return nil
+        }
+        
+        return await performAuthenticatedRequest {
+            try await self.bskyClient!.viewTrendingFeed(link, limit: limit)
+        }
+    }
+    
+    /// Search posts - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func searchPosts(matching query: String, 
+                     sortRanking: AppBskyLexicon.Feed.SearchPosts.SortRanking = .latest,
+                     sinceDate: Date? = nil,
+                     untilDate: Date? = nil,
+                     limit: Int = 25,
+                     cursor: String? = nil) async -> AppBskyLexicon.Feed.SearchPostsOutput? {
+        guard protoClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - searchPosts")
+            return nil
+        }
+        
+        return await performAuthenticatedRequest {
+            try await self.protoClient!.searchPosts(
+                matching: query,
+                sortRanking: sortRanking,
+                sinceDate: sinceDate,
+                untilDate: untilDate,
+                mentionIdentifier: nil,
+                author: nil,
+                language: nil,
+                domain: nil,
+                url: nil,
+                tags: nil,
+                limit: limit,
+                cursor: cursor
+            )
+        }
+    }
+    
     
     // MARK: - Preferences Management
     
@@ -1248,29 +1347,20 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     /// Fetches the count of unread notifications
     @MainActor
     func getUnreadNotificationCount() async -> Int {
-        guard let client = protoClient else {
+        guard protoClient != nil else {
             DevLogger.shared.log("BlueskyClient.swift - getUnreadNotificationCount - no protoClient")
             return 0
         }
         
-        // Try the API call but handle the known seenAt parameter error gracefully
-        do {
-            let result = try await client.getUnreadCount(priority: nil)
-            return result.count
-        } catch let error as ATAPIError {
-            if case .badRequest(let httpError) = error, 
-               httpError.error == "InvalidRequest" && 
-               httpError.message.contains("seenAt parameter is unsupported") {
-                DevLogger.shared.log("BlueskyClient.swift - getUnreadNotificationCount - seenAt parameter error (known issue), returning 0")
-                return 0
-            } else {
-                DevLogger.shared.log("BlueskyClient.swift - getUnreadNotificationCount - API error: \(error)")
-                return 0
-            }
-        } catch {
-            DevLogger.shared.log("BlueskyClient.swift - getUnreadNotificationCount - error: \(error)")
+        let result = await performAuthenticatedRequest {
+            try await self.protoClient!.getUnreadCount(priority: nil)
+        }
+        
+        guard let output = result else {
             return 0
         }
+        
+        return output.count
     }
     
     /// Fetches notifications with pagination support
@@ -1334,6 +1424,50 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             DevLogger.shared.log("BlueskyClient.swift - createPost - Failed: \(error)")
             throw error
         }
+    }
+    
+    /// Creates a like record - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func createLikeRecord(_ reference: ComAtprotoLexicon.Repository.StrongReference, 
+                         createdAt: Date = Date()) async -> ComAtprotoLexicon.Repository.StrongReference? {
+        guard bskyClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - createLikeRecord")
+            return nil
+        }
+        
+        return await performAuthenticatedRequest {
+            try await self.bskyClient!.createLikeRecord(reference, createdAt: createdAt)
+        }
+    }
+    
+    /// Creates a repost record - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func createRepostRecord(_ reference: ComAtprotoLexicon.Repository.StrongReference, 
+                           createdAt: Date,
+                           shouldValidate: Bool = true) async -> ComAtprotoLexicon.Repository.StrongReference? {
+        guard bskyClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - createRepostRecord")
+            return nil
+        }
+        
+        return await performAuthenticatedRequest {
+            try await self.bskyClient!.createRepostRecord(reference, createdAt: createdAt, shouldValidate: shouldValidate)
+        }
+    }
+    
+    /// Deletes a record by URI - uses performAuthenticatedRequest for automatic token refresh
+    @MainActor
+    func deleteRecord(_ record: ATProtoBluesky.RecordIdentifier) async -> Bool {
+        guard bskyClient != nil else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - deleteRecord")
+            return false
+        }
+        
+        let result: Void? = await performAuthenticatedRequest {
+            try await self.bskyClient!.deleteRecord(record)
+        }
+        
+        return result != nil
     }
     
     /// Gets the current session for creating reply references
