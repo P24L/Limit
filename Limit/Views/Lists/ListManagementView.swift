@@ -17,6 +17,7 @@ struct ListManagementView: View {
     @State private var showCreateList = false
     @State private var listToDelete: AppBskyLexicon.Graph.ListViewDefinition?
     @State private var showDeleteConfirmation = false
+    @State private var editMode: EditMode = .inactive
     
     var body: some View {
         VStack {
@@ -53,15 +54,23 @@ struct ListManagementView: View {
                 // Lists content
                 List {
                     ForEach(currentUser.lists, id: \.uri) { list in
-                        ListManagementItemView(list: list)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    listToDelete = list
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                        ListManagementItemView(
+                            list: list,
+                            isPinned: currentUser.listPreferences[list.uri]?.isPinned ?? false,
+                            onPinToggle: {
+                                Task {
+                                    await togglePin(for: list)
                                 }
                             }
+                        )
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                listToDelete = list
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                     .onDelete { indexSet in
                         // Handle delete action
@@ -70,7 +79,14 @@ struct ListManagementView: View {
                             showDeleteConfirmation = true
                         }
                     }
+                    .onMove { source, destination in
+                        // Handle reordering
+                        Task {
+                            await moveItems(from: source, to: destination)
+                        }
+                    }
                 }
+                .environment(\.editMode, $editMode)
                 .refreshable {
                     await refreshLists()
                 }
@@ -85,6 +101,12 @@ struct ListManagementView: View {
                 }) {
                     Image(systemName: "plus")
                         .fontWeight(.medium)
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarLeading) {
+                if !currentUser.lists.isEmpty {
+                    EditButton()
                 }
             }
         }
@@ -132,10 +154,44 @@ struct ListManagementView: View {
         
         listToDelete = nil
     }
+    
+    private func togglePin(for list: AppBskyLexicon.Graph.ListViewDefinition) async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        let success = await currentUser.toggleListPin(listURI: list.uri, client: client)
+        if !success {
+            DevLogger.shared.log("ListManagementView.swift - Failed to toggle pin for list: \(list.name)")
+        }
+    }
+    
+    private func moveItems(from source: IndexSet, to destination: Int) async {
+        // Move items in the local array
+        var lists = currentUser.lists
+        lists.move(fromOffsets: source, toOffset: destination)
+        
+        // Update the currentUser lists immediately for responsive UI
+        await MainActor.run {
+            currentUser.lists = lists
+        }
+        
+        // Update the server with new order
+        isLoading = true
+        defer { isLoading = false }
+        
+        let success = await currentUser.updateListOrder(client: client)
+        if !success {
+            DevLogger.shared.log("ListManagementView.swift - Failed to update list order on server")
+            // Revert on failure
+            await refreshLists()
+        }
+    }
 }
 
 struct ListManagementItemView: View {
     let list: AppBskyLexicon.Graph.ListViewDefinition
+    let isPinned: Bool
+    let onPinToggle: () -> Void
     @Environment(AppRouter.self) private var router
     
     var body: some View {
@@ -156,9 +212,17 @@ struct ListManagementItemView: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(list.name)
-                    .font(.headline)
-                    .lineLimit(1)
+                HStack {
+                    Text(list.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    
+                    if isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
                 
                 if let description = list.description, !description.isEmpty {
                     Text(description)
@@ -181,6 +245,16 @@ struct ListManagementItemView: View {
             }
             
             Spacer()
+            
+            // Pin toggle button
+            Button(action: onPinToggle) {
+                Image(systemName: isPinned ? "pin.slash" : "pin")
+                    .font(.body)
+                    .foregroundColor(isPinned ? .orange : .secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+            }
+            .buttonStyle(BorderlessButtonStyle())
             
             // Navigation indicator
             Image(systemName: "chevron.right")

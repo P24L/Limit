@@ -78,6 +78,24 @@ struct SettingsView: View {
                     .onTapGesture {
                         router.navigateTo(.listManagement)
                     }
+                    
+                    // Feeds section
+                    HStack {
+                        Image(systemName: "text.append")
+                            .foregroundColor(.purple)
+                            .frame(width: 24)
+                        Text("Feeds")
+                        Spacer()
+                        Text("\(currentUser.feeds.count)")
+                            .foregroundColor(.secondary)
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        router.navigateTo(.feedManagement)
+                    }
                 }
             }
             

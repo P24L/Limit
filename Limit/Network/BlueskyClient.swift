@@ -878,7 +878,363 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     }
     
     
+    // MARK: - Preferences Management
+    
+    func getPreferences() async -> AppBskyLexicon.Actor.GetPreferencesOutput? {
+        guard let bskyClient = protoClient else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - getPreferences")
+            return nil
+        }
+        
+        do {
+            let preferences = try await bskyClient.getPreferences()
+            DevLogger.shared.log("BlueskyClient.swift - getPreferences - Successfully fetched preferences")
+            return preferences
+        } catch {
+            DevLogger.shared.log("BlueskyClient.swift - getPreferences - Failed to fetch: \(error)")
+            return nil
+        }
+    }
+    
+    // KNOWN ISSUE: ATProtoKit putPreferences has a bug where it doesn't set Content-Type header correctly
+    // Error: "Wrong request encoding (Content-Type): application/x-www-form-urlencoded"
+    // Should be: "application/json"
+    // Status: 2 PRs submitted to ATProtoKit to fix this issue
+    // Impact: Pin/unpin and reordering for lists/feeds won't persist to server
+    // Workaround: None currently - waiting for library fix
+    func putPreferences(preferences: [AppBskyLexicon.Actor.PreferenceUnion]) async -> Bool {
+        guard let bskyClient = protoClient else {
+            DevLogger.shared.log("BlueskyClient.swift - user not authenticated - putPreferences")
+            return false
+        }
+        
+        do {
+            try await bskyClient.putPreferences(preferences: preferences)
+            DevLogger.shared.log("BlueskyClient.swift - putPreferences - Successfully updated preferences")
+            return true
+        } catch {
+            DevLogger.shared.log("BlueskyClient.swift - putPreferences - Failed to update: \(error)")
+            return false
+        }
+    }
+    
+    // Helper method to add or update a list in preferences
+    func updateListInPreferences(listURI: String, isPinned: Bool) async -> Bool {
+        guard let preferencesOutput = await getPreferences() else { return false }
+        
+        var preferences = preferencesOutput.preferences
+        var savedFeedsIndex: Int?
+        var currentSavedFeeds: AppBskyLexicon.Actor.SavedFeedPreferencesVersion2Definition?
+        
+        // Find SavedFeedsVersion2 in preferences
+        for (index, preference) in preferences.enumerated() {
+            if case .savedFeedsVersion2(let savedFeeds) = preference {
+                savedFeedsIndex = index
+                currentSavedFeeds = savedFeeds
+                break
+            }
+        }
+        
+        var items = currentSavedFeeds?.items ?? []
+        
+        // Check if list already exists
+        if let existingIndex = items.firstIndex(where: { $0.value == listURI }) {
+            // Update existing item
+            let existingItem = items[existingIndex]
+            if let updatedItem = SavedFeedBuilder.createSavedFeed(
+                feedID: existingItem.feedID,
+                feedType: "list",
+                isPinned: isPinned,
+                value: listURI
+            ) {
+                items[existingIndex] = updatedItem
+                DevLogger.shared.log("BlueskyClient.swift - updateListInPreferences - Updated existing list pin status")
+            }
+        } else {
+            // Add new item
+            if let newItem = SavedFeedBuilder.createSavedFeed(
+                feedID: UUID().uuidString,
+                feedType: "list",
+                isPinned: isPinned,
+                value: listURI
+            ) {
+                items.append(newItem)
+                DevLogger.shared.log("BlueskyClient.swift - updateListInPreferences - Added new list to preferences")
+            }
+        }
+        
+        // Create updated SavedFeedsVersion2
+        guard let newSavedFeeds = SavedFeedBuilder.createSavedFeedsV2(items: items) else {
+            DevLogger.shared.log("BlueskyClient.swift - updateListInPreferences - Failed to create SavedFeedsV2")
+            return false
+        }
+        
+        // Update preferences array
+        if let index = savedFeedsIndex {
+            preferences[index] = .savedFeedsVersion2(newSavedFeeds)
+        } else {
+            preferences.append(.savedFeedsVersion2(newSavedFeeds))
+        }
+        
+        // Save preferences
+        return await putPreferences(preferences: preferences)
+    }
+    
+    // Helper method to reorder lists in preferences
+    func reorderListsInPreferences(listURIs: [String]) async -> Bool {
+        guard let preferencesOutput = await getPreferences() else { return false }
+        
+        var preferences = preferencesOutput.preferences
+        var savedFeedsIndex: Int?
+        var currentSavedFeeds: AppBskyLexicon.Actor.SavedFeedPreferencesVersion2Definition?
+        
+        // Find SavedFeedsVersion2 in preferences
+        for (index, preference) in preferences.enumerated() {
+            if case .savedFeedsVersion2(let savedFeeds) = preference {
+                savedFeedsIndex = index
+                currentSavedFeeds = savedFeeds
+                break
+            }
+        }
+        
+        var items = currentSavedFeeds?.items ?? []
+        
+        // Separate lists and non-lists
+        let lists = items.filter { $0.feedType == .list }
+        let nonLists = items.filter { $0.feedType != .list }
+        
+        // Create a map of existing lists
+        var listMap: [String: AppBskyLexicon.Actor.SavedFeed] = [:]
+        for list in lists {
+            listMap[list.value] = list
+        }
+        
+        // Reorder lists based on provided URIs
+        var reorderedLists: [AppBskyLexicon.Actor.SavedFeed] = []
+        for uri in listURIs {
+            if let list = listMap[uri] {
+                reorderedLists.append(list)
+            }
+        }
+        
+        // Add any lists that weren't in the provided URIs (shouldn't happen, but safety check)
+        for list in lists {
+            if !listURIs.contains(list.value) {
+                reorderedLists.append(list)
+            }
+        }
+        
+        // Combine reordered lists first, then non-lists (feeds)
+        items = reorderedLists + nonLists
+        
+        // Create updated SavedFeedsVersion2
+        guard let newSavedFeeds = SavedFeedBuilder.createSavedFeedsV2(items: items) else {
+            DevLogger.shared.log("BlueskyClient.swift - reorderListsInPreferences - Failed to create SavedFeedsV2")
+            return false
+        }
+        
+        // Update preferences array
+        if let index = savedFeedsIndex {
+            preferences[index] = .savedFeedsVersion2(newSavedFeeds)
+        } else {
+            preferences.append(.savedFeedsVersion2(newSavedFeeds))
+        }
+        
+        DevLogger.shared.log("BlueskyClient.swift - reorderListsInPreferences - Reordering \(reorderedLists.count) lists")
+        
+        // Save preferences
+        return await putPreferences(preferences: preferences)
+    }
+    
+    // Helper method to update feed preferences
+    // NOTE: Feed subscription/unsubscription is not fully supported in ATProtoKit
+    // Currently only supports updating pin status for already subscribed feeds
+    // The 'subscribe' parameter is kept for future compatibility but doesn't handle new subscriptions
+    func updateFeedInPreferences(feedURI: String, subscribe: Bool, isPinned: Bool = false) async -> Bool {
+        guard let preferencesOutput = await getPreferences() else { return false }
+        
+        var preferences = preferencesOutput.preferences
+        var savedFeedsIndex: Int?
+        var currentSavedFeeds: AppBskyLexicon.Actor.SavedFeedPreferencesVersion2Definition?
+        
+        // Find SavedFeedsVersion2 in preferences
+        for (index, preference) in preferences.enumerated() {
+            if case .savedFeedsVersion2(let savedFeeds) = preference {
+                savedFeedsIndex = index
+                currentSavedFeeds = savedFeeds
+                break
+            }
+        }
+        
+        var items = currentSavedFeeds?.items ?? []
+        
+        if subscribe {
+            // Check if feed already exists
+            if let existingIndex = items.firstIndex(where: { $0.value == feedURI }) {
+                // Update existing item
+                let existingItem = items[existingIndex]
+                if let updatedItem = SavedFeedBuilder.createSavedFeed(
+                    feedID: existingItem.feedID,
+                    feedType: "feed",
+                    isPinned: isPinned,
+                    value: feedURI
+                ) {
+                    items[existingIndex] = updatedItem
+                    DevLogger.shared.log("BlueskyClient.swift - updateFeedInPreferences - Updated existing feed")
+                }
+            } else {
+                // Add new feed
+                if let newItem = SavedFeedBuilder.createSavedFeed(
+                    feedID: UUID().uuidString,
+                    feedType: "feed",
+                    isPinned: isPinned,
+                    value: feedURI
+                ) {
+                    items.append(newItem)
+                    DevLogger.shared.log("BlueskyClient.swift - updateFeedInPreferences - Subscribed to new feed")
+                }
+            }
+        } else {
+            // Unsubscribe - remove feed
+            items.removeAll { $0.value == feedURI && $0.feedType == .feed }
+            DevLogger.shared.log("BlueskyClient.swift - updateFeedInPreferences - Unsubscribed from feed")
+        }
+        
+        // Create updated SavedFeedsVersion2
+        guard let newSavedFeeds = SavedFeedBuilder.createSavedFeedsV2(items: items) else {
+            DevLogger.shared.log("BlueskyClient.swift - updateFeedInPreferences - Failed to create SavedFeedsV2")
+            return false
+        }
+        
+        // Update preferences array
+        if let index = savedFeedsIndex {
+            preferences[index] = .savedFeedsVersion2(newSavedFeeds)
+        } else {
+            preferences.append(.savedFeedsVersion2(newSavedFeeds))
+        }
+        
+        // Save preferences
+        return await putPreferences(preferences: preferences)
+    }
+    
+    // Helper method to reorder feeds in preferences
+    func reorderFeedsInPreferences(feedURIs: [String]) async -> Bool {
+        guard let preferencesOutput = await getPreferences() else { return false }
+        
+        var preferences = preferencesOutput.preferences
+        var savedFeedsIndex: Int?
+        var currentSavedFeeds: AppBskyLexicon.Actor.SavedFeedPreferencesVersion2Definition?
+        
+        // Find SavedFeedsVersion2 in preferences
+        for (index, preference) in preferences.enumerated() {
+            if case .savedFeedsVersion2(let savedFeeds) = preference {
+                savedFeedsIndex = index
+                currentSavedFeeds = savedFeeds
+                break
+            }
+        }
+        
+        var items = currentSavedFeeds?.items ?? []
+        
+        // Separate feeds and non-feeds
+        let feeds = items.filter { $0.feedType == .feed }
+        let nonFeeds = items.filter { $0.feedType != .feed }
+        
+        // Create a map of existing feeds
+        var feedMap: [String: AppBskyLexicon.Actor.SavedFeed] = [:]
+        for feed in feeds {
+            feedMap[feed.value] = feed
+        }
+        
+        // Reorder feeds based on provided URIs
+        var reorderedFeeds: [AppBskyLexicon.Actor.SavedFeed] = []
+        for uri in feedURIs {
+            if let feed = feedMap[uri] {
+                reorderedFeeds.append(feed)
+            }
+        }
+        
+        // Add any feeds that weren't in the provided URIs
+        for feed in feeds {
+            if !feedURIs.contains(feed.value) {
+                reorderedFeeds.append(feed)
+            }
+        }
+        
+        // Combine lists first, then reordered feeds
+        items = nonFeeds + reorderedFeeds
+        
+        // Create updated SavedFeedsVersion2
+        guard let newSavedFeeds = SavedFeedBuilder.createSavedFeedsV2(items: items) else {
+            DevLogger.shared.log("BlueskyClient.swift - reorderFeedsInPreferences - Failed to create SavedFeedsV2")
+            return false
+        }
+        
+        // Update preferences array
+        if let index = savedFeedsIndex {
+            preferences[index] = .savedFeedsVersion2(newSavedFeeds)
+        } else {
+            preferences.append(.savedFeedsVersion2(newSavedFeeds))
+        }
+        
+        DevLogger.shared.log("BlueskyClient.swift - reorderFeedsInPreferences - Reordering \(reorderedFeeds.count) feeds")
+        
+        // Save preferences
+        return await putPreferences(preferences: preferences)
+    }
+    
     // MARK: - Helper Methods
+    
+    // Helper structure for creating SavedFeed objects via JSON decoding
+    private struct SavedFeedBuilder {
+        static func createSavedFeed(
+            feedID: String,
+            feedType: String,
+            isPinned: Bool,
+            value: String
+        ) -> AppBskyLexicon.Actor.SavedFeed? {
+            let dict: [String: Any] = [
+                "id": feedID,
+                "type": feedType,
+                "pinned": isPinned,
+                "$type": "app.bsky.actor.defs#savedFeed",
+                "value": value
+            ]
+            
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+                  let savedFeed = try? JSONDecoder().decode(AppBskyLexicon.Actor.SavedFeed.self, from: jsonData) else {
+                return nil
+            }
+            
+            return savedFeed
+        }
+        
+        static func createSavedFeedsV2(
+            items: [AppBskyLexicon.Actor.SavedFeed]
+        ) -> AppBskyLexicon.Actor.SavedFeedPreferencesVersion2Definition? {
+            let itemDicts = items.map { item in
+                [
+                    "id": item.feedID,
+                    "type": item.feedType == .list ? "list" : "feed",
+                    "pinned": item.isPinned,
+                    "$type": item.type,
+                    "value": item.value
+                ]
+            }
+            
+            let dict: [String: Any] = [
+                "items": itemDicts,
+                "$type": "app.bsky.actor.defs#savedFeedsV2"
+            ]
+            
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: dict),
+                  let savedFeedsV2 = try? JSONDecoder().decode(AppBskyLexicon.Actor.SavedFeedPreferencesVersion2Definition.self, from: jsonData) else {
+                return nil
+            }
+            
+            return savedFeedsV2
+        }
+    }
     
     /// Extracts recordKey from AT URI format
     /// URI format: "at://did:plc:user/collection/recordkey"

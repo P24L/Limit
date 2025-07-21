@@ -130,6 +130,10 @@ struct AppRootView: View {
             ListManagementView()
         case .listMembers(let list):
             ListMembersView(list: list)
+        case .feedManagement:
+            FeedManagementView()
+        case .feedTimeline(let uri, let displayName):
+            FeedTimelineView(feedURI: uri, feedDisplayName: displayName)
         }
     }
     
