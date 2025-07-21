@@ -559,6 +559,8 @@ struct FeedsSectionView: View {
   }
 }
 
+// NOTE: Subscribe/unsubscribe functionality removed due to incomplete ATProtoKit support
+// Only displays feed information - subscription management is in FeedManagementView
 struct FeedItemView: View {
   let feed: AppBskyLexicon.Feed.GeneratorViewDefinition
 
