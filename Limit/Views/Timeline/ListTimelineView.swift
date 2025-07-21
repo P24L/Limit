@@ -167,50 +167,44 @@ struct ListTimelineView: View {
         defer { 
             isLoading = false
         }
-        do {
-            let wrappers: [TimelinePostWrapper]
-            
-            switch source {
-            case .list(let list):
-                let output = try await client.protoClient?.getListFeed(from: list.uri, limit: 50)
-                wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
-            case .feed(let feed):
-                let output = try await client.protoClient?.getFeed(by: feed.feedURI, limit: 50)
-                wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
-            case .feedUri(let uri, _):
-                let output = try await client.protoClient?.getFeed(by: uri, limit: 50)
-                wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
-            case .trendingFeed(let link, _):
-                let result = try await client.bskyClient?.viewTrendingFeed(link, limit: 50)
-                wrappers = result?.posts.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
-            case .trendingPosts:
-                let calendar = Calendar.current
-                let weekAgo = calendar.date(byAdding: .day, value: -2, to: Date())
-                let output = try await client.protoClient?.searchPosts(
-                    matching: "*",  // Všechny posty
-                    sortRanking: .top,
-                    sinceDate: weekAgo,
-                    untilDate: Date(),
-                    limit: 50
-                )
-                wrappers = output?.posts.compactMap { TimelinePostWrapper(from: $0) } ?? []
+        let wrappers: [TimelinePostWrapper]
+        
+        switch source {
+        case .list(let list):
+            let output = await client.getListFeed(listURI: list.uri, limit: 50)
+            wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+        case .feed(let feed):
+            let output = await client.getCustomFeed(feedURI: feed.feedURI, limit: 50)
+            wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+        case .feedUri(let uri, _):
+            let output = await client.getCustomFeed(feedURI: uri, limit: 50)
+            wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+        case .trendingFeed(let link, _):
+            let result = await client.viewTrendingFeed(link: link, limit: 50)
+            wrappers = result?.posts.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+        case .trendingPosts:
+            let calendar = Calendar.current
+            let weekAgo = calendar.date(byAdding: .day, value: -2, to: Date())
+            let output = await client.searchPosts(
+                matching: "*",  // Všechny posty
+                sortRanking: .top,
+                sinceDate: weekAgo,
+                untilDate: Date(),
+                limit: 50
+            )
+            wrappers = output?.posts.compactMap { TimelinePostWrapper(from: $0) } ?? []
 
-            }
-            
-            await MainActor.run {
-                self.posts = wrappers
-                // Po načtení postů obnov pozici pokud existuje
-                if let savedID = TimelinePositionManager.shared.getListPosition(for: source.uri) {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        NotificationCenter.default.post(name: .restoreListScrollToID, object: savedID)
-                    }
-                } else {
-                    isRestoringScrollPosition = false
+        }
+        
+        await MainActor.run {
+            self.posts = wrappers
+            // Po načtení postů obnov pozici pokud existuje
+            if let savedID = TimelinePositionManager.shared.getListPosition(for: source.uri) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NotificationCenter.default.post(name: .restoreListScrollToID, object: savedID)
                 }
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error
+            } else {
+                isRestoringScrollPosition = false
             }
         }
     }
