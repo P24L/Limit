@@ -1,0 +1,17 @@
+{
+  "lexicon": 1,
+  "id": "app.hyper-limit.bookmark.embed",
+  "defs": {
+    "main": {
+      "type": "object",
+      "required": ["bookmark"],
+      "properties": {
+        "bookmark": {
+          "type": "ref",
+          "ref": "com.atproto.repo.strongRef",
+          "description": "Strong reference containing URI and CID of the bookmark"
+        }
+      }
+    }
+  }
+}

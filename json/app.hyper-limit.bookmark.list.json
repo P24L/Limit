@@ -1,0 +1,67 @@
+{
+  "lexicon": 1,
+  "id": "app.hyper-limit.bookmark.list",
+  "defs": {
+    "main": {
+      "type": "record", 
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["name", "visibility", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "description": "Hex color code for visual organization"
+          },
+          "icon": {
+            "type": "string",
+            "knownValues": ["folder", "list", "star", "tag"],
+            "default": "folder"
+          },
+          "coverImage": {
+            "type": "blob",
+            "accept": ["image/*"],
+            "maxSize": 1000000
+          },
+          "parent": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Reference to parent list for hierarchy"
+          },
+          "visibility": {
+            "type": "string",
+            "knownValues": ["private", "collaborative", "public"],
+            "description": "private: owner only, collaborative: specific users, public: anyone can view"
+          },
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "canAdd": {
+                "type": "array",
+                "items": { "type": "string", "format": "did" },
+                "description": "DIDs that can add bookmarks to this list"
+              }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

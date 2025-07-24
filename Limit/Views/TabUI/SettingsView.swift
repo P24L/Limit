@@ -96,6 +96,24 @@ struct SettingsView: View {
                     .onTapGesture {
                         router.navigateTo(.feedManagement)
                     }
+                    
+                    // Bookmark Lists section
+                    HStack {
+                        Image(systemName: "bookmark.fill")
+                            .foregroundColor(.orange)
+                            .frame(width: 24)
+                        Text("Bookmark Lists")
+                        Spacer()
+                        Text("\(currentUser.bookmarkLists.count)")
+                            .foregroundColor(.secondary)
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        router.navigateTo(.bookmarkListManagement)
+                    }
                 }
             }
             
@@ -242,6 +260,7 @@ struct SettingsView: View {
             // Refresh lists when view appears
             if client.isAuthenticated {
                 await currentUser.refreshLists(client: client)
+                await currentUser.refreshBookmarkLists(client: client)
             }
         }
         .disabled(isSwitchingAccount)

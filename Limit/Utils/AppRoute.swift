@@ -62,6 +62,7 @@ enum Destination: DestinationType {
     case listMembers(list: AppBskyLexicon.Graph.ListViewDefinition)
     case feedManagement
     case feedTimeline(uri: String, displayName: String)
+    case bookmarkListManagement
     
     static func from(path: String, fullPath: [String], parameters: [String : String]) -> Destination? {
         return nil // Nepotřebuješ prozatím deep-linking, lze doplnit později.

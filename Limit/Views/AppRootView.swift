@@ -134,6 +134,8 @@ struct AppRootView: View {
             FeedManagementView()
         case .feedTimeline(let uri, let displayName):
             FeedTimelineView(feedURI: uri, feedDisplayName: displayName)
+        case .bookmarkListManagement:
+            BookmarkListManagementView()
         }
     }
     

@@ -257,7 +257,6 @@ struct WrappedPostLinkView: View {
                                 )
                         }
                     }
-                    .frame(maxWidth: .infinity)
                     .background(Color.black)
                     .clipShape(UnevenRoundedRectangle(
                         topLeadingRadius: 12,

@@ -1,0 +1,92 @@
+{
+  "lexicon": 1,
+  "id": "app.hyper-limit.bookmark",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["url", "title", "createdAt"],
+        "properties": {
+          "url": { 
+            "type": "string", 
+            "format": "uri",
+            "maxLength": 2048,
+            "description": "The web URL being bookmarked"
+          },
+          "title": { 
+            "type": "string",
+            "maxLength": 300 
+          },
+          "description": { 
+            "type": "string",
+            "maxLength": 1000 
+          },
+          "note": { 
+            "type": "string",
+            "maxLength": 10000 
+          },
+          "imageUrl": { 
+            "type": "string",
+            "format": "uri" 
+          },
+          "imageBlob": {
+            "type": "blob",
+            "accept": ["image/*"],
+            "maxSize": 500000
+          },
+          "tags": { 
+            "type": "array",
+            "maxLength": 20,
+            "items": { 
+              "type": "string",
+              "maxLength": 50 
+            }
+          },
+          "listUris": { 
+            "type": "array",
+            "maxLength": 10,
+            "items": { 
+              "type": "string",
+              "format": "at-uri"
+            },
+            "description": "References to lists this bookmark belongs to"
+          },
+          "pinned": { 
+            "type": "boolean",
+            "default": false 
+          },
+          "archived": { 
+            "type": "boolean",
+            "default": false 
+          },
+          "reminder": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "datetime" },
+              "note": { "type": "string", "maxLength": 500 }
+            }
+          },
+          "sourceUri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Reference if bookmark was saved from another user"
+          },
+          "encrypted": {
+            "type": "boolean",
+            "default": false
+          },
+          "createdAt": { 
+            "type": "string",
+            "format": "datetime" 
+          },
+          "updatedAt": { 
+            "type": "string",
+            "format": "datetime" 
+          }
+        }
+      }
+    }
+  }
+}
