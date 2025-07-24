@@ -12,6 +12,7 @@ import SwiftUI
 import SwiftData
 import FirebaseCore
 import SDWebImage
+import ATProtoKit
 
 
 @Observable
@@ -86,6 +87,15 @@ struct LimitApp: App {
         
         // Configure SDWebImage for memory optimization
         configureSDWebImage()
+        
+        // Register custom bookmark record types
+        Task {
+            await ATRecordTypeRegistry.shared.register(types: [
+                BookmarkRecord.self,
+                BookmarkListRecord.self
+            ])
+            DevLogger.shared.log("LimitApp.swift - Registered bookmark record types")
+        }
     }
     
     private func configureSDWebImage() {
