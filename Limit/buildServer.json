@@ -1,0 +1,19 @@
+{
+	"name": "xcode build server",
+	"version": "0.2",
+	"bspVersion": "2.0",
+	"languages": [
+		"c",
+		"cpp",
+		"objective-c",
+		"objective-cpp",
+		"swift"
+	],
+	"argv": [
+		"/opt/homebrew/bin/xcode-build-server"
+	],
+	"workspace": "/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj/project.xcworkspace",
+	"build_root": "/Users/zdenekindra/Library/Developer/Xcode/DerivedData/Limit-cyilorikhsxpzkczppduldypecpz",
+	"scheme": "Limit",
+	"kind": "xcode"
+}

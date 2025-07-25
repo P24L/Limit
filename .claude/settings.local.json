@@ -31,7 +31,10 @@
       "Bash(do sleep:*)",
       "Bash(done)",
       "mcp__ide__getDiagnostics",
-      "Bash(swift-syntax-checker:*)"
+      "Bash(swift-syntax-checker:*)",
+      "Bash(mv:*)",
+      "Bash(mkdir:*)",
+      "Bash(true)"
     ],
     "deny": []
   }
