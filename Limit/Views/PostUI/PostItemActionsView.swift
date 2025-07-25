@@ -12,7 +12,7 @@ import SwiftUI
 struct PostItemActionsView: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) var context
-    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(FavoritePostManager.self) private var favoritesPost
     
     var postWrapper: TimelinePostWrapper

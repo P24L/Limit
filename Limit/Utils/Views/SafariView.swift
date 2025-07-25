@@ -107,7 +107,7 @@ struct CustomWebViewContainer: View {
     
     @StateObject private var webState = WebViewState()
     
-    @Environment(FavoriteURLManager.self) private var favorites
+    @Environment(BookmarkManager.self) private var bookmarkManager
     
     //URL
     @State var url: URL?
@@ -152,14 +152,10 @@ struct CustomWebViewContainer: View {
                     if let webView = webView, let currentURL = webView.url {
                         Button {
                             Task {
-                                if favorites.isFavorited(currentURL) {
-                                    await favorites.removeFavorite(url: currentURL)
-                                } else {
-                                    await favorites.addFavorite(url: currentURL, title: title)
-                                }
+                                await bookmarkManager.toggleBookmark(for: currentURL, title: title)
                             }
                         } label: {
-                            Image(systemName: favorites.isFavorited(currentURL) ? "star.fill" : "star")
+                            Image(systemName: bookmarkManager.isBookmarked(currentURL) ? "star.fill" : "star")
                                 .imageScale(.large)
                                 .font(.title2)
                                 .padding(2)

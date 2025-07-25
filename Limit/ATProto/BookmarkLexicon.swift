@@ -28,7 +28,7 @@ public struct BookmarkRecord: ATRecordProtocol {
     public let listUris: [String]?
     public let pinned: Bool?
     public let archived: Bool?
-    public let reminder: BookmarkReminder?
+    public let reminder: ATProtoBookmarkReminder?
     public let sourceUri: String?
     public let encrypted: Bool?
     public let updatedAt: Date?
@@ -53,7 +53,7 @@ public struct BookmarkRecord: ATRecordProtocol {
         listUris: [String]? = nil,
         pinned: Bool? = false,
         archived: Bool? = false,
-        reminder: BookmarkReminder? = nil,
+        reminder: ATProtoBookmarkReminder? = nil,
         sourceUri: String? = nil,
         encrypted: Bool? = false,
         updatedAt: Date? = nil
@@ -91,7 +91,7 @@ public struct BookmarkRecord: ATRecordProtocol {
         self.listUris = try container.decodeIfPresent([String].self, forKey: .listUris)
         self.pinned = try container.decodeIfPresent(Bool.self, forKey: .pinned)
         self.archived = try container.decodeIfPresent(Bool.self, forKey: .archived)
-        self.reminder = try container.decodeIfPresent(BookmarkReminder.self, forKey: .reminder)
+        self.reminder = try container.decodeIfPresent(ATProtoBookmarkReminder.self, forKey: .reminder)
         self.sourceUri = try container.decodeIfPresent(String.self, forKey: .sourceUri)
         self.encrypted = try container.decodeIfPresent(Bool.self, forKey: .encrypted)
         self.updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
@@ -122,7 +122,7 @@ public struct BookmarkRecord: ATRecordProtocol {
 }
 
 /// Reminder structure for bookmarks
-public struct BookmarkReminder: Codable, Sendable, Equatable, Hashable {
+public struct ATProtoBookmarkReminder: Codable, Sendable, Equatable, Hashable {
     public let date: Date
     public let note: String?
     
@@ -147,6 +147,7 @@ public struct BookmarkListRecord: ATRecordProtocol {
     public let icon: BookmarkListIcon?
     public let coverImage: ComAtprotoLexicon.Repository.BlobContainer?
     public let parent: String?
+    public let pinned: Bool?
     public let permissions: BookmarkListPermissions?
     public let updatedAt: Date?
     
@@ -154,7 +155,7 @@ public struct BookmarkListRecord: ATRecordProtocol {
         case type = "$type"
         case name, visibility, createdAt
         case description, color, icon, coverImage
-        case parent, permissions, updatedAt
+        case parent, pinned, permissions, updatedAt
     }
     
     public init(
@@ -166,6 +167,7 @@ public struct BookmarkListRecord: ATRecordProtocol {
         icon: BookmarkListIcon? = .folder,
         coverImage: ComAtprotoLexicon.Repository.BlobContainer? = nil,
         parent: String? = nil,
+        pinned: Bool? = false,
         permissions: BookmarkListPermissions? = nil,
         updatedAt: Date? = nil
     ) {
@@ -177,6 +179,7 @@ public struct BookmarkListRecord: ATRecordProtocol {
         self.icon = icon
         self.coverImage = coverImage
         self.parent = parent
+        self.pinned = pinned
         self.permissions = permissions
         self.updatedAt = updatedAt
     }
@@ -194,6 +197,7 @@ public struct BookmarkListRecord: ATRecordProtocol {
         self.icon = try container.decodeIfPresent(BookmarkListIcon.self, forKey: .icon)
         self.coverImage = try container.decodeIfPresent(ComAtprotoLexicon.Repository.BlobContainer.self, forKey: .coverImage)
         self.parent = try container.decodeIfPresent(String.self, forKey: .parent)
+        self.pinned = try container.decodeIfPresent(Bool.self, forKey: .pinned)
         self.permissions = try container.decodeIfPresent(BookmarkListPermissions.self, forKey: .permissions)
         self.updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
     }
@@ -212,6 +216,7 @@ public struct BookmarkListRecord: ATRecordProtocol {
         try container.encodeIfPresent(icon, forKey: .icon)
         try container.encodeIfPresent(coverImage, forKey: .coverImage)
         try container.encodeIfPresent(parent, forKey: .parent)
+        try container.encodeIfPresent(pinned, forKey: .pinned)
         try container.encodeIfPresent(permissions, forKey: .permissions)
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
     }
@@ -342,7 +347,7 @@ extension ATProtoKit {
         listUris: [String]? = nil,
         pinned: Bool = false,
         archived: Bool = false,
-        reminder: BookmarkReminder? = nil,
+        reminder: ATProtoBookmarkReminder? = nil,
         sourceUri: String? = nil,
         encrypted: Bool = false
     ) async throws -> ComAtprotoLexicon.Repository.StrongReference {
@@ -497,6 +502,7 @@ extension ATProtoKit {
         icon: BookmarkListIcon? = .folder,
         coverImage: ComAtprotoLexicon.Repository.BlobContainer? = nil,
         parent: String? = nil,
+        pinned: Bool? = false,
         permissions: BookmarkListPermissions? = nil
     ) async throws -> ComAtprotoLexicon.Repository.StrongReference {
         guard let session = try await getUserSession() else {
@@ -512,6 +518,7 @@ extension ATProtoKit {
             icon: icon,
             coverImage: coverImage,
             parent: parent,
+            pinned: pinned,
             permissions: permissions
         )
         
@@ -668,6 +675,7 @@ extension ATProtoKit {
             icon: updates.icon ?? existingRecord.icon,
             coverImage: updates.coverImage ?? existingRecord.coverImage,
             parent: updates.parent ?? existingRecord.parent,
+            pinned: updates.pinned ?? existingRecord.pinned,
             permissions: updates.permissions ?? existingRecord.permissions,
             updatedAt: Date()
         )
@@ -831,7 +839,7 @@ public struct BookmarkUpdateInput {
     public let listUris: [String]?
     public let pinned: Bool?
     public let archived: Bool?
-    public let reminder: BookmarkReminder?
+    public let reminder: ATProtoBookmarkReminder?
     public let encrypted: Bool?
     
     public init(
@@ -845,7 +853,7 @@ public struct BookmarkUpdateInput {
         listUris: [String]? = nil,
         pinned: Bool? = nil,
         archived: Bool? = nil,
-        reminder: BookmarkReminder? = nil,
+        reminder: ATProtoBookmarkReminder? = nil,
         encrypted: Bool? = nil
     ) {
         self.url = url
@@ -872,6 +880,7 @@ public struct BookmarkListUpdateInput {
     public let icon: BookmarkListIcon?
     public let coverImage: ComAtprotoLexicon.Repository.BlobContainer?
     public let parent: String?
+    public let pinned: Bool?
     public let permissions: BookmarkListPermissions?
     
     public init(
@@ -882,6 +891,7 @@ public struct BookmarkListUpdateInput {
         icon: BookmarkListIcon? = nil,
         coverImage: ComAtprotoLexicon.Repository.BlobContainer? = nil,
         parent: String? = nil,
+        pinned: Bool? = nil,
         permissions: BookmarkListPermissions? = nil
     ) {
         self.name = name
@@ -891,6 +901,7 @@ public struct BookmarkListUpdateInput {
         self.icon = icon
         self.coverImage = coverImage
         self.parent = parent
+        self.pinned = pinned
         self.permissions = permissions
     }
 }

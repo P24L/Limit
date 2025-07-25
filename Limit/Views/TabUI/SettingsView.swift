@@ -21,7 +21,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) var context
     @Environment(AppState.self) private var appState
     @Environment(ComputedTimelineFeed.self) private var computedFeed
-    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(FavoritePostManager.self) private var favoritesPost
     
     @Query(
@@ -104,7 +104,7 @@ struct SettingsView: View {
                             .frame(width: 24)
                         Text("Bookmark Lists")
                         Spacer()
-                        Text("\(currentUser.bookmarkLists.count)")
+                        Text("\(bookmarkManager.bookmarkLists.count)")
                             .foregroundColor(.secondary)
                         Image(systemName: "chevron.right")
                             .foregroundColor(.secondary)
@@ -260,7 +260,6 @@ struct SettingsView: View {
             // Refresh lists when view appears
             if client.isAuthenticated {
                 await currentUser.refreshLists(client: client)
-                await currentUser.refreshBookmarkLists(client: client)
             }
         }
         .disabled(isSwitchingAccount)
@@ -296,7 +295,7 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
                 if let account = accountToDelete {
-                    AccountManager.shared.deleteAccount(account)
+                    AccountManager.shared.deleteAccount(account, bookmarkManager: bookmarkManager)
                 }
             }
         } message: {
@@ -361,6 +360,9 @@ struct SettingsView: View {
                 avatarURL: currentUser.avatarURL
             )
             
+            // Reload bookmarks for new user
+            await bookmarkManager.loadBookmarksForCurrentUser()
+            
             // Start preparing ComputedTimeline cache for new account
             Task.detached { [weak computedFeed, weak client] in
                 guard let computedFeed = computedFeed, let client = client else { return }
@@ -415,7 +417,7 @@ struct SettingsView: View {
 
 struct SwiftDataCountView: View {
     @Environment(\.modelContext) private var context
-    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(FavoritePostManager.self) private var favoritesPost
     @State private var timelinePostCount: Int = 0
     @State private var postImageCount: Int = 0
@@ -482,9 +484,9 @@ struct SwiftDataCountView: View {
                     postImageCount = postImages.count
                 }
                 
-                // Count FavoriteURL from manager
+                // Count Bookmarks from manager
                 await MainActor.run {
-                    favoriteURLCount = favoritesURL.favorites.count
+                    favoriteURLCount = bookmarkManager.bookmarks.count
                 }
                 
                 // Count FavoritePost from manager
