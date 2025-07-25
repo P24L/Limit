@@ -13,7 +13,7 @@ import SDWebImageSwiftUI
 struct FacetLinksView: View {
     let post: TimelinePostWrapper
     @Environment(AppRouter.self) private var router
-    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(BookmarkManager.self) private var bookmarkManager
     
     private var uniqueLinks: [TimelinePostWrapper.ProcessedFacet] {
         guard let facets = post.facets else { return [] }
@@ -51,7 +51,7 @@ struct LinkCardView: View {
     let uri: String
     let isFirst: Bool
     let facet: TimelinePostWrapper.ProcessedFacet
-    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(BookmarkManager.self) private var bookmarkManager
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -94,21 +94,16 @@ struct LinkCardView: View {
             if let url = URL(string: uri) {
                 Button {
                     Task {
-                        if favoritesURL.isFavorited(url) {
-                            await favoritesURL.removeFavorite(url: url)
-                        } else {
-                            let thumbnailURL = facet.thumbnailURL.flatMap { URL(string: $0) }
-                            await favoritesURL.addFavorite(url: url, title: facet.title, thumbnailImageURL: thumbnailURL)
-                        }
+                        await bookmarkManager.toggleBookmark(for: url, title: facet.title)
                     }
                 } label: {
                     Image(systemName: "bookmark")
                         .font(.title2)
                 }
                 .buttonStyle(.plain)
-                .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
-                .symbolEffect(.bounce, value: favoritesURL.isFavorited(url))
-                .foregroundStyle(favoritesURL.isFavorited(url) ? .mintAccent : .postAction)
+                .symbolVariant(bookmarkManager.isBookmarked(url) ? .fill : .none)
+                .symbolEffect(.bounce, value: bookmarkManager.isBookmarked(url))
+                .foregroundStyle(bookmarkManager.isBookmarked(url) ? .mintAccent : .postAction)
             }
         }
         .padding(8)

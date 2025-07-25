@@ -222,7 +222,7 @@ struct PostItemWrappedView: View {
 
 struct WrappedPostLinkView: View {
     @Environment(AppRouter.self) private var router
-    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(BookmarkManager.self) private var bookmarkManager
     var linkExt: TimelinePostWrapper.LinkEmbed
 
     var body: some View {
@@ -244,7 +244,7 @@ struct WrappedPostLinkView: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                                 .frame(height: 160)
-                                .frame(maxWidth: .infinity)
+                                //.frame(maxWidth: .infinity)
                                 .clipped()
                         case .failure:
                             Rectangle()
@@ -294,22 +294,7 @@ struct WrappedPostLinkView: View {
                         
                         // Bookmark button (separate action)
                         if let url = URL(string: linkExt.uri) {
-                            Button {
-                                Task {
-                                    if favoritesURL.isFavorited(url) {
-                                        await favoritesURL.removeFavorite(url: url)
-                                    } else {
-                                        await favoritesURL.addFavorite(url: url, title: linkExt.title, thumbnailImageURL: linkExt.thumbnailImageURL)
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "bookmark")
-                                    .font(.title2)
-                            }
-                            .buttonStyle(.plain)
-                            .symbolVariant(favoritesURL.isFavorited(url) ? .fill : .none)
-                            .symbolEffect(.bounce, value: favoritesURL.isFavorited(url))
-                            .foregroundStyle(favoritesURL.isFavorited(url) ? .mintAccent : .postAction)
+                            BookmarkToggleButton(url: url, title: linkExt.title)
                         }
                 }
                 .padding(12)
@@ -466,5 +451,53 @@ private struct ViewHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
+    }
+}
+
+struct BookmarkToggleButton: View {
+    @Environment(BookmarkManager.self) private var bookmarkManager
+    let url: URL
+    let title: String?
+    
+    @State private var isBookmarked: Bool = false
+    @State private var isAnimating: Bool = false
+    
+    var body: some View {
+        Button {
+            // Optimistic update
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                isBookmarked.toggle()
+                isAnimating = true
+            }
+            
+            // Background operation
+            Task {
+                await bookmarkManager.toggleBookmark(for: url, title: title)
+                
+                // Verify state after operation completes
+                await MainActor.run {
+                    let actualState = bookmarkManager.isBookmarked(url)
+                    if actualState != isBookmarked {
+                        // Revert if operation result differs
+                        withAnimation {
+                            isBookmarked = actualState
+                        }
+                    }
+                    isAnimating = false
+                }
+            }
+        } label: {
+            Image(systemName: "bookmark")
+                .font(.title2)
+                .symbolVariant(isBookmarked ? .fill : .none)
+                .symbolEffect(.bounce, value: isBookmarked)
+                .foregroundStyle(isBookmarked ? .mintAccent : .postAction)
+                .scaleEffect(isAnimating ? 1.1 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onAppear {
+            // Initialize state
+            isBookmarked = bookmarkManager.isBookmarked(url)
+        }
     }
 }

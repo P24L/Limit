@@ -17,18 +17,13 @@ class CurrentUser {
     var avatarURL: URL? = nil
     var lists: [AppBskyLexicon.Graph.ListViewDefinition] = []
     var feeds: [AppBskyLexicon.Feed.GeneratorViewDefinition] = []
-    var bookmarkLists: [BookmarkListView] = []
     private var listsLastCursor: String? = nil
-    private var bookmarkListsLastCursor: String? = nil
     
     // Store pinned status and order for lists
     var listPreferences: [String: (isPinned: Bool, order: Int)] = [:] // URI -> (isPinned, order)
     
     // Store pinned status and order for feeds
     var feedPreferences: [String: (isPinned: Bool, order: Int)] = [:] // URI -> (isPinned, order)
-    
-    // Store pinned status and order for bookmark lists
-    var bookmarkListPreferences: [String: (isPinned: Bool, order: Int)] = [:] // URI -> (isPinned, order)
     
     // Volá se po přihlášení nebo na refresh
     func refreshProfile(client: BlueskyClient) async {
@@ -54,10 +49,8 @@ class CurrentUser {
         avatarURL = nil
         lists = []
         feeds = []
-        bookmarkLists = []
         listPreferences = [:]
         feedPreferences = [:]
-        bookmarkListPreferences = [:]
         DevLogger.shared.log("CurrentUser - clear - clear!")
     }
     
@@ -339,96 +332,6 @@ class CurrentUser {
     func clearFeeds() {
         feeds = []
         feedPreferences = [:]
-    }
-    
-    // MARK: - Bookmark Lists
-    
-    // Načte seznam vlastních bookmark lists
-    func refreshBookmarkLists(client: BlueskyClient, limit: Int = 50) async {
-        guard !did.isEmpty else { 
-            DevLogger.shared.log("CurrentUser - refreshBookmarkLists - did empty")
-            return 
-        }
-        guard let protoClient = await client.protoClient else {
-            DevLogger.shared.log("CurrentUser - refreshBookmarkLists - protoClient is nil")
-            return
-        }
-        DevLogger.shared.log("CurrentUser - refreshBookmarkLists - starting")
-        
-        // Reset cursor for full refresh
-        bookmarkListsLastCursor = nil
-        
-        do {
-            let output = try await protoClient.getBookmarkLists(actorDID: did, limit: limit, cursor: nil)
-            
-            bookmarkListsLastCursor = output.cursor
-            DevLogger.shared.log("CurrentUser - refreshBookmarkLists - old count: \(bookmarkLists.count), new count: \(output.lists.count)")
-            
-            // Sort lists based on preferences
-            let sortedLists = sortBookmarkListsByPreferences(output.lists)
-            
-            await MainActor.run {
-                self.bookmarkLists = sortedLists
-            }
-        } catch {
-            DevLogger.shared.log("CurrentUser - refreshBookmarkLists - error: \(error)")
-        }
-    }
-    
-    // Sort bookmark lists based on preferences (pinned first, then by order)
-    private func sortBookmarkListsByPreferences(_ lists: [BookmarkListView]) -> [BookmarkListView] {
-        return lists.sorted { list1, list2 in
-            let pref1 = bookmarkListPreferences[list1.uri]
-            let pref2 = bookmarkListPreferences[list2.uri]
-            
-            // If both have preferences
-            if let p1 = pref1, let p2 = pref2 {
-                // Pinned items come first
-                if p1.isPinned != p2.isPinned {
-                    return p1.isPinned
-                }
-                // Then sort by order
-                return p1.order < p2.order
-            }
-            
-            // If only one has preferences, it comes first
-            if pref1 != nil { return true }
-            if pref2 != nil { return false }
-            
-            // If neither has preferences, maintain original order by creation date
-            return list1.record.createdAt > list2.record.createdAt
-        }
-    }
-    
-    // Toggle pin status for a bookmark list
-    func toggleBookmarkListPin(listURI: String, client: BlueskyClient) async -> Bool {
-        let currentPinStatus = bookmarkListPreferences[listURI]?.isPinned ?? false
-        let newPinStatus = !currentPinStatus
-        
-        // For now, just update local state since we don't have server-side preferences for bookmark lists yet
-        await MainActor.run {
-            if var pref = bookmarkListPreferences[listURI] {
-                pref.isPinned = newPinStatus
-                bookmarkListPreferences[listURI] = pref
-            } else {
-                // If not in preferences yet, add it with the last order
-                let maxOrder = bookmarkListPreferences.values.map { $0.order }.max() ?? -1
-                bookmarkListPreferences[listURI] = (isPinned: newPinStatus, order: maxOrder + 1)
-            }
-            
-            // Re-sort bookmark lists
-            bookmarkLists = sortBookmarkListsByPreferences(bookmarkLists)
-        }
-        
-        DevLogger.shared.log("CurrentUser - toggleBookmarkListPin - Updated pin status for \(listURI) to \(newPinStatus)")
-        return true
-    }
-    
-    
-    func clearBookmarkLists() {
-        bookmarkLists = []
-        bookmarkListsLastCursor = nil
-        bookmarkListPreferences = [:]
     }
 }
 

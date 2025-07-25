@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import SwiftData
 import ATProtoKit
 
 struct BookmarkListManagementView: View {
     @Environment(BlueskyClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
     @Environment(AppRouter.self) private var router
+    @Environment(BookmarkManager.self) private var bookmarkManager
     
     @State private var isLoading = false
     @State private var showCreateList = false
@@ -21,7 +23,7 @@ struct BookmarkListManagementView: View {
     
     var body: some View {
         VStack {
-            if currentUser.bookmarkLists.isEmpty && !isLoading {
+            if bookmarkManager.bookmarkLists.isEmpty && !isLoading {
                 // Empty state
                 VStack(spacing: 16) {
                     Image(systemName: "bookmark.fill")
@@ -53,10 +55,23 @@ struct BookmarkListManagementView: View {
             } else {
                 // Lists content
                 List {
-                    ForEach(currentUser.bookmarkLists, id: \.uri) { list in
+                    let sortedLists = bookmarkManager.bookmarkLists.sorted { list1, list2 in
+                        let isPinned1 = list1.record.pinned ?? false
+                        let isPinned2 = list2.record.pinned ?? false
+                        
+                        // First sort by pinned status
+                        if isPinned1 != isPinned2 {
+                            return isPinned1
+                        }
+                        
+                        // Then sort alphabetically by name
+                        return list1.record.name.localizedCaseInsensitiveCompare(list2.record.name) == .orderedAscending
+                    }
+                    
+                    ForEach(sortedLists, id: \.uri) { list in
                         BookmarkListManagementItemView(
                             list: list,
-                            isPinned: currentUser.bookmarkListPreferences[list.uri]?.isPinned ?? false,
+                            isPinned: list.record.pinned ?? false,
                             onPinToggle: {
                                 Task {
                                     await togglePin(for: list)
@@ -82,7 +97,7 @@ struct BookmarkListManagementView: View {
                     .onDelete { indexSet in
                         // Handle delete action
                         if let index = indexSet.first {
-                            listToDelete = currentUser.bookmarkLists[index]
+                            listToDelete = sortedLists[index]
                             showDeleteConfirmation = true
                         }
                     }
@@ -137,35 +152,17 @@ struct BookmarkListManagementView: View {
         isLoading = true
         defer { isLoading = false }
         
-        await currentUser.refreshBookmarkLists(client: client)
-        DevLogger.shared.log("BookmarkListManagementView.swift - Refreshed bookmark lists, count: \(currentUser.bookmarkLists.count)")
+        await bookmarkManager.fetchAndSyncBookmarks()
+        DevLogger.shared.log("BookmarkListManagementView.swift - Refreshed bookmark lists, count: \(bookmarkManager.bookmarkLists.count)")
     }
     
     private func deleteList(_ list: BookmarkListView) async {
         isLoading = true
         defer { isLoading = false }
         
-        // Extract repo and rkey from list URI
-        // URI format: at://did:plc:xyz/app.hyper-limit.bookmark.list/rkey
-        let components = list.uri.split(separator: "/")
-        
-        guard components.count >= 4 else {
-            DevLogger.shared.log("BookmarkListManagementView.swift - Invalid list URI: \(list.uri)")
-            return
-        }
-        
-        let repo = String(components[1])
-        let rkey = String(components[3])
-        
         do {
-            guard let protoClient = client.protoClient else {
-                DevLogger.shared.log("BookmarkListManagementView.swift - Failed to access ATProto client")
-                return
-            }
-            
-            try await protoClient.deleteBookmarkList(repo: repo, rkey: rkey)
+            try await bookmarkManager.deleteBookmarkList(list)
             DevLogger.shared.log("BookmarkListManagementView.swift - Successfully deleted bookmark list: \(list.record.name)")
-            await refreshLists()
         } catch {
             DevLogger.shared.log("BookmarkListManagementView.swift - Failed to delete bookmark list: \(error)")
         }
@@ -177,7 +174,7 @@ struct BookmarkListManagementView: View {
         isLoading = true
         defer { isLoading = false }
         
-        let success = await currentUser.toggleBookmarkListPin(listURI: list.uri, client: client)
+        let success = await bookmarkManager.updateBookmarkListPinStatus(listURI: list.uri)
         if !success {
             DevLogger.shared.log("BookmarkListManagementView.swift - Failed to toggle pin for bookmark list: \(list.record.name)")
         }
@@ -206,17 +203,9 @@ struct BookmarkListManagementItemView: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(list.record.name)
-                        .font(.headline)
-                        .lineLimit(1)
-                    
-                    if isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                }
+                Text(list.record.name)
+                    .font(.headline)
+                    .lineLimit(1)
                 
                 if let description = list.record.description, !description.isEmpty {
                     Text(description)
@@ -245,8 +234,9 @@ struct BookmarkListManagementItemView: View {
             
             // Pin toggle button
             Button(action: onPinToggle) {
-                Image(systemName: isPinned ? "pin.slash" : "pin")
+                Image(systemName: "pin")
                     .font(.body)
+                    .symbolVariant(isPinned ? .fill : .none)
                     .foregroundColor(isPinned ? .orange : .secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -294,10 +284,18 @@ struct BookmarkListManagementItemView: View {
 
 
 #Preview {
-    NavigationStack {
+    let previewClient = BlueskyClient.preview()
+    let previewContainer = try! ModelContainer(for: Schema(BookmarkCacheSchema.allModels))
+    let bookmarkManager = BookmarkManager(
+        context: previewContainer.mainContext,
+        client: previewClient
+    )
+    
+    return NavigationStack {
         BookmarkListManagementView()
     }
-    .environment(BlueskyClient.preview())
+    .environment(previewClient)
     .environment(CurrentUser())
     .environment(AppRouter(initialTab: .settings))
+    .environment(bookmarkManager)
 }

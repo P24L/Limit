@@ -112,7 +112,7 @@ class AccountManager {
     }
     
     /// Delete an account
-    func deleteAccount(_ account: UserAccount) {
+    func deleteAccount(_ account: UserAccount, bookmarkManager: BookmarkManager? = nil) {
         // Remove password from keychain
         let passwordKey = passwordKeyForAccount(account.did)
         keychain.delete(passwordKey)
@@ -127,6 +127,13 @@ class AccountManager {
         
         // Clean up timeline positions for this account
         TimelinePositionManager.shared.clearPositionsForAccount(account.did)
+        
+        // Clean up bookmarks for this account if bookmarkManager provided
+        if let bookmarkManager = bookmarkManager {
+            Task {
+                await bookmarkManager.deleteBookmarksForUser(did: account.did)
+            }
+        }
         
         saveAccounts()
         DevLogger.shared.log("AccountManager - Deleted account: \(account.handle)")

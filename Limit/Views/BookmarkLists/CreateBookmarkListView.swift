@@ -10,6 +10,7 @@ import SwiftUI
 struct CreateBookmarkListView: View {
     @Environment(BlueskyClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
+    @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(\.dismiss) private var dismiss
     
     // Optional editing list - if provided, view operates in edit mode
@@ -313,12 +314,6 @@ struct CreateBookmarkListView: View {
         errorMessage = nil
         
         do {
-            guard let protoClient = client.protoClient else {
-                errorMessage = "Failed to access ATProto client"
-                isCreating = false
-                return
-            }
-            
             // Convert collaborative user handles to DIDs if needed
             var permissions: BookmarkListPermissions? = nil
             if visibility == .collaborative && !collaborativeUsers.isEmpty {
@@ -326,17 +321,17 @@ struct CreateBookmarkListView: View {
                 permissions = BookmarkListPermissions(canAdd: dids)
             }
             
-            _ = try await protoClient.createBookmarkList(
+            try await bookmarkManager.createBookmarkList(
                 name: trimmedName,
-                visibility: visibility,
                 description: trimmedDescription.isEmpty ? nil : trimmedDescription,
+                visibility: visibility,
                 color: selectedColor,
                 icon: selectedIcon,
+                pinned: false,
                 permissions: permissions
             )
             
             DevLogger.shared.log("CreateBookmarkListView.swift - Successfully created bookmark list: \(trimmedName)")
-            await currentUser.refreshBookmarkLists(client: client)
             dismiss()
         } catch {
             errorMessage = "Failed to create bookmark list: \(error.localizedDescription)"
@@ -417,24 +412,6 @@ struct CreateBookmarkListView: View {
         errorMessage = nil
         
         do {
-            guard let protoClient = client.protoClient else {
-                errorMessage = "Failed to access ATProto client"
-                isCreating = false
-                return
-            }
-            
-            // Extract repo and rkey from list URI
-            // URI format: at://did:plc:xyz/app.hyper-limit.bookmark.list/rkey
-            let components = editingList.uri.split(separator: "/")
-            guard components.count >= 4 else {
-                errorMessage = "Invalid list URI"
-                isCreating = false
-                return
-            }
-            
-            let repo = String(components[1])
-            let rkey = String(components[3])
-            
             // Prepare permissions if visibility is collaborative
             var permissions: BookmarkListPermissions? = nil
             if visibility == .collaborative && !collaborativeUsers.isEmpty {
@@ -455,14 +432,12 @@ struct CreateBookmarkListView: View {
                 permissions: permissions
             )
             
-            _ = try await protoClient.updateBookmarkList(
-                repo: repo,
-                rkey: rkey,
+            try await bookmarkManager.updateBookmarkList(
+                listURI: editingList.uri,
                 updates: updates
             )
             
             DevLogger.shared.log("CreateBookmarkListView.swift - Successfully updated bookmark list: \(trimmedName)")
-            await currentUser.refreshBookmarkLists(client: client)
             dismiss()
         } catch {
             errorMessage = "Failed to update bookmark list: \(error.localizedDescription)"

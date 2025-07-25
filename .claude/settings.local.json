@@ -29,7 +29,9 @@
       "Bash(log stream:*)",
       "Bash(while:*)",
       "Bash(do sleep:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "mcp__ide__getDiagnostics",
+      "Bash(swift-syntax-checker:*)"
     ],
     "deny": []
   }

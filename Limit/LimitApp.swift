@@ -46,7 +46,7 @@ struct LimitApp: App {
     @State private var appState = AppState()
     @State private var router = AppRouter(initialTab: .timeline)
     @State private var client = BlueskyClient()
-    @State private var favoritesURLManager: FavoriteURLManager
+    @State private var bookmarkManager: BookmarkManager
     @State private var favoritesPostManager: FavoritePostManager
     @State private var feed: TimelineFeed
     @State private var computedFeed = ComputedTimelineFeed()
@@ -75,12 +75,28 @@ struct LimitApp: App {
             configurations: config
         )
     }()
+    
+    let bookmarkCacheContainer: ModelContainer = {
+        let config = ModelConfiguration(
+            "BookmarkCacheDB_v2",
+            schema: Schema(BookmarkCacheSchema.allModels)
+        )
+        return try! ModelContainer(
+            for: Schema(BookmarkCacheSchema.allModels),
+            configurations: config
+        )
+    }()
 
     init() {
-        _client = State(initialValue: BlueskyClient())
-        _favoritesURLManager = State(initialValue: FavoriteURLManager(context: favoritesContainer.mainContext))
+        let blueskyClient = BlueskyClient()
+        _client = State(initialValue: blueskyClient)
+        _bookmarkManager = State(initialValue: BookmarkManager(
+            context: bookmarkCacheContainer.mainContext,
+            client: blueskyClient,
+            favoritesContext: favoritesContainer.mainContext
+        ))
         _favoritesPostManager = State(initialValue: FavoritePostManager(context: favoritesContainer.mainContext))
-        _feed = State(initialValue: TimelineFeed(context: container.mainContext, client: BlueskyClient()))
+        _feed = State(initialValue: TimelineFeed(context: container.mainContext, client: blueskyClient))
         
         // Configure LinkMetadataService
         LinkMetadataService.shared.configure(context: container.mainContext)
@@ -150,7 +166,7 @@ struct LimitApp: App {
                         .environment(client)
                         .environment(router)
                         .modelContainer(container)
-                        .environment(favoritesURLManager)
+                        .environment(bookmarkManager)
                         .environment(favoritesPostManager)
                         .environment(feed)
                         .environment(computedFeed)

@@ -10,7 +10,7 @@ import SwiftUI
 
 struct AISummaryBottomSheet: View {
     @Environment(AppRouter.self) private var router
-    @Environment(FavoriteURLManager.self) private var favoritesURL
+    @Environment(BookmarkManager.self) private var bookmarkManager
     
     let favoriteURL: FavoriteURL
     
@@ -103,14 +103,15 @@ struct AISummaryBottomSheet: View {
                                         .multilineTextAlignment(.center)
                                 }
                                 
-                                if favoriteURL.canRetrySummarization {
-                                    Button("Try Again") {
-                                        Task {
-                                            await favoritesURL.retrySummary(for: favoriteURL)
-                                        }
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                }
+                                // Retry functionality to be implemented if needed
+                                // if favoriteURL.canRetrySummarization {
+                                //     Button("Try Again") {
+                                //         Task {
+                                //             // Retry functionality
+                                //         }
+                                //     }
+                                //     .buttonStyle(.borderedProminent)
+                                // }
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
