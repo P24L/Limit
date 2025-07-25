@@ -199,6 +199,7 @@ class BookmarkManager {
         url: String,
         title: String,
         description: String? = nil,
+        summary: String? = nil,
         note: String? = nil,
         imageUrl: String? = nil,
         imageBlob: Data? = nil,
@@ -225,6 +226,7 @@ class BookmarkManager {
             url: url,
             title: title,
             description: description,
+            summary: summary,
             note: note,
             imageUrl: imageUrl,
             imageBlob: atProtoImageBlob,
@@ -248,6 +250,7 @@ class BookmarkManager {
                 title: title,
                 createdAt: Date(),
                 description: description,
+                summary: summary,
                 note: note,
                 imageUrl: imageUrl,
                 tags: tags,
@@ -277,8 +280,8 @@ class BookmarkManager {
         // Enforce memory limits after adding
         enforceMemoryLimits()
         
-        // Enqueue for processing if description is needed
-        if description == nil {
+        // Enqueue for processing if summary is needed
+        if summary == nil {
             await enqueueForProcessing(newBookmarkView)
         }
     }
@@ -311,7 +314,7 @@ class BookmarkManager {
         }
     }
     
-    func toggleBookmark(for url: URL, title: String? = nil) async {
+    func toggleBookmark(for url: URL, title: String? = nil, description: String? = nil, imageUrl: String? = nil) async {
         let urlString = url.absoluteString
         
         if let existing = bookmarks.first(where: { $0.record.url == urlString }) {
@@ -326,7 +329,9 @@ class BookmarkManager {
             do {
                 try await createBookmark(
                     url: urlString,
-                    title: title ?? url.host ?? urlString
+                    title: title ?? url.host ?? urlString,
+                    description: description,
+                    imageUrl: imageUrl
                 )
             } catch {
                 DevLogger.shared.log("BookmarkManager - Failed to create bookmark: \(error)")
@@ -510,6 +515,7 @@ class BookmarkManager {
                 title: cached.title,
                 createdAt: cached.createdAt,
                 description: cached.descriptionText,
+                summary: cached.summary,
                 note: cached.note,
                 imageUrl: cached.imageUrl,
                 tags: cached.tags,

@@ -76,7 +76,7 @@ enum Sheet: SheetType {
     case composePost(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil)
     case fullScreenImage(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID)
     case aiExplanation(postWrapper: TimelinePostWrapper)
-    case aiSummary(favoriteURL: FavoriteURL)
+    case aiSummary(bookmark: BookmarkView)
     case repostOptions(post: TimelinePostWrapper)
     
     var id: Int { hashValue }

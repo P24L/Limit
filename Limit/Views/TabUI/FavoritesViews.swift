@@ -256,17 +256,3 @@ struct FavoriteLinksSectionView: View {
     }
 }
 
-
-#Preview {
-    struct FavoritesViewPreviewContainer: View {
-        @State private var navigation = NavigationState()
-        
-        var body: some View {
-            FavoritesViews()
-                .modelContainer(SampleData.shared.modelContainer)
-                .environment(navigation)
-        }
-    }
-    
-    return FavoritesViewPreviewContainer()
-}

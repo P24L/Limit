@@ -161,8 +161,8 @@ struct AppRootView: View {
             AIExplanationBottomSheet(postWrapper: postWrapper)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.hidden)
-        case .aiSummary(let favoriteURL):
-            AISummaryBottomSheet(favoriteURL: favoriteURL)
+        case .aiSummary(let bookmark):
+            AISummaryBottomSheet(bookmark: bookmark)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.hidden)
         case .repostOptions(let post):

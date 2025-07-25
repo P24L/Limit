@@ -345,6 +345,7 @@ class BookmarkSyncEngine {
         cached.url = view.record.url
         cached.title = view.record.title
         cached.descriptionText = view.record.description
+        cached.summary = view.record.summary
         cached.note = view.record.note
         cached.imageUrl = view.record.imageUrl
         

@@ -31,6 +31,7 @@ final class CachedBookmark {
     var url: String
     var title: String
     var descriptionText: String?
+    var summary: String?
     var note: String?
     var imageUrl: String?
     var imageBlob: Data?

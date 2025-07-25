@@ -80,7 +80,8 @@ class BookmarkMigrationManager {
         let result = try await protoClient.createBookmark(
             url: favoriteURL.url.absoluteString,
             title: favoriteURL.title ?? favoriteURL.url.absoluteString,
-            description: favoriteURL.summary, // AI summary becomes description
+            description: nil, // Keep description empty for user-provided content
+            summary: favoriteURL.summary, // AI summary goes to summary field
             imageUrl: favoriteURL.thumbnailImageURL?.absoluteString,
             pinned: false,
             archived: false
@@ -97,7 +98,8 @@ class BookmarkMigrationManager {
                     url: favoriteURL.url.absoluteString,
                     title: favoriteURL.title ?? favoriteURL.url.absoluteString,
                     createdAt: favoriteURL.saveTime,
-                    description: favoriteURL.summary,
+                    description: nil,
+                    summary: favoriteURL.summary,
                     imageUrl: favoriteURL.thumbnailImageURL?.absoluteString
                 ),
                 author: client.currentDID ?? ""
