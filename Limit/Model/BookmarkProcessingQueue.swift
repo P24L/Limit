@@ -91,8 +91,8 @@ class BookmarkProcessingQueue {
                     guard let self = self else { return }
                     
                     // Determine what needs processing
-                    if bookmark.descriptionText == nil || bookmark.descriptionText?.isEmpty == true {
-                        await self.processDescription(for: bookmark)
+                    if bookmark.summary == nil || bookmark.summary?.isEmpty == true {
+                        await self.processSummary(for: bookmark)
                     } else if bookmark.imageUrl == nil && bookmark.imageBlob == nil && !bookmark.imageGenerated {
                         await self.processImage(for: bookmark)
                     } else {
@@ -110,23 +110,23 @@ class BookmarkProcessingQueue {
         }
     }
     
-    private func processDescription(for bookmark: CachedBookmark) async {
+    private func processSummary(for bookmark: CachedBookmark) async {
         bookmark.processingStatus = .processingDescription
         try? context.save()
         
         do {
-            // Use AI service to generate description
+            // Use AI service to generate summary
             let url = URL(string: bookmark.url)!
             let aiService = AIService()
             let result = try await aiService.summarizeURL(url)
             
-            bookmark.descriptionText = result.summary
+            bookmark.summary = result.summary
             bookmark.processingStatus = .completed
             
-            DevLogger.shared.log("BookmarkProcessingQueue - Generated description for: \(bookmark.title)")
+            DevLogger.shared.log("BookmarkProcessingQueue - Generated summary for: \(bookmark.title)")
         } catch {
             bookmark.processingStatus = .failed
-            DevLogger.shared.log("BookmarkProcessingQueue - Failed to generate description: \(error)")
+            DevLogger.shared.log("BookmarkProcessingQueue - Failed to generate summary: \(error)")
         }
         
         try? context.save()
@@ -167,7 +167,7 @@ class BookmarkProcessingQueue {
         
         do {
             let updates = BookmarkUpdateInput(
-                description: bookmark.descriptionText
+                summary: bookmark.summary
             )
             
             // Use retry logic for better reliability

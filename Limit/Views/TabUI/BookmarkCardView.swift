@@ -67,9 +67,29 @@ struct BookmarkCardView: View {
                 }
             }
             
-            // AI Summary/Description Section - Full Width
+            // User Description Section - Full Width
             if let description = bookmark.record.description, !description.isEmpty {
-                summarySection(description: description)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Description")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    
+                    Text(description)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.gray.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            
+            // AI Summary Section - Full Width
+            if let summary = bookmark.record.summary, !summary.isEmpty {
+                summarySection(summary: summary)
             }
             
             // Tags
@@ -155,10 +175,9 @@ struct BookmarkCardView: View {
     }
     
     @ViewBuilder
-    private func summarySection(description: String) -> some View {
+    private func summarySection(summary: String) -> some View {
         Button {
-            // TODO: Implement bookmark detail sheet
-            // router.presentedSheet = .bookmarkDetail(bookmark: bookmark)
+            router.presentedSheet = .aiSummary(bookmark: bookmark)
         } label: {
             HStack(alignment: .top, spacing: 6) {
                 Image(systemName: "sparkles")
@@ -166,7 +185,7 @@ struct BookmarkCardView: View {
                     .foregroundStyle(.blue)
                     .padding(.top, 2)
                 
-                Text(description)
+                Text(summary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(3)

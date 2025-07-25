@@ -11,7 +11,7 @@ import ATProtoKit
 // MARK: - Bookmark Record Types
 
 /// Represents app.hyper-limit.bookmark
-public struct BookmarkRecord: ATRecordProtocol {
+public struct BookmarkRecord: ATRecordProtocol, Hashable, Equatable {
     public static let type = "app.hyper-limit.bookmark"
     
     // Required fields
@@ -21,6 +21,7 @@ public struct BookmarkRecord: ATRecordProtocol {
     
     // Optional fields
     public let description: String?
+    public let summary: String?
     public let note: String?
     public let imageUrl: String?
     public let imageBlob: ComAtprotoLexicon.Repository.BlobContainer?
@@ -36,7 +37,7 @@ public struct BookmarkRecord: ATRecordProtocol {
     enum CodingKeys: String, CodingKey {
         case type = "$type"
         case url, title, createdAt
-        case description, note, imageUrl, imageBlob
+        case description, summary, note, imageUrl, imageBlob
         case tags, listUris, pinned, archived
         case reminder, sourceUri, encrypted, updatedAt
     }
@@ -46,6 +47,7 @@ public struct BookmarkRecord: ATRecordProtocol {
         title: String,
         createdAt: Date = Date(),
         description: String? = nil,
+        summary: String? = nil,
         note: String? = nil,
         imageUrl: String? = nil,
         imageBlob: ComAtprotoLexicon.Repository.BlobContainer? = nil,
@@ -62,6 +64,7 @@ public struct BookmarkRecord: ATRecordProtocol {
         self.title = title
         self.createdAt = createdAt
         self.description = description
+        self.summary = summary
         self.note = note
         self.imageUrl = imageUrl
         self.imageBlob = imageBlob
@@ -84,6 +87,7 @@ public struct BookmarkRecord: ATRecordProtocol {
         self.createdAt = try container.decode(Date.self, forKey: .createdAt)
         
         self.description = try container.decodeIfPresent(String.self, forKey: .description)
+        self.summary = try container.decodeIfPresent(String.self, forKey: .summary)
         self.note = try container.decodeIfPresent(String.self, forKey: .note)
         self.imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
         self.imageBlob = try container.decodeIfPresent(ComAtprotoLexicon.Repository.BlobContainer.self, forKey: .imageBlob)
@@ -107,6 +111,7 @@ public struct BookmarkRecord: ATRecordProtocol {
         try container.encode(createdAt, forKey: .createdAt)
         
         try container.encodeIfPresent(description, forKey: .description)
+        try container.encodeIfPresent(summary, forKey: .summary)
         try container.encodeIfPresent(note, forKey: .note)
         try container.encodeIfPresent(imageUrl, forKey: .imageUrl)
         try container.encodeIfPresent(imageBlob, forKey: .imageBlob)
@@ -264,7 +269,7 @@ public struct BookmarkEmbed: Codable, Sendable, Equatable, Hashable {
 // MARK: - API Response Models
 
 /// Combined bookmark record with metadata
-public struct BookmarkView: Codable, Sendable {
+public struct BookmarkView: Codable, Sendable, Hashable, Equatable {
     public let uri: String
     public let cid: String
     public let record: BookmarkRecord
@@ -340,6 +345,7 @@ extension ATProtoKit {
         url: String,
         title: String,
         description: String? = nil,
+        summary: String? = nil,
         note: String? = nil,
         imageUrl: String? = nil,
         imageBlob: ComAtprotoLexicon.Repository.BlobContainer? = nil,
@@ -360,6 +366,7 @@ extension ATProtoKit {
             title: title,
             createdAt: Date(),
             description: description,
+            summary: summary,
             note: note,
             imageUrl: imageUrl,
             imageBlob: imageBlob,
@@ -453,6 +460,7 @@ extension ATProtoKit {
             title: updates.title ?? existing.record.title,
             createdAt: existing.record.createdAt,
             description: updates.description ?? existing.record.description,
+            summary: updates.summary ?? existing.record.summary,
             note: updates.note ?? existing.record.note,
             imageUrl: updates.imageUrl ?? existing.record.imageUrl,
             imageBlob: updates.imageBlob ?? existing.record.imageBlob,
@@ -832,6 +840,7 @@ public struct BookmarkUpdateInput {
     public let url: String?
     public let title: String?
     public let description: String?
+    public let summary: String?
     public let note: String?
     public let imageUrl: String?
     public let imageBlob: ComAtprotoLexicon.Repository.BlobContainer?
@@ -846,6 +855,7 @@ public struct BookmarkUpdateInput {
         url: String? = nil,
         title: String? = nil,
         description: String? = nil,
+        summary: String? = nil,
         note: String? = nil,
         imageUrl: String? = nil,
         imageBlob: ComAtprotoLexicon.Repository.BlobContainer? = nil,
@@ -859,6 +869,7 @@ public struct BookmarkUpdateInput {
         self.url = url
         self.title = title
         self.description = description
+        self.summary = summary
         self.note = note
         self.imageUrl = imageUrl
         self.imageBlob = imageBlob

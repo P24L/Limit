@@ -23,6 +23,11 @@
             "type": "string",
             "maxLength": 1000 
           },
+          "summary": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "AI-generated summary"
+          },
           "note": { 
             "type": "string",
             "maxLength": 10000 

@@ -294,7 +294,12 @@ struct WrappedPostLinkView: View {
                         
                         // Bookmark button (separate action)
                         if let url = URL(string: linkExt.uri) {
-                            BookmarkToggleButton(url: url, title: linkExt.title)
+                            BookmarkToggleButton(
+                                url: url,
+                                title: linkExt.title,
+                                description: linkExt.desc,
+                                imageUrl: linkExt.thumbnailImageURL?.absoluteString
+                            )
                         }
                 }
                 .padding(12)
@@ -458,6 +463,8 @@ struct BookmarkToggleButton: View {
     @Environment(BookmarkManager.self) private var bookmarkManager
     let url: URL
     let title: String?
+    let description: String?
+    let imageUrl: String?
     
     @State private var isBookmarked: Bool = false
     @State private var isAnimating: Bool = false
@@ -472,7 +479,12 @@ struct BookmarkToggleButton: View {
             
             // Background operation
             Task {
-                await bookmarkManager.toggleBookmark(for: url, title: title)
+                await bookmarkManager.toggleBookmark(
+                    for: url,
+                    title: title,
+                    description: description,
+                    imageUrl: imageUrl
+                )
                 
                 // Verify state after operation completes
                 await MainActor.run {

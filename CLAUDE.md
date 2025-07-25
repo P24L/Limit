@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Limit** is a modern SwiftUI-based Bluesky client for iOS built with the AT Protocol. The app provides timeline browsing, user interactions, and favorites management for the Bluesky social network.
+**Limit** is a modern SwiftUI-based Bluesky client for iOS built with the AT Protocol. The app provides timeline browsing, user interactions, bookmarks management, and social features for the Bluesky social network.
 
-## Personal instructions
-I communicate in chat usually in Czech language
-Use English when writing anaything in project files.
+## Personal Instructions
+- User communicates in Czech language
+- Use English when writing anything in project files
+- Respond in Czech when discussing code changes
 
 ## Build Commands
 
@@ -26,33 +27,29 @@ Use English when writing anaything in project files.
 
 #### For iOS Simulator (Default Development Workflow)
 ```bash
-# 1. Discover Xcode projects
-mcp__XcodeBuildMCP__discover_projs
+# Standard setup assumes simulator is already running
 
-# 2. List available simulators
-mcp__XcodeBuildMCP__list_sims
-
-# 3. Build for iOS Simulator by name (USE THIS for simulator development)
-mcp__XcodeBuildMCP__build_sim_name_proj({
+# 1. Build for iOS Simulator by UUID (preferred method)
+mcp__XcodeBuildMCP__build_sim_id_proj({
   projectPath: '/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj',
   scheme: 'Limit',
-  simulatorName: 'iphone16promax',
+  simulatorId: '00B394E4-6FF8-48D5-87A7-F59CC9EF168C',
   extraArgs: ['-allowProvisioningUpdates']
 })
 
-# 4. Get app path and bundle ID
-mcp__XcodeBuildMCP__get_sim_app_path_name_proj({
+# 2. Get app path and bundle ID
+mcp__XcodeBuildMCP__get_sim_app_path_id_proj({
   projectPath: '/Users/zdenekindra/ios_dev/Limit/Limit.xcodeproj',
   scheme: 'Limit',
   platform: 'iOS Simulator',
-  simulatorName: 'Test sim'
+  simulatorId: '00B394E4-6FF8-48D5-87A7-F59CC9EF168C'
 })
 
 mcp__XcodeBuildMCP__get_app_bundle_id({
   appPath: '/path/from/previous/step'
 })
 
-# 5. Install and launch on simulator
+# 3. Install and launch on simulator
 mcp__XcodeBuildMCP__install_app_sim({
   simulatorUuid: '00B394E4-6FF8-48D5-87A7-F59CC9EF168C',
   appPath: '/path/from/get_sim_app_path'
@@ -60,8 +57,13 @@ mcp__XcodeBuildMCP__install_app_sim({
 
 mcp__XcodeBuildMCP__launch_app_sim({
   simulatorUuid: '00B394E4-6FF8-48D5-87A7-F59CC9EF168C',
-  bundleId: 'P24L.Limit'
+  bundleId: 'P24L.Limit.dev'
 })
+
+# If simulator is NOT running, start with:
+# mcp__XcodeBuildMCP__list_sims({ enabled: true })
+# mcp__XcodeBuildMCP__boot_sim({ simulatorUuid: '00B394E4-6FF8-48D5-87A7-F59CC9EF168C' })
+# mcp__XcodeBuildMCP__open_sim({ enabled: true })
 ```
 
 #### For Physical Device (iPhone "Zdenek")
@@ -84,7 +86,7 @@ mcp__XcodeBuildMCP__install_app_device({
 
 mcp__XcodeBuildMCP__launch_app_device({
   deviceId: 'A7EA262F-D0FB-55DA-B7DD-890C49F58606',
-  bundleId: 'P24L.Limit'
+  bundleId: 'P24L.Limit.dev'
 })
 ```
 
@@ -101,12 +103,14 @@ mcp__XcodeBuildMCP__test_sim_name_proj({
 
 ### Important Notes for MCP Tools
 - **Project vs Workspace**: This project uses `_proj` tools (project), not `_ws` tools (workspace)
-- **Correct simulator name**: Use exact simulator name from `list_sims` (e.g., 'Test sim', 'iphone16promax')
+- **Preferred method**: Use `build_sim_id_proj` with UUID instead of `build_sim_name_proj`
 - **Available simulators**: 
   - "iphone16promax" has UUID `00B394E4-6FF8-48D5-87A7-F59CC9EF168C`
 - **Physical device**: iPhone "Zdenek" has UDID `A7EA262F-D0FB-55DA-B7DD-890C49F58606`
+- **Bundle ID**: Development builds use `P24L.Limit.dev` (not `P24L.Limit`)
 - **Provisioning flag**: Always include `extraArgs: ['-allowProvisioningUpdates']` for code signing
 - **Default workflow**: Use simulator for development unless specifically targeting physical device
+- **Standard setup**: Assumes simulator is already running, use boot/open commands only if needed
 
 ### Legacy Command Line (Use XcodeBuildMCP Instead)
 ```bash
@@ -179,22 +183,47 @@ Comprehensive AT Protocol client featuring:
 - **`TimelinePostWrapper`**: Observable wrapper for UI binding
 - **`TimelineFeed`**: Observable collection manager for timeline data
 - **Media Models**: `PostImage`, `PostLinkExt`, `PostVideo` for post embeds
-- **Favorites**: `FavoriteURL`, `FavoritePost` for saved content
+- **Favorites**: `FavoriteURL`, `FavoritePost` for saved content (legacy, migrating to bookmarks)
 - **Rich Text**: `PostFacet` for link detection and rich text formatting
 
+#### Bookmark System Architecture
+Modern bookmark system using AT Protocol (replacing legacy favorites):
+- **`BookmarkManager`**: Central manager for bookmark operations with optimistic UI updates
+- **`BookmarkSyncEngine`**: Handles AT Protocol sync with per-user cache isolation
+- **`BookmarkProcessingQueue`**: Background processing for AI descriptions
+- **`BookmarkMigrationManager`**: One-time migration from FavoriteURL to AT Protocol
+- **Cache Strategy**: `BookmarkCacheDB_v2` with pagination (50 items/page)
+- **Memory Management**: LRU cache with 200 bookmark limit
+
 #### SwiftData Schema Configuration
-Complete model schema defined in `LimitConfiguration.swift`:
+Multiple schemas for different data domains:
+
+**Main App Schema** (`LimitConfiguration.swift`):
 ```swift
 enum AppSchema {
     static let allModels: [any PersistentModel.Type] = [
         TimelinePost.self,
         PostImage.self, 
-        FavoriteURL.self,
+        FavoriteURL.self,  // Legacy, kept for migration
         FavoritePost.self
     ]
 }
 ```
-- **Database**: `LimitDB_v40` with active schema versioning
+
+**Bookmark Cache Schema** (`BookmarkCacheConfiguration.swift`):
+```swift
+enum BookmarkCacheSchema {
+    static let allModels: [any PersistentModel.Type] = [
+        CachedBookmark.self,
+        CachedBookmarkList.self,
+        BookmarkReminder.self
+    ]
+}
+```
+
+- **Databases**: 
+  - `LimitDB_v40` - Main app data
+  - `BookmarkCacheDB_v2` - Bookmark cache with per-user isolation
 - **Performance**: Maximum 1,000 posts in timeline cache
 - **Pagination**: Maximum 10 fetch loops per timeline request
 
@@ -310,6 +339,17 @@ Optimized content discovery system that:
 - Smart refresh strategies (incremental vs full refresh)
 - **Session-level caching**: Preserves timeline state across navigation
 
+### Bookmark System
+Modern bookmark implementation using AT Protocol:
+- **Optimistic UI**: Instant feedback with `toggleBookmark()` method
+- **Local-first**: Updates UI immediately, syncs in background
+- **Per-user isolation**: Each user has separate bookmark cache
+- **Smart pagination**: Cache-level pagination (50 items per page)
+- **LRU eviction**: Automatically manages memory with 200 bookmark limit
+- **Background processing**: AI descriptions generated asynchronously
+- **Migration support**: One-time migration from legacy FavoriteURL system
+- **List management**: Support for bookmark lists with pinning and sorting
+
 ## Development Workflow
 
 ### Local Development Setup
@@ -371,5 +411,36 @@ mcp__XcodeBuildMCP__open_sim({ enabled: true })
 # 3. Build, install and launch
 mcp__XcodeBuildMCP__build_sim_id_proj({ projectPath: '...', scheme: 'Limit', simulatorId: 'UUID' })
 mcp__XcodeBuildMCP__install_app_sim({ simulatorUuid: 'UUID', appPath: '...' })
-mcp__XcodeBuildMCP__launch_app_sim({ simulatorUuid: 'UUID', bundleId: 'P24L.Limit' })
+mcp__XcodeBuildMCP__launch_app_sim({ simulatorUuid: 'UUID', bundleId: 'P24L.Limit.dev' })
 ```
+
+## Common Development Patterns
+
+### Optimistic UI Updates
+When implementing user actions that require network calls:
+```swift
+// Example: toggleBookmark method
+1. Update UI state immediately
+2. Perform network operation in background
+3. Only revert if operation fails
+```
+
+### Swift 6 Concurrency
+Handle ModelContext operations on MainActor:
+```swift
+await MainActor.run {
+    context.save()
+}
+```
+
+### API Naming Conventions
+Use clear, action-based method names:
+- ✅ `toggleBookmark()` - Clear toggle action
+- ✅ `fetchAndSyncBookmarks()` - Describes full operation
+- ❌ `updateBookmarkStatus()` - Vague, unclear intent
+
+### Performance Optimizations
+- Avoid full syncs after single operations
+- Use local updates + background sync
+- Implement pagination at cache level
+- Apply memory limits with LRU eviction
