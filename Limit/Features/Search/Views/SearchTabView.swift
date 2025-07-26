@@ -14,7 +14,6 @@ struct SearchTabView: View {
     @Environment(\.modelContext) var context
     @Environment(AppRouter.self) private var router
     @Environment(CurrentUser.self) private var currentUser
-    @Environment(FavoriteURLManager.self) private var favoritesURL
     @Environment(FavoritePostManager.self) private var favoritesPost
     
     let initialQuery: String?
@@ -174,6 +173,5 @@ struct SearchTabView: View {
         .environment(AppRouter(initialTab: .search))
         .environment(BlueskyClient())
         .environment(CurrentUser())
-        .environment(FavoriteURLManager(context: SampleData.shared.favoritesContainer.mainContext))
         .environment(FavoritePostManager(context: SampleData.shared.favoritesContainer.mainContext))
 }
