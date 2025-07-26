@@ -233,15 +233,7 @@ struct BookmarkListManagementItemView: View {
             Spacer()
             
             // Pin toggle button
-            Button(action: onPinToggle) {
-                Image(systemName: "pin")
-                    .font(.body)
-                    .symbolVariant(isPinned ? .fill : .none)
-                    .foregroundColor(isPinned ? .orange : .secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-            }
-            .buttonStyle(BorderlessButtonStyle())
+            PinButton(isPinned: isPinned, action: onPinToggle)
             
             // Navigation indicator
             Image(systemName: "chevron.right")
