@@ -559,26 +559,57 @@ struct FeedsSectionView: View {
   }
 }
 
-// NOTE: Subscribe/unsubscribe functionality removed due to incomplete ATProtoKit support
-// Only displays feed information - subscription management is in FeedManagementView
 struct FeedItemView: View {
   let feed: AppBskyLexicon.Feed.GeneratorViewDefinition
+  @Environment(BlueskyClient.self) private var client
+  @Environment(CurrentUser.self) private var currentUser
+  @State private var isSubscribed: Bool = false
+  @State private var isUpdating: Bool = false
 
   var body: some View {
     HStack(spacing: 12) {
       AvatarView(url: feed.avatarImageURL, size: 48)
 
       VStack(alignment: .leading, spacing: 4) {
-        Text(feed.displayName)
-          .font(.subheadline)
-          .fontWeight(.medium)
+        HStack {
+          VStack(alignment: .leading, spacing: 4) {
+            Text(feed.displayName)
+              .font(.subheadline)
+              .fontWeight(.medium)
 
-        if let description = feed.description, !description.isEmpty {
-          Text(description)
-            .font(.caption)
-            .foregroundColor(.secondary)
-            .lineLimit(3)
-            .multilineTextAlignment(.leading)
+            if let description = feed.description, !description.isEmpty {
+              Text(description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            }
+          }
+          
+          Spacer()
+          
+          // Subscribe/Unsubscribe button
+          Button(action: {
+            Task {
+              await toggleSubscription()
+            }
+          }) {
+            if isUpdating {
+              ProgressView()
+                .scaleEffect(0.8)
+                .frame(width: 80)
+            } else {
+              Text(isSubscribed ? "Subscribed" : "Subscribe")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(isSubscribed ? .secondary : .white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSubscribed ? Color.gray.opacity(0.3) : Color.blue)
+                .clipShape(Capsule())
+            }
+          }
+          .disabled(isUpdating)
         }
 
         HStack {
@@ -600,6 +631,35 @@ struct FeedItemView: View {
     .padding(.horizontal, 12)
     .background(Color.gray.opacity(0.05))
     .clipShape(RoundedRectangle(cornerRadius: 12))
+    .onAppear {
+      checkSubscriptionStatus()
+    }
+  }
+  
+  private func checkSubscriptionStatus() {
+    // Check if this feed is in currentUser's subscribed feeds
+    isSubscribed = currentUser.feeds.contains { $0.feedURI == feed.feedURI }
+  }
+  
+  private func toggleSubscription() async {
+    isUpdating = true
+    defer { isUpdating = false }
+    
+    let newStatus = !isSubscribed
+    let success = await client.updateFeedInPreferences(
+      feedURI: feed.feedURI, 
+      subscribe: newStatus,
+      isPinned: false
+    )
+    
+    if success {
+      isSubscribed = newStatus
+      // Refresh currentUser feeds to reflect the change
+      await currentUser.refreshFeeds(client: client)
+      DevLogger.shared.log("FeedItemView - Successfully \(newStatus ? "subscribed to" : "unsubscribed from") feed: \(feed.displayName)")
+    } else {
+      DevLogger.shared.log("FeedItemView - Failed to update subscription for feed: \(feed.displayName)")
+    }
   }
 }
 

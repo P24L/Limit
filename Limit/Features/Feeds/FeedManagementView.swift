@@ -14,7 +14,6 @@ struct FeedManagementView: View {
     @Environment(AppRouter.self) private var router
     
     @State private var isLoading = false
-    @State private var editMode: EditMode = .inactive
     
     var body: some View {
         VStack {
@@ -62,7 +61,6 @@ struct FeedManagementView: View {
                         }
                     }
                 }
-                .environment(\.editMode, $editMode)
                 .refreshable {
                     await refreshFeeds()
                 }
@@ -71,11 +69,6 @@ struct FeedManagementView: View {
         .navigationTitle("Feeds")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                if !currentUser.feeds.isEmpty {
-                    EditButton()
-                }
-            }
         }
         .task {
             await refreshFeeds()
@@ -147,17 +140,9 @@ struct FeedManagementItemView: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(feed.displayName)
-                        .font(.headline)
-                        .lineLimit(1)
-                    
-                    if isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                }
+                Text(feed.displayName)
+                    .font(.headline)
+                    .lineLimit(1)
                 
                 if let description = feed.description, !description.isEmpty {
                     Text(description)
@@ -184,14 +169,7 @@ struct FeedManagementItemView: View {
             Spacer()
             
             // Pin toggle button
-            Button(action: onPinToggle) {
-                Image(systemName: isPinned ? "pin.slash" : "pin")
-                    .font(.body)
-                    .foregroundColor(isPinned ? .orange : .secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-            }
-            .buttonStyle(BorderlessButtonStyle())
+            PinButton(isPinned: isPinned, action: onPinToggle)
             
             // Navigation indicator
             Image(systemName: "chevron.right")

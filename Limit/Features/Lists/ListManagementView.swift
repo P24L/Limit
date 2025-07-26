@@ -17,7 +17,6 @@ struct ListManagementView: View {
     @State private var showCreateList = false
     @State private var listToDelete: AppBskyLexicon.Graph.ListViewDefinition?
     @State private var showDeleteConfirmation = false
-    @State private var editMode: EditMode = .inactive
     
     var body: some View {
         VStack {
@@ -86,7 +85,6 @@ struct ListManagementView: View {
                         }
                     }
                 }
-                .environment(\.editMode, $editMode)
                 .refreshable {
                     await refreshLists()
                 }
@@ -104,11 +102,6 @@ struct ListManagementView: View {
                 }
             }
             
-            ToolbarItem(placement: .navigationBarLeading) {
-                if !currentUser.lists.isEmpty {
-                    EditButton()
-                }
-            }
         }
         .task {
             await refreshLists()
@@ -212,17 +205,9 @@ struct ListManagementItemView: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(list.name)
-                        .font(.headline)
-                        .lineLimit(1)
-                    
-                    if isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                }
+                Text(list.name)
+                    .font(.headline)
+                    .lineLimit(1)
                 
                 if let description = list.description, !description.isEmpty {
                     Text(description)
@@ -247,14 +232,7 @@ struct ListManagementItemView: View {
             Spacer()
             
             // Pin toggle button
-            Button(action: onPinToggle) {
-                Image(systemName: isPinned ? "pin.slash" : "pin")
-                    .font(.body)
-                    .foregroundColor(isPinned ? .orange : .secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-            }
-            .buttonStyle(BorderlessButtonStyle())
+            PinButton(isPinned: isPinned, action: onPinToggle)
             
             // Navigation indicator
             Image(systemName: "chevron.right")
