@@ -102,6 +102,9 @@ struct TimelinePostList: View {
                     }
                 }
             }
+            .onAppear {
+                DevLogger.shared.log("TimeLinePostList.swift - Main timeline loaded")
+            }
             .onReceive(NotificationCenter.default.publisher(for: .restoreScrollToID)) { notification in
                 if let id = notification.object as? String {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

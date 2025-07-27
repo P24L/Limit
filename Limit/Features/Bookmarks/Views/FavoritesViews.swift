@@ -221,9 +221,10 @@ struct FavoriteLinksSectionView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .frame(minHeight: 300)
             } else {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: 0) {
                     ForEach(sortedBookmarks, id: \.uri) { bookmark in
                         BookmarkCardView(bookmark: bookmark)
+                            .padding(.vertical, 4)
                             .onAppear {
                                 // Load more when we reach near the end
                                 if let index = sortedBookmarks.firstIndex(where: { $0.uri == bookmark.uri }),
@@ -247,9 +248,10 @@ struct FavoriteLinksSectionView: View {
                         .padding()
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 6)
             }
         }
+        .background(.warmBackground)
         .refreshable {
             await bookmarkManager.fetchAndSyncBookmarks()
         }

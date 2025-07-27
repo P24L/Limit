@@ -53,6 +53,9 @@ class BookmarkManager {
         self.syncEngine = BookmarkSyncEngine(context: context, client: client)
         self.processingQueue = BookmarkProcessingQueue(client: client, context: context)
         
+        // Set bookmark manager after initialization
+        self.processingQueue.bookmarkManager = self
+        
         // Setup migration if favorites context provided
         if let favoritesContext = favoritesContext {
             self.migrationManager = BookmarkMigrationManager(
@@ -504,6 +507,28 @@ class BookmarkManager {
     
     func cacheBookmark(_ bookmarkView: BookmarkView) async {
         await syncEngine.saveCachedBookmark(from: bookmarkView)
+    }
+    
+    /// Refresh a specific bookmark from cache
+    func refreshBookmark(uri: String) async {
+        do {
+            // Load the updated bookmark from cache
+            let descriptor = FetchDescriptor<CachedBookmark>(
+                predicate: #Predicate { $0.uri == uri }
+            )
+            
+            if let cachedBookmark = try cacheContext.fetch(descriptor).first,
+               let updatedView = convertCachedToView(cachedBookmark) {
+                
+                // Find and update the bookmark in our array
+                if let index = bookmarks.firstIndex(where: { $0.uri == uri }) {
+                    bookmarks[index] = updatedView
+                    DevLogger.shared.log("BookmarkManager - Refreshed bookmark: \(uri)")
+                }
+            }
+        } catch {
+            DevLogger.shared.log("BookmarkManager - Failed to refresh bookmark \(uri): \(error)")
+        }
     }
     
     private func convertCachedToView(_ cached: CachedBookmark) -> BookmarkView? {
