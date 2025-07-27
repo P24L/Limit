@@ -18,28 +18,41 @@ struct BookmarkCardView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Top Section: Thumbnail + Content + Bookmark
+            // Main Content Section
             HStack(alignment: .top, spacing: 12) {
-                // Thumbnail
-                thumbnailView
+                // Larger Thumbnail
+                largeThumbnailView
                 
                 // Content Area
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 6) {
+                    // Title
                     Text(bookmark.record.title)
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
+                        .foregroundColor(.primary)
                     
+                    // URL
                     if let url = URL(string: bookmark.record.url) {
                         Text(url.host ?? bookmark.record.url)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
+                    
+                    // Description - Now beside the image
+                    if let description = bookmark.record.description, !description.isEmpty {
+                        Text(description)
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+                            .padding(.top, 4)
+                    }
+                    
+                    Spacer(minLength: 0)
                 }
-                
-                Spacer()
                 
                 // Bookmark Toggle
                 VStack {
@@ -66,26 +79,7 @@ struct BookmarkCardView: View {
                     Spacer()
                 }
             }
-            
-            // User Description Section - Full Width
-            if let description = bookmark.record.description, !description.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Description")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    
-                    Text(description)
-                        .font(.caption)
-                        .foregroundStyle(.primary)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.gray.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
+            .frame(minHeight: 120) // Ensure minimum height for larger image
             
             // AI Summary Section - Full Width
             if let summary = bookmark.record.summary, !summary.isEmpty {
@@ -114,9 +108,13 @@ struct BookmarkCardView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
-        .padding()
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.cardBackground)
+                .subtleShadow()
+        )
         .onTapGesture {
             if let url = URL(string: bookmark.record.url) {
                 router.navigateTo(.safari(url: url))
@@ -125,6 +123,41 @@ struct BookmarkCardView: View {
         .onAppear {
             // Track access for LRU cache
             bookmarkManager.trackAccess(for: bookmark.uri)
+        }
+    }
+    
+    @ViewBuilder
+    private var largeThumbnailView: some View {
+        Group {
+            if let imageUrl = bookmark.record.imageUrl,
+               let url = URL(string: imageUrl) {
+                WebImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        Rectangle().foregroundStyle(.gray.opacity(0.3))
+                    case .success(let image):
+                        image.resizable()
+                    case .failure:
+                        Rectangle().foregroundStyle(.gray.opacity(0.3))
+                    }
+                }
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 120, height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else if let imageBlob = getCachedImageBlob() {
+                // Show image from blob
+                if let uiImage = UIImage(data: imageBlob) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 120, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                } else {
+                    largDefaultThumbnail
+                }
+            } else {
+                largDefaultThumbnail
+            }
         }
     }
     
@@ -170,6 +203,18 @@ struct BookmarkCardView: View {
             .frame(width: 60, height: 60)
             .overlay(
                 Image(systemName: "link")
+                    .foregroundStyle(.secondary)
+            )
+    }
+    
+    @ViewBuilder
+    private var largDefaultThumbnail: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(.gray.opacity(0.2))
+            .frame(width: 120, height: 120)
+            .overlay(
+                Image(systemName: "link")
+                    .font(.largeTitle)
                     .foregroundStyle(.secondary)
             )
     }

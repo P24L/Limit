@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		F00503BB2DE6423A00362B00 /* KeychainSwift in Frameworks */ = {isa = PBXBuildFile; productRef = F00503BA2DE6423A00362B00 /* KeychainSwift */; };
 		F00927A52DF1A76500A61A93 /* AppRouter in Frameworks */ = {isa = PBXBuildFile; productRef = F00927A42DF1A76500A61A93 /* AppRouter */; };
+		F022E1852E35629400612E14 /* WebImageExtractor in Frameworks */ = {isa = PBXBuildFile; productRef = F022E1842E35629400612E14 /* WebImageExtractor */; };
 		F0B5F5BC2DEA3D5D00FD79BD /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = F0B5F5BB2DEA3D5D00FD79BD /* SDWebImageSwiftUI */; };
 		F0B84CAB2DD71B6C0007E370 /* ATMacro in Frameworks */ = {isa = PBXBuildFile; productRef = F0B84CAA2DD71B6C0007E370 /* ATMacro */; };
 		F0B84CAD2DD71B6C0007E370 /* ATProtoKit in Frameworks */ = {isa = PBXBuildFile; productRef = F0B84CAC2DD71B6C0007E370 /* ATProtoKit */; };
@@ -43,6 +44,7 @@
 				F00927A52DF1A76500A61A93 /* AppRouter in Frameworks */,
 				F0B84CAD2DD71B6C0007E370 /* ATProtoKit in Frameworks */,
 				F0F1234D2E0F400000BC679A /* FirebaseCore in Frameworks */,
+				F022E1852E35629400612E14 /* WebImageExtractor in Frameworks */,
 				F0F123512E0F400000BC679A /* FirebaseFunctions in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -104,6 +106,7 @@
 				F00927A42DF1A76500A61A93 /* AppRouter */,
 				F0F1234C2E0F400000BC679A /* FirebaseCore */,
 				F0F123502E0F400000BC679A /* FirebaseFunctions */,
+				F022E1842E35629400612E14 /* WebImageExtractor */,
 			);
 			productName = Limit;
 			productReference = F0B84C982DD71AF30007E370 /* Limit.app */;
@@ -139,6 +142,7 @@
 				F0B5F5BA2DEA3D5D00FD79BD /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */,
 				F00927A32DF1A76500A61A93 /* XCRemoteSwiftPackageReference "AppRouter" */,
 				F0F123492E0F400000BC679A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				F022E1832E35629400612E14 /* XCLocalSwiftPackageReference "Packages/WebImageExtractor" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F0B84C992DD71AF30007E370 /* Products */;
@@ -392,6 +396,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		F022E1832E35629400612E14 /* XCLocalSwiftPackageReference "Packages/WebImageExtractor" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WebImageExtractor;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		F00503B92DE6423A00362B00 /* XCRemoteSwiftPackageReference "keychain-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -445,6 +456,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F00927A32DF1A76500A61A93 /* XCRemoteSwiftPackageReference "AppRouter" */;
 			productName = AppRouter;
+		};
+		F022E1842E35629400612E14 /* WebImageExtractor */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WebImageExtractor;
 		};
 		F0B5F5BB2DEA3D5D00FD79BD /* SDWebImageSwiftUI */ = {
 			isa = XCSwiftPackageProductDependency;
