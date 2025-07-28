@@ -233,37 +233,32 @@ struct WrappedPostLinkView: View {
         }) {
             VStack(spacing: 0) {
                 if let thumbnail = linkExt.thumbnailImageURL {
-                    WebImage(url: thumbnail) { phase in
-                        switch phase {
-                        case .empty:
-                            Rectangle()
-                                .foregroundStyle(Color.gray.opacity(0.2))
-                                .frame(height: 160)
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(height: 160)
-                                //.frame(maxWidth: .infinity)
-                                .clipped()
-                        case .failure:
-                            Rectangle()
-                                .foregroundStyle(Color.gray.opacity(0.2))
-                                .frame(height: 160)
-                                .overlay(
-                                    Image(systemName: "photo")
-                                        .foregroundColor(.gray)
-                                        .font(.largeTitle)
-                                )
-                        }
-                    }
-                    .background(Color.black)
-                    .clipShape(UnevenRoundedRectangle(
-                        topLeadingRadius: 12,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: 12
-                    ))
+                    Color.black
+                        .frame(height: 160)
+                        .overlay(
+                            WebImage(url: thumbnail) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                case .empty, .failure:
+                                    Rectangle()
+                                        .foregroundStyle(Color.gray.opacity(0.2))
+                                        .overlay(
+                                            Image(systemName: "photo")
+                                                .foregroundColor(.gray)
+                                                .font(.largeTitle)
+                                        )
+                                }
+                            }
+                        )
+                        .clipShape(UnevenRoundedRectangle(
+                            topLeadingRadius: 12,
+                            bottomLeadingRadius: 0,
+                            bottomTrailingRadius: 0,
+                            topTrailingRadius: 12
+                        ))
                 }
                     
                     HStack(alignment: .top, spacing: 12) {
@@ -308,6 +303,7 @@ struct WrappedPostLinkView: View {
             }
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         .background(Color.warmBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
