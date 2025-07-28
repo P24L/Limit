@@ -206,37 +206,48 @@ struct LimitApp: App {
         if client.isAuthenticated {
             feed.updateClient(client)
             notificationManager.setClient(client)
-            await currentUser.refreshProfile(client: client)
             
-            // Update account profile info if changed
-            AccountManager.shared.updateAccountProfile(
-                for: client.currentDID ?? currentAccount.did,
-                displayName: currentUser.displayName,
-                avatarURL: currentUser.avatarURL
-            )
-            
-            // Update DID if it was a legacy account
-            if currentAccount.did.hasPrefix("legacy:"), let realDID = client.currentDID {
-                AccountManager.shared.addAccount(
-                    did: realDID,
-                    handle: currentAccount.handle,
-                    appPassword: appPassword,
-                    displayName: currentUser.displayName,
-                    avatarURL: currentUser.avatarURL
-                )
-                AccountManager.shared.deleteAccount(currentAccount)
-            }
-            
+            // Set authenticated state immediately to show UI
             appState.setAuthenticated()
             
-            // Start notification refresh
+            // Start notification refresh immediately
             notificationManager.startPeriodicRefresh()
             
-            // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
-            Task.detached { [weak computedFeed, weak client] in
-                guard let computedFeed = computedFeed, let client = client else { return }
-                try? await Task.sleep(for: .seconds(4))
-                await computedFeed.prepareSessionCacheInBackground(client: client)
+            // Start all background tasks without waiting
+            Task.detached { [weak computedFeed, weak bookmarkManager] in
+                // Profile refresh first (needed for UI but don't block on it)
+                await currentUser.refreshProfile(client: client)
+                
+                // Update account profile info after refresh
+                await MainActor.run {
+                    AccountManager.shared.updateAccountProfile(
+                        for: client.currentDID ?? currentAccount.did,
+                        displayName: currentUser.displayName,
+                        avatarURL: currentUser.avatarURL
+                    )
+                    
+                    // Update DID if it was a legacy account
+                    if currentAccount.did.hasPrefix("legacy:"), let realDID = client.currentDID {
+                        AccountManager.shared.addAccount(
+                            did: realDID,
+                            handle: currentAccount.handle,
+                            appPassword: appPassword,
+                            displayName: currentUser.displayName,
+                            avatarURL: currentUser.avatarURL
+                        )
+                        AccountManager.shared.deleteAccount(currentAccount)
+                    }
+                }
+                
+                // Start bookmark sync after a delay
+                try? await Task.sleep(for: .seconds(2))
+                await bookmarkManager?.startSyncAfterAuth()
+                
+                // Computed timeline preparation with longer delay
+                if let computedFeed = computedFeed {
+                    try? await Task.sleep(for: .seconds(2)) // Total 4s delay
+                    await computedFeed.prepareSessionCacheInBackground(client: client)
+                }
             }
         } else {
             computedFeed.clearSession()
