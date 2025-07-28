@@ -117,11 +117,19 @@ struct ATTimelineView_experimental: View {
         .task {
             switch selectedTab {
             case .timeline:
+                // Show cached posts immediately
                 if feed.posts.isEmpty {
                     feed.loadFromStorage()
                 }
-                await feed.refreshTimeline()
                 viewState = .posts(feed.postTimeline)
+                
+                // Refresh timeline in background
+                Task {
+                    await feed.refreshTimeline()
+                    await MainActor.run {
+                        viewState = .posts(feed.postTimeline)
+                    }
+                }
             case .aline:
                 // For A-line, we'll show computed timeline posts
                 await computedFeed.loadPosts(client: client)

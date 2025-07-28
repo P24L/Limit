@@ -65,14 +65,23 @@ class BookmarkManager {
             )
         }
         
-        Task {
-            await startMigrationAndSync()
-        }
+        // Don't start sync in init - wait for explicit call after auth
     }
     
     // MARK: - Migration and Initial Load
     
+    /// Call this after authentication to start bookmark sync
+    func startSyncAfterAuth() async {
+        await startMigrationAndSync()
+    }
+    
     private func startMigrationAndSync() async {
+        // Wait for authentication before attempting sync
+        guard client.isAuthenticated else {
+            DevLogger.shared.log("BookmarkManager - Waiting for authentication before sync")
+            return
+        }
+        
         // First, perform migration if needed
         if let migrationManager = migrationManager, !hasMigrated {
             migrationInProgress = true

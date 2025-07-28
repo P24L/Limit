@@ -37,9 +37,12 @@ class CurrentUser {
             self.avatarURL = profile.avatarImageURL
         }
         DevLogger.shared.log("CurrentUser - refreshProfile - did: \(self.did)")
-        await refreshLists(client: client)
-        await refreshFeeds(client: client)
-
+        
+        // Defer lists and feeds refresh to background
+        Task.detached { [weak self] in
+            await self?.refreshLists(client: client)
+            await self?.refreshFeeds(client: client)
+        }
     }
     
     func clear() {
