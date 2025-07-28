@@ -38,14 +38,33 @@ class PostComposerViewModel {
     // Version tracking to prevent race conditions
     private var parseVersion = 0
     
+    // Simple mention detection
+    var currentMentionText: String = ""
+    var showMentionSuggestions = false
+    var mentionSuggestions: [HandleSuggestion] = []
+    var isLoadingSuggestions = false
+    private var mentionStartIndex: Int = 0
+    
+    // Handle validator for suggestions
+    private var handleValidator: HandleValidator?
+    private var suggestionTask: Task<Void, Never>?
+    
     // MARK: - Initialization
     init() {
         allDrafts = [currentDraft]
     }
     
+    // Configure handle validator
+    func configureHandleValidator(_ validator: HandleValidator) {
+        self.handleValidator = validator
+    }
+    
     // MARK: - Text Management
     func textDidChange(_ newText: String) {
         currentDraft.text = newText
+        
+        // Simple mention detection
+        detectMention(in: newText)
         
         // Increment version for this text change
         parseVersion += 1
@@ -67,6 +86,69 @@ class PostComposerViewModel {
             guard self.parseVersion == currentVersion else { return }
             
             await self.parseText(newText, version: currentVersion)
+        }
+    }
+    
+    // Simple mention detection - just check if typing after @
+    private func detectMention(in text: String) {
+        // Find last @ symbol
+        if let lastAtIndex = text.lastIndex(of: "@") {
+            let afterAt = String(text[text.index(after: lastAtIndex)...])
+            
+            // Store the start index for replacement
+            mentionStartIndex = text.distance(from: text.startIndex, to: lastAtIndex)
+            
+            // Check if it looks like a mention in progress
+            if afterAt.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" }) {
+                currentMentionText = afterAt
+                showMentionSuggestions = afterAt.count >= 2
+                
+                // Load suggestions if we should show them
+                if showMentionSuggestions {
+                    loadSuggestions(for: afterAt)
+                }
+            } else {
+                currentMentionText = ""
+                showMentionSuggestions = false
+                mentionSuggestions = []
+            }
+        } else {
+            currentMentionText = ""
+            showMentionSuggestions = false
+            mentionSuggestions = []
+        }
+        
+    }
+    
+    private func loadSuggestions(for prefix: String) {
+        // Cancel previous task
+        suggestionTask?.cancel()
+        
+        // Start new search
+        suggestionTask = Task { @MainActor in
+            guard let validator = handleValidator else { 
+                return 
+            }
+            
+            isLoadingSuggestions = true
+            
+            do {
+                // Small delay to debounce
+                try await Task.sleep(nanoseconds: 300_000_000) // 300ms
+                
+                guard !Task.isCancelled else { return }
+                
+                let suggestions = try await validator.getSuggestedHandles(for: prefix, limit: 5)
+                
+                // Only update if still searching for same prefix
+                if currentMentionText == prefix {
+                    mentionSuggestions = suggestions
+                }
+            } catch {
+                mentionSuggestions = []
+            }
+            
+            isLoadingSuggestions = false
         }
     }
     
@@ -282,6 +364,37 @@ class PostComposerViewModel {
     private func parseText(_ text: String) async {
         parseVersion += 1
         await parseText(text, version: parseVersion)
+    }
+    
+    // MARK: - Mention Selection
+    
+    func dismissMentionSuggestions() {
+        currentMentionText = ""
+        showMentionSuggestions = false
+        mentionSuggestions = []
+        suggestionTask?.cancel()
+    }
+    
+    func selectMention(_ suggestion: HandleSuggestion) {
+        // Build the new text with selected handle
+        let beforeMention = String(currentDraft.text.prefix(mentionStartIndex))
+        let afterMention = currentDraft.text.index(currentDraft.text.startIndex, offsetBy: mentionStartIndex + 1 + currentMentionText.count)
+        let restOfText = afterMention < currentDraft.text.endIndex ? String(currentDraft.text[afterMention...]) : ""
+        
+        // Insert the full handle with a space after
+        let newText = beforeMention + "@" + suggestion.handle + " " + restOfText
+        
+        // Update the draft text
+        currentDraft.text = newText
+        
+        // Clear mention state
+        currentMentionText = ""
+        showMentionSuggestions = false
+        mentionSuggestions = []
+        
+        // Trigger text parsing to update facets
+        textDidChange(newText)
+        
     }
     
     // MARK: - Quote Post

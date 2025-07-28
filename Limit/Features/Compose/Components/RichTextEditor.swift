@@ -25,6 +25,7 @@ struct RichTextEditor: View {
     let displayText: String
     let facets: [AppBskyLexicon.RichText.Facet]
     let onTextChange: (String) -> Void
+    var onCursorFrameChange: ((CGRect) -> Void)?
     
     @State private var textEditorHeight: CGFloat = 100
     
@@ -55,7 +56,8 @@ struct RichTextEditor: View {
                 text: $text,
                 facets: facets,
                 minHeight: max(100, textEditorHeight),
-                onTextChange: onTextChange
+                onTextChange: onTextChange,
+                onCursorFrameChange: onCursorFrameChange
             )
         }
     }
@@ -68,6 +70,7 @@ struct HighlightedTextEditor: UIViewRepresentable {
     let facets: [AppBskyLexicon.RichText.Facet]
     let minHeight: CGFloat
     let onTextChange: (String) -> Void
+    var onCursorFrameChange: ((CGRect) -> Void)?
     
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
@@ -174,6 +177,24 @@ struct HighlightedTextEditor: UIViewRepresentable {
         func textViewDidChange(_ textView: UITextView) {
             parent.text = textView.text
             parent.onTextChange(textView.text)
+            reportCursorFrame(textView)
+        }
+        
+        func textViewDidChangeSelection(_ textView: UITextView) {
+            reportCursorFrame(textView)
+        }
+        
+        private func reportCursorFrame(_ textView: UITextView) {
+            guard let selectedRange = textView.selectedTextRange else { return }
+            
+            // Get cursor frame in text view coordinates
+            let cursorRect = textView.caretRect(for: selectedRange.start)
+            
+            // Convert to window coordinates for proper positioning
+            if let window = textView.window {
+                let convertedRect = textView.convert(cursorRect, to: window)
+                parent.onCursorFrameChange?(convertedRect)
+            }
         }
     }
 }

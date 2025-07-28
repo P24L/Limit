@@ -21,6 +21,7 @@ struct ComposePostView: View {
     @State private var selectedImages: [PhotosPickerItem] = []
     @State private var selectedVideos: [PhotosPickerItem] = []
     @State private var keyboardHeight: CGFloat = 0
+    @State private var cursorFrame: CGRect = .zero
     
     @FocusState private var isTextFieldFocused: Bool
     
@@ -79,11 +80,37 @@ struct ComposePostView: View {
                             facets: viewModel.currentDraft.facets,
                             onTextChange: { newText in
                                 viewModel.textDidChange(newText)
+                            },
+                            onCursorFrameChange: { frame in
+                                cursorFrame = frame
                             }
                         )
                         .focused($isTextFieldFocused)
                         .frame(minHeight: 120)
                         .padding(.horizontal)
+                        
+                        // Mention suggestions below current line
+                        if viewModel.showMentionSuggestions {
+                            SimpleMentionSuggestionsView(
+                                suggestions: viewModel.mentionSuggestions,
+                                isLoading: viewModel.isLoadingSuggestions,
+                                onSelect: { suggestion in
+                                    viewModel.selectMention(suggestion)
+                                }
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                            .offset(y: -10) // Slight offset to bring closer to text
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .top).combined(with: .opacity),
+                                removal: .opacity
+                            ))
+                            .animation(.easeInOut(duration: 0.2), value: viewModel.showMentionSuggestions)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                // Don't propagate tap to parent
+                            }
+                        }
                         
                         // Media preview
                         if !viewModel.currentDraft.images.isEmpty {
@@ -159,10 +186,23 @@ struct ComposePostView: View {
                 if let replyTo = replyTo {
                     viewModel.setReplyTo(replyTo)
                 }
+                
+                // Configure handle validator
+                if let protoClient = client.protoClient {
+                    let validator = HandleValidator(atProtoKit: protoClient)
+                    viewModel.configureHandleValidator(validator)
+                }
             }
             .onReceive(keyboardPublisher) { height in
                 withAnimation(.easeOut(duration: 0.16)) {
                     keyboardHeight = height
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Dismiss mention suggestions when tapping outside
+                if viewModel.showMentionSuggestions {
+                    viewModel.dismissMentionSuggestions()
                 }
             }
             .photosPicker(
@@ -235,6 +275,98 @@ private var keyboardPublisher: AnyPublisher<CGFloat, Never> {
             .map { _ in CGFloat(0) }
     )
     .eraseToAnyPublisher()
+}
+
+// MARK: - Mention Suggestions View
+
+struct SimpleMentionSuggestionsView: View {
+    let suggestions: [HandleSuggestion]
+    let isLoading: Bool
+    let onSelect: (HandleSuggestion) -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if isLoading && suggestions.isEmpty {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Searching...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if !suggestions.isEmpty {
+                ForEach(Array(suggestions.prefix(5)), id: \.handle) { suggestion in
+                    SimpleMentionRow(
+                        suggestion: suggestion,
+                        onTap: { onSelect(suggestion) }
+                    )
+                    
+                    if suggestion.handle != suggestions.prefix(5).last?.handle {
+                        Divider()
+                            .padding(.leading, 50)
+                    }
+                }
+            }
+        }
+        .background(Color(.systemBackground))
+    }
+}
+
+struct SimpleMentionRow: View {
+    let suggestion: HandleSuggestion
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                // Avatar
+                Group {
+                    if let avatarURL = suggestion.avatarURL {
+                        AsyncImage(url: URL(string: avatarURL)) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
+                            Circle()
+                                .fill(Color.gray.opacity(0.3))
+                        }
+                    } else {
+                        Circle()
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Text(String(suggestion.handle.prefix(1)).uppercased())
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.gray)
+                            )
+                    }
+                }
+                .frame(width: 32, height: 32)
+                .clipShape(Circle())
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    if let displayName = suggestion.displayName, !displayName.isEmpty {
+                        Text(displayName)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                    }
+                    
+                    Text("@\(suggestion.handle)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
 }
 
 // MARK: - Supporting Views
