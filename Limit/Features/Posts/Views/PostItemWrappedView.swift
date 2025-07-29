@@ -19,6 +19,18 @@ enum PostViewType {
 }
 
 
+// MARK: - Height Measurement Hack
+// This PreferenceKey is used to report the measured height of the post view content
+// up the view hierarchy. It's a key part of the solution to prevent LazyVStack
+// from creating unwanted gaps when cell heights change dynamically.
+private struct PostHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        // Use the non-zero height, or the new one if the existing one is zero.
+        value = value > 0 ? value : nextValue()
+    }
+}
+
 struct PostItemWrappedView: View {
     @Environment(\.modelContext) var context
     @Environment(BlueskyClient.self) private var client
@@ -36,6 +48,11 @@ struct PostItemWrappedView: View {
 
     @State private var selectedImageIndex: Int = 0
     @State private var fullScreenImages: [PostImage] = []
+    
+    // Stores the calculated height of the view's content.
+    // When nil, the view renders with a flexible height. Once a height is measured
+    // and set, it's used to fix the frame size, providing stability for LazyVStack.
+    @State private var measuredHeight: CGFloat? = nil
 
     @Query(
         sort: \TimelinePost.createdAt,
@@ -191,23 +208,49 @@ struct PostItemWrappedView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        
-        // Apply card styling conditionally
-        if showCard {
-            content
-                .padding(.vertical, 10)
-                .padding(.horizontal, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.cardBackground)
-                        .subtleShadow()
-                )
-        } else {
-            content
+
+        let cardStyledContent = Group {
+            if showCard {
+                content
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.cardBackground)
+                            .subtleShadow()
+                    )
+            } else {
+                content
+            }
         }
+
+        // This block of modifiers is the core of the height stabilization hack.
+        // 1. .background(GeometryReader...): A GeometryReader is placed in the background
+        //    to measure the actual rendered size of the `cardStyledContent`.
+        // 2. .preference(...): The measured height is reported upwards using our PreferenceKey.
+        // 3. .onPreferenceChange(...): We listen for the reported height. Once we get a
+        //    valid (non-zero) height, we store it in the `measuredHeight` state variable.
+        //    We only store it once to avoid layout loops.
+        // 4. .frame(height: measuredHeight): This is the crucial step. If `measuredHeight` is set,
+        //    it locks the view's frame to that specific height. This prevents the view from
+        //    resizing after its initial render, which is what confuses LazyVStack.
+        return cardStyledContent
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .preference(key: PostHeightPreferenceKey.self, value: geometry.size.height)
+                }
+            )
+            .onPreferenceChange(PostHeightPreferenceKey.self) { height in
+                if height > 0 {
+                    self.measuredHeight = height
+                }
+            }
+            .frame(height: measuredHeight)
+            .padding(.bottom, 0)
     }
 
-        // MARK: - Optimized Image Gallery Helper
+    // MARK: - Optimized Image Gallery Helper
     private func openImageGallery(at index: Int) {
         // Lazy evaluation: create images array only when needed
         let images = self.post.embeds.map { $0.toDisplayImage() }
@@ -269,7 +312,6 @@ struct WrappedPostLinkView: View {
                                     .fontWeight(.medium)
                                     .lineLimit(2)
                                     .multilineTextAlignment(.leading)
-                                    .fixedSize(horizontal: false, vertical: true)
                                     .foregroundColor(.primary)
                             }
                             Text(linkExt.desc.count > 0 ? linkExt.desc : linkExt.uri)
@@ -277,7 +319,6 @@ struct WrappedPostLinkView: View {
                                 .lineLimit(2)
                                 .multilineTextAlignment(.leading)
                                 .foregroundColor(.secondaryText)
-                                .fixedSize(horizontal: false, vertical: true)
                             if let mainURL = URL(string:linkExt.uri), let hostURL = mainURL.host() {
                                 Text(hostURL)
                                     .font(.footnote)
@@ -298,7 +339,7 @@ struct WrappedPostLinkView: View {
                         }
                 }
                 .padding(12)
-                .frame(minHeight: 60)
+                .frame(height: 88)
                 .background(Color.warmBackground)
             }
         }
@@ -311,7 +352,6 @@ struct WrappedPostLinkView: View {
                 .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
         )
         .cardShadow()
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

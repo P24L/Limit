@@ -25,7 +25,7 @@ struct ThreadWrappedView: View {
             Group {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 6) {
+                        LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(beforePosts, id: \.id) { post in
                                 PostItemWrappedView(post: post, isThreadView: true, showCard: true)
                                     .id(post.id)
