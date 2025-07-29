@@ -118,6 +118,7 @@ struct ATTimelineView_experimental: View {
             switch selectedTab {
             case .timeline:
                 // Show cached posts immediately
+                let savedTopID = TimelinePositionManager.shared.getTimelinePosition()
                 if feed.posts.isEmpty {
                     feed.loadFromStorage()
                 }
@@ -128,6 +129,9 @@ struct ATTimelineView_experimental: View {
                     await feed.refreshTimeline()
                     await MainActor.run {
                         viewState = .posts(feed.postTimeline)
+                        if let id = savedTopID {
+                            NotificationCenter.default.post(name: .restoreScrollToID, object: id)
+                        }
                     }
                 }
             case .aline:

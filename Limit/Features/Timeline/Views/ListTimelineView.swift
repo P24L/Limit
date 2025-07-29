@@ -112,7 +112,7 @@ struct ListTimelineView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(spacing: 8) {
+                        LazyVStack(spacing: 0) {
                             Color.clear
                                 .frame(height: 120)
                             ForEach(posts) { post in
