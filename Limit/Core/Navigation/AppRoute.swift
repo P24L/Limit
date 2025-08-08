@@ -75,7 +75,7 @@ enum Sheet: SheetType {
     case login
     case composePost(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil)
     case fullScreenImage(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID)
-    case aiExplanation(postWrapper: TimelinePostWrapper)
+    case aiExplanation(type: AIExplanationType)
     case aiSummary(bookmark: BookmarkView)
     case repostOptions(post: TimelinePostWrapper)
     
