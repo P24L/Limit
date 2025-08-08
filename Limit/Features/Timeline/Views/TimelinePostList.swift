@@ -27,93 +27,110 @@ struct TimelinePostList: View {
     @Environment(BlueskyClient.self) private var client
     @Environment(TimelineFeed.self) private var feed
     
-    @State private var topVisibleID: String? = nil
-    @State private var isRestoringScrollPosition: Bool = true
+    // Hybrid approach: scrollPosition API + TimelinePositionManager
+    @State private var scrolledID: String? = nil
+    @State private var shouldMaintainPosition = false
     @State private var isScrolling: Bool = false
+    @State private var isInitialLoad: Bool = true
 
     @Binding var newPostsAboveCount: Int
     @Binding var hideDirectionIsUp: Bool
     @Binding var isTopbarHidden: Bool
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    Color.clear
-                        .frame(height: 100) // Výška topbaru + safe area margin
-                    ForEach(posts) { wrapper in
-                        postView(for: wrapper)
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                Color.clear
+                    .frame(height: 100) // Výška topbaru + safe area margin
+                ForEach(posts) { wrapper in
+                    postView(for: wrapper)
+                }
+                if client.isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .padding(.vertical, 20)
+                        Spacer()
                     }
-                    if client.isLoading {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                                .padding(.vertical, 20)
-                            Spacer()
+                }
+                
+                // trigger načtení dalších postů
+                Color.clear
+                    .frame(height: 1)
+                    .onAppear {
+                        Task {
+                            await feed.loadOlderTimeline()
+                            NotificationCenter.default.post(name: .didLoadOlderPosts, object: nil)
                         }
                     }
+            }
+            .padding(.horizontal, 6)
+            .background(.warmBackground)
+            .scrollTargetLayout()
+        }
+        .scrollPosition(id: $scrolledID, anchor: .top)
+        .onScrollPhaseChange { old, new in
+            isScrolling = new != .idle
+            if new == .tracking || new == .interacting {
+                isTopbarHidden = true
+            } else if new == .idle {
+                isTopbarHidden = false
+            }
+        }
+        .onChange(of: scrolledID) { _, newID in
+            // Save position when user scrolls (not during programmatic changes)
+            if !shouldMaintainPosition, let newID {
+                TimelinePositionManager.shared.saveTimelinePosition(newID)
+                
+                // Update new posts count
+                if let index = posts.firstIndex(where: { $0.uri == newID }) {
+                    newPostsAboveCount = index
+                } else {
+                    newPostsAboveCount = 0
+                }
+            }
+        }
+        .onChange(of: posts) { oldPosts, newPosts in
+            // Handle prepend operation - maintain scroll position
+            if !oldPosts.isEmpty && !newPosts.isEmpty {
+                // Check if this is a prepend (new posts at beginning)
+                let oldFirstID = oldPosts.first?.uri
+                let newFirstID = newPosts.first?.uri
+                
+                if oldFirstID != newFirstID {
+                    // This is likely a prepend operation
+                    if let currentScrolledID = scrolledID,
+                       newPosts.contains(where: { $0.uri == currentScrolledID }) {
+                        // The previously visible post still exists, maintain position
+                        shouldMaintainPosition = true
+                        scrolledID = currentScrolledID
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            shouldMaintainPosition = false
+                        }
+                    }
+                }
+            }
+        }
+        .task {
+            // Restore saved position on initial load
+            if isInitialLoad {
+                if let savedID = TimelinePositionManager.shared.getTimelinePosition(),
+                   posts.contains(where: { $0.uri == savedID }) {
+                    shouldMaintainPosition = true
+                    scrolledID = savedID
                     
-                    // trigger načtení dalších postů
-                    Color.clear
-                        .frame(height: 1)
-                        .onAppear {
-                            Task {
-                                await feed.loadOlderTimeline()
-                                NotificationCenter.default.post(name: .didLoadOlderPosts, object: nil)
-                            }
-                        }
-                }
-                .padding(.horizontal, 6)
-                .background(.warmBackground)
-                .scrollTargetLayout()
-            }
-            .onScrollPhaseChange { old, new in
-                isScrolling = new != .idle
-                if new == .tracking || new == .interacting {
-                    // Hide or show topbar based on scroll direction preference and scroll phase
-                    isTopbarHidden = true
-                } else if new == .idle {
-                    isTopbarHidden = false
-                }
-            }
-            .onScrollTargetVisibilityChange(idType: String.self) { visibleIDs in
-                guard !isRestoringScrollPosition else { return }
-                if let firstID = visibleIDs.first {
-                    topVisibleID = firstID
-                    TimelinePositionManager.shared.saveTimelinePosition(firstID)
-                    if let index = posts.firstIndex(where: { $0.uri == firstID }) {
-                        newPostsAboveCount = index
-                    } else {
-                        newPostsAboveCount = 0
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        shouldMaintainPosition = false
+                        isInitialLoad = false
                     }
+                } else {
+                    isInitialLoad = false
                 }
             }
-            .task {
-                if isRestoringScrollPosition {
-                    if let savedID = TimelinePositionManager.shared.getTimelinePosition() {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                            withAnimation {
-                                proxy.scrollTo(savedID, anchor: .top)
-                                isRestoringScrollPosition = false
-                            }
-                        }
-                    } else {
-                        isRestoringScrollPosition = false
-                    }
-                }
-            }
-            .onAppear {
-                DevLogger.shared.log("TimeLinePostList.swift - Main timeline loaded")
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .restoreScrollToID)) { notification in
-                if let id = notification.object as? String {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation {
-                            proxy.scrollTo(id, anchor: .top)
-                        }
-                    }
-                }
-            }
+        }
+        .onAppear {
+            DevLogger.shared.log("TimeLinePostList.swift - Main timeline loaded with scrollPosition API")
         }
     }
     
