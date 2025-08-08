@@ -78,15 +78,17 @@ struct TimelinePostList: View {
             }
         }
         .onChange(of: scrolledID) { _, newID in
-            // Save position when user scrolls (not during programmatic changes)
-            if !shouldMaintainPosition, let newID {
-                TimelinePositionManager.shared.saveTimelinePosition(newID)
-                
-                // Update new posts count
+            // Always update new posts count when position changes
+            if let newID {
                 if let index = posts.firstIndex(where: { $0.uri == newID }) {
                     newPostsAboveCount = index
                 } else {
                     newPostsAboveCount = 0
+                }
+                
+                // Save position only when user scrolls (not during programmatic changes)
+                if !shouldMaintainPosition {
+                    TimelinePositionManager.shared.saveTimelinePosition(newID)
                 }
             }
         }
