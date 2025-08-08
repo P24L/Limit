@@ -1196,9 +1196,12 @@ final class TimelineFeed {
   private var currentAccountDID: String?
   
   // Memory management constants
-  private let maxPostsInMemory = 1000
-  private let maxPostsInDatabase = 2000
-  private let cleanupThreshold = 1500
+  private let maxPostsInMemory = 500           // Maximum posts to keep in memory
+  private let maxPostsInDatabase = 1500        // Maximum posts to keep in database (3x memory)
+  private let keepInDatabaseWhenCleaning = 1000 // Posts to keep when cleaning database
+  private let softCleanupThreshold = 750       // When to start soft trim (preserves context)
+  private let hardCleanupThreshold = 2000      // When to force hard trim (aggressive cleanup)
+  private let keepAroundVisible = 30           // Posts to keep below visible post in soft trim
 
   init(context: ModelContext, client: BlueskyClient) {
     self.context = context
@@ -1329,11 +1332,12 @@ final class TimelineFeed {
         .sorted { $0.createdAt > $1.createdAt } // Sort newest first
       
       if postTypePosts.count > maxPostsInDatabase {
-        let postsToDelete = Array(postTypePosts.dropFirst(maxPostsInMemory)) // Keep maxPostsInMemory newest
+        // Keep keepInDatabaseWhenCleaning newest posts, delete the rest
+        let postsToDelete = Array(postTypePosts.dropFirst(keepInDatabaseWhenCleaning))
         postsToDelete.forEach { context.delete($0) }
         try context.save()
         
-        DevLogger.shared.log("TimelineFeed.swift - cleaned up \(postsToDelete.count) old posts for account \(accountDID), keeping \(postTypePosts.count - postsToDelete.count)")
+        DevLogger.shared.log("TimelineFeed.swift - DB cleanup: removed \(postsToDelete.count) old posts for account \(accountDID), keeping \(keepInDatabaseWhenCleaning) newest")
       }
     } catch {
       print("Failed to cleanup old posts: \(error)")
@@ -1345,18 +1349,45 @@ final class TimelineFeed {
   private func trimMemoryIfNeeded() {
     let postTypePosts = posts.filter { $0.type == .post }
     
-    if postTypePosts.count > cleanupThreshold {
-      // Sort by creation date, newest first
+    if postTypePosts.count > hardCleanupThreshold {
+      // HARD TRIM - too many posts, must clean aggressively regardless of position
       let sortedPosts = posts.sorted { $0.createdAt > $1.createdAt }
-      
-      // Keep only the newest posts up to maxPostsInMemory
       let postsToKeep = Array(sortedPosts.prefix(maxPostsInMemory))
-      
-      // Update the posts array
       posts = postsToKeep
       
-      DevLogger.shared.log("TimelineFeed.swift - trimmed memory: removed \(sortedPosts.count - postsToKeep.count) posts, keeping \(postsToKeep.count)")
+      DevLogger.shared.log("TimelineFeed - HARD trim: removed \(sortedPosts.count - postsToKeep.count) posts, keeping \(postsToKeep.count)")
+      
+    } else if postTypePosts.count > softCleanupThreshold {
+      // SOFT TRIM - preserve context around visible post
+      let visiblePostID = TimelinePositionManager.shared.getTimelinePosition()
+      let sortedPosts = posts.sorted { $0.createdAt > $1.createdAt }
+      
+      if let visibleID = visiblePostID,
+         let visibleIndex = sortedPosts.firstIndex(where: { $0.uri == visibleID }) {
+        
+        // Keep:
+        // 1. All posts ABOVE visible (newer)
+        // 2. The visible post
+        // 3. keepAroundVisible posts BELOW visible
+        
+        let keepUntilIndex = min(visibleIndex + keepAroundVisible, sortedPosts.count - 1)
+        let postsToKeep = Array(sortedPosts.prefix(keepUntilIndex + 1))
+        
+        // But maximum maxPostsInMemory
+        let finalPosts = Array(postsToKeep.prefix(maxPostsInMemory))
+        posts = finalPosts
+        
+        DevLogger.shared.log("TimelineFeed - SOFT trim around visible post: removed \(sortedPosts.count - finalPosts.count) posts, kept \(visibleIndex) posts above + \(min(keepAroundVisible, keepUntilIndex - visibleIndex)) below visible")
+        
+      } else {
+        // Visible post not found or not set - standard trim
+        let postsToKeep = Array(sortedPosts.prefix(maxPostsInMemory))
+        posts = postsToKeep
+        
+        DevLogger.shared.log("TimelineFeed - SOFT trim (no visible): removed \(sortedPosts.count - postsToKeep.count) posts, keeping \(postsToKeep.count)")
+      }
     }
+    // If count is below softCleanupThreshold, do nothing
   }
 
   func clearStorage(forAllAccounts: Bool = false) {
