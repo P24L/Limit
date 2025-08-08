@@ -118,7 +118,6 @@ struct ATTimelineView_experimental: View {
             switch selectedTab {
             case .timeline:
                 // Show cached posts immediately
-                let savedTopID = TimelinePositionManager.shared.getTimelinePosition()
                 if feed.posts.isEmpty {
                     feed.loadFromStorage()
                 }
@@ -129,9 +128,7 @@ struct ATTimelineView_experimental: View {
                     await feed.refreshTimeline()
                     await MainActor.run {
                         viewState = .posts(feed.postTimeline)
-                        if let id = savedTopID {
-                            NotificationCenter.default.post(name: .restoreScrollToID, object: id)
-                        }
+                        // ScrollPosition API will handle position restoration automatically
                     }
                 }
             case .aline:
@@ -145,12 +142,9 @@ struct ATTimelineView_experimental: View {
         .refreshable {
             switch selectedTab {
             case .timeline:
-                let savedTopID = TimelinePositionManager.shared.getTimelinePosition()
                 await feed.refreshTimeline()
                 viewState = .posts(feed.postTimeline)
-                if let id = savedTopID {
-                    NotificationCenter.default.post(name: .restoreScrollToID, object: id)
-                }
+                // ScrollPosition API will handle position restoration automatically
             case .aline:
                 // A-line uses its own refresh button
                 break
@@ -161,13 +155,10 @@ struct ATTimelineView_experimental: View {
         .onChange(of: scenePhase) { _, newPhase in
             if selectedTab == .timeline && newPhase == .active && Date().timeIntervalSince(lastRefresh) > 60 {
                 Task {
-                    let savedTopID = TimelinePositionManager.shared.getTimelinePosition()
                     await feed.refreshTimeline()
                     lastRefresh = .now
                     viewState = .posts(feed.postTimeline)
-                    if let id = savedTopID {
-                        NotificationCenter.default.post(name: .restoreScrollToID, object: id)
-                    }
+                    // ScrollPosition API will handle position restoration automatically
                 }
             } else if selectedTab == .aline && newPhase == .active {
                 // Don't auto-refresh A-line on scene activation
@@ -645,7 +636,6 @@ struct ATTimelineView_experimental: View {
 }
 
 extension Notification.Name {
-    static let restoreScrollToID = Notification.Name("RestoreScrollToID")
     static let restoreListScrollToID = Notification.Name("RestoreListScrollToID")
     static let didLoadOlderPosts = Notification.Name("DidLoadOlderPosts")
 }

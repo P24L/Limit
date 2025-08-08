@@ -15,65 +15,37 @@ struct ThreadWrappedView: View {
     
     let postThread: TimelinePostWrapper
     
-    @State private var posts: [TimelinePostWrapper]? = nil
-    @State private var beforePosts: [TimelinePostWrapper] = []
-    @State private var afterPosts: [TimelinePostWrapper] = []
-    
-    @State private var scrollToId: TimelinePostWrapper.ID? = nil
+    // Simplified state - just one array for all posts
+    @State private var posts: [TimelinePostWrapper] = []
+    @State private var scrolledID: String? = nil
     
     var body: some View {
-            Group {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(beforePosts, id: \.id) { post in
-                                PostItemWrappedView(post: post, isThreadView: true, showCard: true)
-                                    .id(post.id)
-                            }
-                            PostItemWrappedView(post: postThread, isThreadView: true, showCard: true)
-                                .id(postThread.id)
-                                .defaultScrollAnchor(.topLeading)
-                                
-                            ForEach(afterPosts, id: \.id) { post in
-                                PostItemWrappedView(post: post, isThreadView: true, showCard: true)
-                                    .id(post.id)
-                            }
-                            VStack {}.frame(height: 500)
-                        }
-                        .padding(.horizontal, 6)
-                        .background(.warmBackground)
-                        .scrollTargetLayout()
-                        .onChange(of: scrollToId) { _, newID in
-                            if let id = newID {
-                                DispatchQueue.main.async {
-                                    proxy.scrollTo(id, anchor: .top)
-                                }
-                            }
-                        }
+        Group {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(posts, id: \.id) { post in
+                        PostItemWrappedView(post: post, isThreadView: true, showCard: true)
+                            .id(post.uri)  // Use URI instead of ID for stable anchoring
                     }
-                    .task {
-                        posts = await client.fetchThreadWrapped(for: postThread.uri)
-
-                        if let allPosts = posts {
-                            let cleanedPosts = allPosts
-
-                            if let centerIndex = cleanedPosts.firstIndex(where: { $0.cid == postThread.cid })  {
-                                if centerIndex > 0 {
-                                    // Slicing od začátku až po index (nezahrnujeme element na centerIndex)
-                                    beforePosts = Array(cleanedPosts[..<centerIndex])
-                                    scrollToId = postThread.id
-                                }
-                                let nextIndex = centerIndex + 1
-                                if nextIndex < cleanedPosts.count {
-                                    // Slicing od indexu za středovým postem až na konec
-                                    afterPosts = Array(cleanedPosts[nextIndex...])
-                                }
-                            }
-                        }
-                    }
+                    VStack {}.frame(height: 500)
                 }
-
-
+                .padding(.horizontal, 6)
+                .background(.warmBackground)
+                .scrollTargetLayout()
+            }
+            .scrollPosition(id: $scrolledID, anchor: .top)
+            .task {
+                // 1. Show the main post immediately
+                posts = [postThread]
+                scrolledID = postThread.uri  // Use URI for stable reference
+                
+                // 2. Fetch and replace with full thread
+                let threadPosts = await client.fetchThreadWrapped(for: postThread.uri)
+                if !threadPosts.isEmpty {
+                    posts = threadPosts
+                    // scrollPosition API will maintain position on postThread.uri automatically!
+                }
+            }
         }
         .navigationTitle("Thread")
         .navigationBarTitleDisplayMode(.inline)

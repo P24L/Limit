@@ -97,67 +97,77 @@ struct ListTimelineView: View {
     @State private var posts: [TimelinePostWrapper] = []
     @State private var isLoading = false
     @State private var error: Error?
-    @State private var topVisibleID: String? = nil
-    @State private var isRestoringScrollPosition: Bool = true
+    
+    // Modern scrollPosition API approach
+    @State private var scrolledID: String? = nil
+    @State private var shouldMaintainPosition = false
+    @State private var isInitialLoad: Bool = true
 
     var body: some View {
-        Group {
-            if isLoading {
-                ProgressView("Loading posts…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error {
-                Text("Chyba: \(error.localizedDescription)")
-                    .foregroundColor(.red)
-                    .padding()
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            Color.clear
-                                .frame(height: 120)
-                            ForEach(posts) { post in
-                                PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil, showCard: true)
-                                    .id(post.uri)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .scrollTargetLayout()
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                Color.clear
+                    .frame(height: 120)
+                
+                if isLoading && posts.isEmpty {
+                    // Show loading inside ScrollView to maintain state
+                    ProgressView("Loading posts…")
+                        .frame(maxWidth: .infinity, minHeight: 400)
+                        .padding()
+                } else if let error, posts.isEmpty {
+                    // Show error inside ScrollView
+                    Text("Chyba: \(error.localizedDescription)")
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, minHeight: 400)
+                        .padding()
+                } else {
+                    // Show posts
+                    ForEach(posts) { post in
+                        PostItemWrappedView(post: post, depth: 0, nextPostID: nil, nextPostThreadRootID: nil, showCard: true)
+                            .id(post.uri)  // Use URI for stable anchoring
                     }
-                    .onScrollPhaseChange { old, new in
-                        if new == .tracking || new == .interacting {
-                            isTopbarHidden = true
-                        } else if new == .idle {
-                            isTopbarHidden = false
-                        }
-                    }
-                    .onScrollTargetVisibilityChange(idType: String.self) { visibleIDs in
-                        guard !isRestoringScrollPosition else { return }
-                        if let firstID = visibleIDs.first {
-                            topVisibleID = firstID
-                            TimelinePositionManager.shared.saveListPosition(firstID, for: source.uri)
-                        }
-                    }
-                    .onReceive(NotificationCenter.default.publisher(for: .restoreListScrollToID)) { notification in
-                        if let postID = notification.object as? String {
-                            withAnimation(.easeInOut(duration: 0.5)) {
-                                proxy.scrollTo(postID, anchor: .top)
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                                isRestoringScrollPosition = false
-                            }
-                        }
+                }
+            }
+            .padding(.horizontal, 12)
+            .scrollTargetLayout()
+        }
+        .scrollPosition(id: $scrolledID, anchor: .top)
+        .onScrollPhaseChange { old, new in
+            if new == .tracking || new == .interacting {
+                isTopbarHidden = true
+            } else if new == .idle {
+                isTopbarHidden = false
+            }
+        }
+        .onChange(of: scrolledID) { _, newID in
+            // Save position when user scrolls (not during programmatic changes)
+            if !shouldMaintainPosition, let newID {
+                TimelinePositionManager.shared.saveListPosition(newID, for: source.uri)
+            }
+        }
+        .onChange(of: posts) { oldPosts, newPosts in
+            // Handle data changes - maintain scroll position if needed
+            if !oldPosts.isEmpty && !newPosts.isEmpty {
+                // If we have a current position and it still exists in new posts
+                if let currentScrolledID = scrolledID,
+                   newPosts.contains(where: { $0.uri == currentScrolledID }) {
+                    // Maintain position
+                    shouldMaintainPosition = true
+                    scrolledID = currentScrolledID
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        shouldMaintainPosition = false
                     }
                 }
             }
         }
         .task(id: source.uri) {
-            await loadContent() 
-            // Fallback timeout - pokud se za 2 sekundy nepodaří obnovit pozici, povol ukládání
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                if isRestoringScrollPosition {
-                    isRestoringScrollPosition = false
-                }
-            }
+            // Clear posts when source changes for clean UX
+            posts = []
+            isInitialLoad = true
+            
+            // Load data with prepend logic (handles position restoration internally)
+            await loadContent()
         }
     }
 
@@ -167,45 +177,78 @@ struct ListTimelineView: View {
         defer { 
             isLoading = false
         }
-        let wrappers: [TimelinePostWrapper]
         
+        // 1. Fetch all data
+        let allWrappers = await fetchAllData()
+        
+        // 2. Try to find saved position
+        let savedID = TimelinePositionManager.shared.getListPosition(for: source.uri)
+        
+        await MainActor.run {
+            if let savedID = savedID,
+               let savedIndex = allWrappers.firstIndex(where: { $0.uri == savedID }) {
+                // 3A. We have saved position - use prepend strategy
+                
+                // Show posts from saved position down
+                let visiblePosts = Array(allWrappers[savedIndex...])
+                self.posts = visiblePosts
+                self.scrolledID = savedID
+                self.shouldMaintainPosition = true
+                
+                // After small delay, prepend older posts
+                if savedIndex > 0 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        let olderPosts = Array(allWrappers[0..<savedIndex])
+                        self.posts.insert(contentsOf: olderPosts, at: 0)
+                        // scrollPosition API will maintain position on savedID
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            self.shouldMaintainPosition = false
+                        }
+                    }
+                } else {
+                    // No older posts to prepend
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        self.shouldMaintainPosition = false
+                    }
+                }
+            } else {
+                // 3B. No saved position or post doesn't exist - normal load
+                self.posts = allWrappers
+                self.scrolledID = nil
+                self.shouldMaintainPosition = false
+            }
+            
+            self.isInitialLoad = false
+        }
+    }
+    
+    // Helper function to fetch data based on source type
+    private func fetchAllData() async -> [TimelinePostWrapper] {
         switch source {
         case .list(let list):
             let output = await client.getListFeed(listURI: list.uri, limit: 50)
-            wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            return output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
         case .feed(let feed):
             let output = await client.getCustomFeed(feedURI: feed.feedURI, limit: 50)
-            wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            return output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
         case .feedUri(let uri, _):
             let output = await client.getCustomFeed(feedURI: uri, limit: 50)
-            wrappers = output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            return output?.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
         case .trendingFeed(let link, _):
             let result = await client.viewTrendingFeed(link: link, limit: 50)
-            wrappers = result?.posts.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
+            return result?.posts.feed.compactMap { TimelinePostWrapper(from: $0.post) } ?? []
         case .trendingPosts:
             let calendar = Calendar.current
             let weekAgo = calendar.date(byAdding: .day, value: -2, to: Date())
             let output = await client.searchPosts(
-                matching: "*",  // Všechny posty
+                matching: "*",
                 sortRanking: .top,
                 sinceDate: weekAgo,
                 untilDate: Date(),
                 limit: 50
             )
-            wrappers = output?.posts.compactMap { TimelinePostWrapper(from: $0) } ?? []
-
-        }
-        
-        await MainActor.run {
-            self.posts = wrappers
-            // Po načtení postů obnov pozici pokud existuje
-            if let savedID = TimelinePositionManager.shared.getListPosition(for: source.uri) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    NotificationCenter.default.post(name: .restoreListScrollToID, object: savedID)
-                }
-            } else {
-                isRestoringScrollPosition = false
-            }
+            return output?.posts.compactMap { TimelinePostWrapper(from: $0) } ?? []
         }
     }
 }
