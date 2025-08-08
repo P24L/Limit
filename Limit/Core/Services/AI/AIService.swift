@@ -52,7 +52,7 @@ class AIService {
         
         do {
             let authorName = postWrapper.authorDisplayName ?? postWrapper.authorHandle
-            let prompt = "Explain this post from Bluesky: \(authorName): \(postWrapper.text). Provide clear, concise explanations in English language."
+            let prompt = "Explain this post from Bluesky: \(authorName): \(postWrapper.text). Provide clear, concise explanations in English language. Explain area specific terms."
             
             DevLogger.shared.log("AIService.swift - explainPost - starting OpenAI request")
             
@@ -69,6 +69,47 @@ class AIService {
             
         } catch {
             DevLogger.shared.log("AIService.swift - explainPost - error: \(error)")
+            lastError = error
+            throw error
+        }
+    }
+    
+    @MainActor
+    func explainThread(_ posts: [TimelinePostWrapper]) async throws -> String {
+        isLoading = true
+        lastError = nil
+        
+        defer {
+            isLoading = false
+        }
+        
+        do {
+            // Take max 10 posts from thread
+            let postsToExplain = Array(posts.prefix(10))
+            
+            // Build thread context
+            var threadContext = "Explain this Bluesky thread conversation:\n\n"
+            for (index, post) in postsToExplain.enumerated() {
+                let authorName = post.authorDisplayName ?? post.authorHandle
+                threadContext += "Post \(index + 1) - \(authorName): \(post.text)\n\n"
+            }
+            threadContext += "Provide a clear summary of the thread discussion, explain the context, key points, and any area-specific terms used. Help me understand what this conversation is about."
+            
+            DevLogger.shared.log("AIService.swift - explainThread - starting OpenAI request for \(postsToExplain.count) posts")
+            
+            let data = ["prompt": threadContext]
+            let result = try await generateText.call(data)
+            
+            guard let responseText = result.data as? String, !responseText.isEmpty else {
+                DevLogger.shared.log("AIService.swift - explainThread - empty response received")
+                throw AIServiceError.emptyResponse
+            }
+            
+            DevLogger.shared.log("AIService.swift - explainThread - request completed successfully")
+            return responseText
+            
+        } catch {
+            DevLogger.shared.log("AIService.swift - explainThread - error: \(error)")
             lastError = error
             throw error
         }

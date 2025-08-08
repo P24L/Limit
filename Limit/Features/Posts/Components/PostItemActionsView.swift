@@ -106,7 +106,7 @@ struct PostItemActionsView: View {
                 .monospacedDigit()
                 
                 Button {
-                    router.presentedSheet = .aiExplanation(postWrapper: postWrapper)
+                    router.presentedSheet = .aiExplanation(type: .singlePost(postWrapper))
                 } label: {
                     Image(systemName: "sparkles")
                         .font(.callout)

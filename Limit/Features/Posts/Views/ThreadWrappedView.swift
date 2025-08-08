@@ -12,6 +12,7 @@ struct ThreadWrappedView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Environment(BlueskyClient.self) private var client
+    @Environment(AppRouter.self) private var router
     
     let postThread: TimelinePostWrapper
     
@@ -49,5 +50,14 @@ struct ThreadWrappedView: View {
         }
         .navigationTitle("Thread")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    router.presentedSheet = .aiExplanation(type: .thread(Array(posts.prefix(10))))
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+            }
+        }
     }
 }

@@ -157,8 +157,8 @@ struct AppRootView: View {
             )
         case .composePost(let quotedPost, let replyTo):
             ComposePostView(quotedPost: quotedPost, replyTo: replyTo)
-        case .aiExplanation(let postWrapper):
-            AIExplanationBottomSheet(postWrapper: postWrapper)
+        case .aiExplanation(let type):
+            AIExplanationBottomSheet(explanationType: type)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.hidden)
         case .aiSummary(let bookmark):

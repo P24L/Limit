@@ -8,11 +8,16 @@
 import AppRouter
 import SwiftUI
 
+enum AIExplanationType: Hashable {
+    case singlePost(TimelinePostWrapper)
+    case thread([TimelinePostWrapper])
+}
+
 struct AIExplanationBottomSheet: View {
     @Environment(AppRouter.self) private var router
     @Environment(AIService.self) private var aiService
     
-    let postWrapper: TimelinePostWrapper
+    let explanationType: AIExplanationType
     
     @State private var explanation: String = ""
     @State private var hasError = false
@@ -31,7 +36,7 @@ struct AIExplanationBottomSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // Header with close button
                     HStack {
-                        Text("AI Explanation")
+                        Text(titleText)
                             .font(.title2)
                             .fontWeight(.bold)
                         
@@ -58,7 +63,7 @@ struct AIExplanationBottomSheet: View {
                         if aiService.isLoading {
                             VStack(spacing: 8) {
                                 ProgressView()
-                                Text("Analyzing post...")
+                                Text(loadingText)
                                     .foregroundStyle(.secondary)
                                     .font(.caption)
                             }
@@ -71,7 +76,7 @@ struct AIExplanationBottomSheet: View {
                                     .font(.system(size: 20))
                                     .foregroundStyle(.orange)
                                 
-                                Text("Unable to explain post")
+                                Text(errorText)
                                     .fontWeight(.semibold)
                                     .font(.subheadline)
                                 
@@ -142,21 +147,57 @@ struct AIExplanationBottomSheet: View {
         }
     }
     
+    private var titleText: String {
+        switch explanationType {
+        case .singlePost:
+            return "AI Explanation"
+        case .thread:
+            return "Thread Explanation"
+        }
+    }
+    
+    private var loadingText: String {
+        switch explanationType {
+        case .singlePost:
+            return "Analyzing post..."
+        case .thread:
+            return "Analyzing thread..."
+        }
+    }
+    
+    private var errorText: String {
+        switch explanationType {
+        case .singlePost:
+            return "Unable to explain post"
+        case .thread:
+            return "Unable to explain thread"
+        }
+    }
+    
     @MainActor
     private func loadExplanation() async {
         hasError = false
         explanation = ""
         
         do {
-            explanation = try await aiService.explainPost(postWrapper)
+            switch explanationType {
+            case .singlePost(let post):
+                explanation = try await aiService.explainPost(post)
+            case .thread(let posts):
+                explanation = try await aiService.explainThread(posts)
+            }
         } catch {
             hasError = true
-            DevLogger.shared.log("AIExplanationBottomSheet.swift - Failed to load post explanation: \(error)")
+            let logContext = switch explanationType {
+            case .singlePost: "post"
+            case .thread: "thread"
+            }
+            DevLogger.shared.log("AIExplanationBottomSheet.swift - Failed to load \(logContext) explanation: \(error)")
         }
     }
 }
 
 #Preview {
-    AIExplanationBottomSheet(postWrapper: SampleData.shared.makeOneSamplePostWrapper())
+    AIExplanationBottomSheet(explanationType: .singlePost(SampleData.shared.makeOneSamplePostWrapper()))
         .environment(AIService())
 }
