@@ -26,12 +26,13 @@ struct TimelinePostList: View {
     @Environment(\.modelContext) private var context
     @Environment(BlueskyClient.self) private var client
     @Environment(TimelineFeed.self) private var feed
+    @Environment(CurrentUser.self) private var currentUser
     
     // Hybrid approach: scrollPosition API + TimelinePositionManager
     @State private var scrolledID: String? = nil
     @State private var shouldMaintainPosition = false
     @State private var isScrolling: Bool = false
-    @State private var isInitialLoad: Bool = true
+    @State private var needsToRestorePositionForNewUser = false
 
     @Binding var newPostsAboveCount: Int
     @Binding var hideDirectionIsUp: Bool
@@ -113,23 +114,20 @@ struct TimelinePostList: View {
                     }
                 }
             }
+            
+            // After an account switch, restore scroll position
+            if needsToRestorePositionForNewUser && !newPosts.isEmpty {
+                restoreScrollPosition(posts: newPosts)
+                needsToRestorePositionForNewUser = false
+            }
+        }
+        .onChange(of: currentUser.did) {
+            // When user changes, flag that we need to restore position once posts are loaded
+            needsToRestorePositionForNewUser = true
         }
         .task {
             // Restore saved position on initial load
-            if isInitialLoad {
-                if let savedID = TimelinePositionManager.shared.getTimelinePosition(),
-                   posts.contains(where: { $0.uri == savedID }) {
-                    shouldMaintainPosition = true
-                    scrolledID = savedID
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        shouldMaintainPosition = false
-                        isInitialLoad = false
-                    }
-                } else {
-                    isInitialLoad = false
-                }
-            }
+            restoreScrollPosition(posts: posts)
         }
         .onAppear {
             DevLogger.shared.log("TimeLinePostList.swift - Main timeline loaded with scrollPosition API")
@@ -151,6 +149,21 @@ struct TimelinePostList: View {
         )
         .id(wrapper.uri)
         .padding(.vertical, 4)
+    }
+    
+    private func restoreScrollPosition(posts: [TimelinePostWrapper]) {
+        // Only try to restore if there are posts to scroll to
+        guard !posts.isEmpty else { return }
+
+        if let savedID = TimelinePositionManager.shared.getTimelinePosition(),
+           posts.contains(where: { $0.uri == savedID }) {
+            shouldMaintainPosition = true
+            scrolledID = savedID
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                shouldMaintainPosition = false
+            }
+        }
     }
     
     func loadOlderPostsIfNeeded() async {
