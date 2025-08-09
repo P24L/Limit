@@ -94,6 +94,18 @@ struct TimelinePostList: View {
             }
         }
         .onChange(of: posts) { oldPosts, newPosts in
+            // Fallback: if scroll position hasn't been set yet (race with refresh),
+            // restore from saved position as soon as posts update
+            if scrolledID == nil,
+               let savedID = TimelinePositionManager.shared.getTimelinePosition(),
+               newPosts.contains(where: { $0.uri == savedID }) {
+                shouldMaintainPosition = true
+                scrolledID = savedID
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    shouldMaintainPosition = false
+                }
+            }
+
             // Handle prepend operation - maintain scroll position
             if !oldPosts.isEmpty && !newPosts.isEmpty {
                 // Check if this is a prepend (new posts at beginning)
@@ -113,6 +125,11 @@ struct TimelinePostList: View {
                         }
                     }
                 }
+                if let index = posts.firstIndex(where: { $0.uri == scrolledID }) {
+                    newPostsAboveCount = index
+                } else {
+                    newPostsAboveCount = 0
+                }
             }
             
             // After an account switch, restore scroll position
@@ -131,6 +148,9 @@ struct TimelinePostList: View {
         }
         .onAppear {
             DevLogger.shared.log("TimeLinePostList.swift - Main timeline loaded with scrollPosition API")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            restoreScrollPosition(posts: posts)
         }
     }
     
