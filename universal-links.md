@@ -1,7 +1,7 @@
 # Universal Links Implementation with Claude Code
 
 ## Overview
-Implementujeme Universal Links pro `hyper-limit.app` domain přímo v existujícím Limit projektu pomocí GitHub Pages.
+Implementujeme Universal Links pro `hyperlimit.app` domain přímo v existujícím Limit projektu pomocí GitHub Pages.
 
 ## Phase 1: GitHub Pages Setup
 
@@ -24,7 +24,7 @@ Ve složce pro GitHub Pages (pravděpodobně `/docs`):
 ```
 
 ### 1.3 CNAME soubor
-Obsahuje pouze: `hyper-limit.app`
+Obsahuje pouze: `hyperlimit.app`
 
 ### 1.4 AASA soubor (`.well-known/apple-app-site-association`)
 - JSON bez přípony `.json`
@@ -35,7 +35,7 @@ Obsahuje pouze: `hyper-limit.app`
 - Team ID najdeš v Xcode → Signing & Capabilities
 
 ### 1.5 index.html
-- Landing page pro hyper-limit.app
+- Landing page pro hyperlimit.app
 - Modern gradient design
 - Link na App Store
 - Link na Privacy Policy
@@ -53,7 +53,7 @@ Obsahuje pouze: `hyper-limit.app`
 Pro OBA targets (main + dev):
 1. Signing & Capabilities → + Capability
 2. Add "Associated Domains"
-3. Add: `applinks:hyper-limit.app`
+3. Add: `applinks:hyperlimit.app`
 
 ### 2.2 Update Destination enum
 V `AppRoute.swift`:
@@ -68,7 +68,7 @@ enum Destination: DestinationType {
 ### 2.3 Handle Universal Links
 V `LimitApp.swift`:
 - Add `.onContinueUserActivity(NSUserActivityTypeBrowsingWeb)`
-- Parse URL: `https://hyper-limit.app/bookmark/{did}/{collection}/{rkey}`
+- Parse URL: `https://hyperlimit.app/bookmark/{did}/{collection}/{rkey}`
 - Navigate using router to bookmarkDetail
 
 ### 2.4 Handle Custom Scheme (fallback)
@@ -96,7 +96,7 @@ User needs to add in Namecheap dashboard:
 ```swift
 func generateShareLink(for bookmark: BookmarkRecord) -> URL {
     // Parse AT URI: at://did:plc:xyz/app.hyper-limit.bookmark/abc123
-    // Return: https://hyper-limit.app/bookmark/did:plc:xyz/app.hyper-limit.bookmark/abc123
+    // Return: https://hyperlimit.app/bookmark/did:plc:xyz/app.hyper-limit.bookmark/abc123
 }
 ```
 
@@ -115,11 +115,11 @@ func generateShareLink(for bookmark: BookmarkRecord) -> URL {
 ### 5.2 Test flow
 1. Build to device
 2. Open Safari
-3. Navigate to: `https://hyper-limit.app/bookmark/test/test/test`
+3. Navigate to: `https://hyperlimit.app/bookmark/test/test/test`
 4. Should prompt to open in app
 
 ### 5.3 Debugging
-- Check AASA: `https://hyper-limit.app/.well-known/apple-app-site-association`
+- Check AASA: `https://hyperlimit.app/.well-known/apple-app-site-association`
 - Console.app → filter by "swcd"
 - If not working: delete app, restart phone, reinstall
 
