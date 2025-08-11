@@ -43,6 +43,10 @@ struct PostDraft: Identifiable, Codable {
     /// Additional posts for thread creation
     var threadPosts: [PostDraft] = []
     
+    /// Flag indicating if this draft is for sharing a bookmark
+    /// When true, prevents external link from being overwritten during parsing
+    var isBookmarkShare: Bool = false
+    
     /// Computed character count (grapheme clusters, not bytes)
     var characterCount: Int {
         text.count

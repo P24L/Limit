@@ -20,6 +20,7 @@ struct ATTimelineView_experimental: View {
     @Environment(CurrentUser.self) private var currentUser
     @Environment(AppRouter.self) private var router
     @Environment(ComputedTimelineFeed.self) private var computedFeed
+    @Environment(BookmarkManager.self) private var bookmarkManager
 
     enum ViewState {
         case loading
@@ -90,6 +91,7 @@ struct ATTimelineView_experimental: View {
     
     @State private var selectedTab: TopbarTab = .timeline
     @State private var isRefreshingAline = false
+    @State private var showBookmarkConfirmation = false
     
     // Swipe gesture states
     @State private var dragOffset: CGSize = .zero
@@ -181,6 +183,10 @@ struct ATTimelineView_experimental: View {
                     viewState = getSelectedContent()
                 }
             }
+        }
+        .saveConfirmationOverlay(show: $showBookmarkConfirmation)
+        .onReceive(NotificationCenter.default.publisher(for: .bookmarkSaved)) { _ in
+            showBookmarkConfirmation = true
         }
     }
     

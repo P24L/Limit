@@ -389,8 +389,8 @@ extension ATProtoKit {
         )
     }
     
-    /// Gets a specific bookmark
-    public func getBookmark(
+    /// Gets a specific bookmark as BookmarkView
+    public func getBookmarkView(
         repo: String,
         rkey: String
     ) async throws -> BookmarkView {
@@ -452,7 +452,7 @@ extension ATProtoKit {
         updates: BookmarkUpdateInput
     ) async throws -> ComAtprotoLexicon.Repository.StrongReference {
         // First get the existing bookmark
-        let existing = try await getBookmark(repo: repo, rkey: rkey)
+        let existing = try await getBookmarkView(repo: repo, rkey: rkey)
         
         // Create updated record
         let updatedRecord = BookmarkRecord(
@@ -497,6 +497,65 @@ extension ATProtoKit {
             collection: "app.hyper-limit.bookmark",
             recordKey: rkey
         )
+    }
+    
+    // MARK: Get Bookmark Operations
+    
+    /// Gets a single bookmark record by repo and rkey
+    public func getBookmark(
+        repo: String,
+        rkey: String
+    ) async throws -> (value: BookmarkRecord, cid: String?) {
+        guard let session = try await getUserSession(),
+              let keychain = sessionConfiguration?.keychainProtocol else {
+            throw ATRequestPrepareError.missingActiveSession
+        }
+        
+        let accessToken = try await keychain.retrieveAccessToken()
+        
+        // Use the PDS URL from the session
+        let sessionPDSURL = session.pdsURL ?? pdsURL
+        
+        guard let requestURL = URL(string: "\(sessionPDSURL)/xrpc/com.atproto.repo.getRecord") else {
+            throw ATRequestPrepareError.invalidRequestURL
+        }
+        
+        var queryItems = [(String, String)]()
+        queryItems.append(("repo", repo))
+        queryItems.append(("collection", "app.hyper-limit.bookmark"))
+        queryItems.append(("rkey", rkey))
+        
+        let queryURL = try apiClientService.setQueryItems(
+            for: requestURL,
+            with: queryItems
+        )
+        
+        let request = apiClientService.createRequest(
+            forRequest: queryURL,
+            andMethod: .get,
+            acceptValue: "application/json",
+            contentTypeValue: nil,
+            authorizationValue: "Bearer \(accessToken)"
+        )
+        
+        do {
+            let response = try await apiClientService.sendRequest(
+                request,
+                decodeTo: ComAtprotoLexicon.Repository.GetRecordOutput.self
+            )
+            
+            // Decode the record value as BookmarkRecord
+            if let recordData = response.value,
+               let jsonData = try? JSONEncoder().encode(recordData),
+               let bookmarkRecord = try? JSONDecoder().decode(BookmarkRecord.self, from: jsonData) {
+                return (value: bookmarkRecord, cid: response.cid)
+            } else {
+                throw ATProtoError.recordNotFound
+            }
+        } catch {
+            DevLogger.shared.log("BookmarkLexicon - getBookmark - Error: \(error)")
+            throw error
+        }
     }
     
     // MARK: List Management Operations
@@ -720,7 +779,7 @@ extension ATProtoKit {
         listUris: [String]
     ) async throws {
         // Get the existing bookmark
-        let bookmark = try await getBookmark(repo: bookmarkRepo, rkey: bookmarkRkey)
+        let bookmark = try await getBookmarkView(repo: bookmarkRepo, rkey: bookmarkRkey)
         
         // Merge list URIs
         var updatedListUris = bookmark.record.listUris ?? []
@@ -745,7 +804,7 @@ extension ATProtoKit {
         listUri: String
     ) async throws {
         // Get the existing bookmark
-        let bookmark = try await getBookmark(repo: bookmarkRepo, rkey: bookmarkRkey)
+        let bookmark = try await getBookmarkView(repo: bookmarkRepo, rkey: bookmarkRkey)
         
         // Remove list URI
         var updatedListUris = bookmark.record.listUris ?? []

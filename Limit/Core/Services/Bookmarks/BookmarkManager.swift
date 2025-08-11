@@ -298,6 +298,107 @@ class BookmarkManager {
         }
     }
     
+    func createBookmark(_ record: BookmarkRecord) async throws {
+        guard let protoClient = client.protoClient else {
+            throw BookmarkError.noClient
+        }
+        
+        // Create via AT Protocol
+        let result = try await protoClient.createBookmark(
+            url: record.url,
+            title: record.title,
+            description: record.description,
+            summary: record.summary,
+            note: record.note,
+            imageUrl: record.imageUrl,
+            imageBlob: record.imageBlob,
+            tags: record.tags,
+            listUris: record.listUris,
+            pinned: record.pinned ?? false,
+            archived: record.archived ?? false,
+            reminder: record.reminder,
+            sourceUri: record.sourceUri,
+            encrypted: record.encrypted ?? false
+        )
+        
+        // Create view model
+        let newBookmark = BookmarkView(
+            uri: result.recordURI,
+            cid: result.recordCID,
+            record: record,
+            author: client.userSession?.handle ?? ""
+        )
+        
+        // Add to local array
+        bookmarks.insert(newBookmark, at: 0)
+        totalBookmarksCount += 1
+        
+        // Track access
+        trackAccess(for: result.recordURI)
+        
+        // Enforce memory limits after adding
+        enforceMemoryLimits()
+        
+        // Enqueue for processing if summary is needed
+        if record.summary == nil {
+            await enqueueForProcessing(newBookmark)
+        }
+        
+        DevLogger.shared.log("BookmarkManager - Created bookmark: \(result.recordURI)")
+    }
+    
+    func updateBookmark(uri: String, record: BookmarkRecord) async throws {
+        guard let protoClient = client.protoClient else {
+            throw BookmarkError.noClient
+        }
+        
+        // Extract repo and rkey from URI
+        guard let (repo, rkey) = ATProtoUtils.extractRepoAndRkey(from: uri) else {
+            throw BookmarkError.invalidURL
+        }
+        
+        // Delete old record
+        try await protoClient.deleteBookmark(repo: repo, rkey: rkey)
+        
+        // Create new record with preserved createdAt
+        let result = try await protoClient.createBookmark(
+            url: record.url,
+            title: record.title,
+            description: record.description,
+            summary: record.summary,
+            note: record.note,
+            imageUrl: record.imageUrl,
+            imageBlob: record.imageBlob,
+            tags: record.tags,
+            listUris: record.listUris,
+            pinned: record.pinned ?? false,
+            archived: record.archived ?? false,
+            reminder: record.reminder,
+            sourceUri: record.sourceUri,
+            encrypted: record.encrypted ?? false
+        )
+        
+        // Update local array
+        if let index = bookmarks.firstIndex(where: { $0.uri == uri }) {
+            let updatedBookmark = BookmarkView(
+                uri: result.recordURI,
+                cid: result.recordCID,
+                record: record,
+                author: client.userSession?.handle ?? ""
+            )
+            bookmarks[index] = updatedBookmark
+        }
+        
+        DevLogger.shared.log("BookmarkManager - Updated bookmark: \(uri)")
+    }
+    
+    func deleteBookmark(uri: String) async throws {
+        guard let bookmark = bookmarks.first(where: { $0.uri == uri }) else {
+            throw BookmarkError.notFound
+        }
+        try await deleteBookmark(bookmark)
+    }
+    
     func deleteBookmark(_ bookmark: BookmarkView) async throws {
         guard let protoClient = client.protoClient else {
             throw BookmarkError.noClient
@@ -333,6 +434,9 @@ class BookmarkManager {
             // Remove bookmark
             do {
                 try await deleteBookmark(existing)
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .bookmarkRemoved, object: nil)
+                }
             } catch {
                 DevLogger.shared.log("BookmarkManager - Failed to delete bookmark: \(error)")
             }
@@ -345,6 +449,9 @@ class BookmarkManager {
                     description: description,
                     imageUrl: imageUrl
                 )
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .bookmarkSaved, object: nil)
+                }
             } catch {
                 DevLogger.shared.log("BookmarkManager - Failed to create bookmark: \(error)")
             }
@@ -353,6 +460,24 @@ class BookmarkManager {
     
     func isBookmarked(_ url: URL) -> Bool {
         bookmarks.contains { $0.record.url == url.absoluteString }
+    }
+    
+    // MARK: - Sharing
+    
+    
+    /// Prepare bookmark data for sharing (returns formatted text and embed data)
+    func prepareBookmarkForSharing(_ bookmark: BookmarkView) -> (text: String, url: URL?, title: String, description: String?, imageUrl: URL?) {
+        let shareText = "Check out this bookmark I saved: \(bookmark.record.title)"
+        let url = URL(string: bookmark.record.url)
+        let imageUrl = bookmark.record.imageUrl.flatMap { URL(string: $0) }
+        
+        return (
+            text: shareText,
+            url: url,
+            title: bookmark.record.title,
+            description: bookmark.record.description,
+            imageUrl: imageUrl
+        )
     }
     
     // MARK: - List Management

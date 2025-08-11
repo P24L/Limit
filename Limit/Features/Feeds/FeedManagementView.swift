@@ -190,5 +190,5 @@ struct FeedManagementItemView: View {
     }
     .environment(BlueskyClient.preview())
     .environment(CurrentUser())
-    .environment(AppRouter(initialTab: .settings))
+    .environment(AppRouter(initialTab: .profile))
 }

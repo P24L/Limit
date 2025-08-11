@@ -12,7 +12,7 @@ import SwiftUI
 import ATProtoKit
 
 enum AppTab: String, TabType, CaseIterable {
-    case timeline, favorites, post, search, settings
+    case timeline, bookmarks, post, search, profile
     
     var id: String { rawValue}
     
@@ -20,13 +20,13 @@ enum AppTab: String, TabType, CaseIterable {
         switch self {
         case .timeline:
             return "house"
-        case .favorites:
-            return "heart.fill"
+        case .bookmarks:
+            return "bookmark.fill"
         case .post:
             return "plus.circle.fill"
         case .search:
             return "magnifyingglass"
-        case .settings:
+        case .profile:
             return "person.crop.circle"
         }
     }
@@ -35,13 +35,13 @@ enum AppTab: String, TabType, CaseIterable {
         switch self {
         case .timeline:
             return "Home"
-        case .favorites:
-            return "You"
+        case .bookmarks:
+            return "Bookmarks"
         case .post:
-            return "Post"
+            return ""  // Empty for + button
         case .search:
             return "Search"
-        case .settings:
+        case .profile:
             return "Profile"
         }
     }
@@ -63,6 +63,11 @@ enum Destination: DestinationType {
     case feedManagement
     case feedTimeline(uri: String, displayName: String)
     case bookmarkListManagement
+    case bookmarkDetail(id: String)
+    case bookmarkEdit(id: String?)
+    case externalBookmark(uri: String, isOwner: Bool)
+    case notifications
+    case savedPosts
     
     static func from(path: String, fullPath: [String], parameters: [String : String]) -> Destination? {
         return nil // Nepotřebuješ prozatím deep-linking, lze doplnit později.
@@ -73,11 +78,12 @@ enum Destination: DestinationType {
 enum Sheet: SheetType {
     case none // nebo můžeš později přidat např. compose post apod.
     case login
-    case composePost(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil)
+    case composePost(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil, bookmark: BookmarkView? = nil)
     case fullScreenImage(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID)
     case aiExplanation(type: AIExplanationType)
     case aiSummary(bookmark: BookmarkView)
     case repostOptions(post: TimelinePostWrapper)
+    case bookmarkEdit(id: String? = nil)
     
     var id: Int { hashValue }
 }

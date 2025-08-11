@@ -3,6 +3,68 @@ import SwiftSoup
 
 class ImageURLExtractor {
     
+    // MARK: - Title Extraction
+    
+    func extractTitle(from html: String) -> String? {
+        do {
+            let doc = try SwiftSoup.parse(html)
+            
+            // Try Open Graph title first
+            if let ogTitle = try doc.select("meta[property=og:title]").first()?.attr("content"),
+               !ogTitle.isEmpty {
+                return ogTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            // Try Twitter title
+            if let twitterTitle = try doc.select("meta[name=twitter:title]").first()?.attr("content"),
+               !twitterTitle.isEmpty {
+                return twitterTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            // Fallback to regular title tag
+            if let title = try doc.select("title").first()?.text(),
+               !title.isEmpty {
+                return title.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        } catch {
+            print("ImageURLExtractor - Title extraction failed: \(error)")
+        }
+        
+        return nil
+    }
+    
+    // MARK: - Description Extraction
+    
+    func extractDescription(from html: String) -> String? {
+        do {
+            let doc = try SwiftSoup.parse(html)
+            
+            // Try Open Graph description first
+            if let ogDesc = try doc.select("meta[property=og:description]").first()?.attr("content"),
+               !ogDesc.isEmpty {
+                return ogDesc.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            // Try Twitter description
+            if let twitterDesc = try doc.select("meta[name=twitter:description]").first()?.attr("content"),
+               !twitterDesc.isEmpty {
+                return twitterDesc.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            // Try regular meta description
+            if let metaDesc = try doc.select("meta[name=description]").first()?.attr("content"),
+               !metaDesc.isEmpty {
+                return metaDesc.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        } catch {
+            print("ImageURLExtractor - Description extraction failed: \(error)")
+        }
+        
+        return nil
+    }
+    
+    // MARK: - Image Extraction
+    
     func extractOpenGraphImage(from html: String) -> String? {
         do {
             let doc = try SwiftSoup.parse(html)
