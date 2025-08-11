@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opening Bookmark in Limit...</title>
+    <meta name="description" content="View this bookmark in Limit app for Bluesky">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 400px;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            animation: spin 1s linear infinite;
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        p {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        .button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .secondary-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+        
+        .error {
+            background: rgba(255, 70, 70, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loader"></div>
+        <h1>Opening in Limit...</h1>
+        <p>Redirecting you to view this bookmark in the Limit app</p>
+        
+        <div id="fallback" style="display: none;">
+            <p style="margin-top: 20px;">Don't have Limit yet?</p>
+            <a href="https://apps.apple.com/app/limit-for-bluesky/id6738954136" class="button">
+                Get Limit on App Store
+            </a>
+            <a href="https://ios.hyper-limit.app" class="button secondary-button">
+                Learn More
+            </a>
+        </div>
+        
+        <div id="error" class="error">
+            <p>Invalid bookmark link format</p>
+        </div>
+    </div>
+    
+    <script>
+        // Parse the URL to extract bookmark parameters
+        function parseBookmarkURL() {
+            const path = window.location.pathname;
+            const parts = path.split('/').filter(p => p && p !== 'bookmark' && p !== 'b');
+            
+            if (parts.length >= 3) {
+                // Expected format: /bookmark/{did}/{collection}/{rkey}
+                // or shortened: /b/{did}/{collection}/{rkey}
+                return {
+                    did: parts[0],
+                    collection: parts[1],
+                    rkey: parts[2]
+                };
+            }
+            return null;
+        }
+        
+        // Attempt to open in app
+        function openInApp() {
+            const params = parseBookmarkURL();
+            
+            if (!params) {
+                // Show error for invalid format
+                document.getElementById('error').style.display = 'block';
+                document.querySelector('.loader').style.display = 'none';
+                document.querySelector('h1').textContent = 'Invalid Link';
+                document.querySelector('p').style.display = 'none';
+                return;
+            }
+            
+            // Construct the deep link URL
+            const deepLink = `limit://bookmark/${params.did}/${params.collection}/${params.rkey}`;
+            
+            // Try to open the app
+            window.location.href = deepLink;
+            
+            // Show App Store fallback after 2 seconds
+            setTimeout(function() {
+                document.getElementById('fallback').style.display = 'block';
+                document.querySelector('.loader').style.display = 'none';
+                document.querySelector('h1').textContent = 'Open in Limit';
+                document.querySelector('p').textContent = 'Tap below to view this bookmark';
+            }, 2000);
+        }
+        
+        // Handle universal link redirect for logged-in users
+        if (window.location.search.includes('redirect=true')) {
+            // This parameter would be set by the app if it handles the universal link
+            // For now, we'll just show the success state
+            document.querySelector('h1').textContent = 'Success!';
+            document.querySelector('p').textContent = 'Bookmark opened in Limit';
+            document.querySelector('.loader').style.display = 'none';
+        } else {
+            // Attempt to open in app when page loads
+            openInApp();
+        }
+    </script>
+</body>
+</html>
