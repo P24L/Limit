@@ -25,9 +25,22 @@
 		F0G123442E0F500000BC679A /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		F06ACC752E4A134600895F32 /* Exceptions for "Limit" folder in "Limit" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F0B84C972DD71AF30007E370 /* Limit */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F0B84C9A2DD71AF30007E370 /* Limit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F06ACC752E4A134600895F32 /* Exceptions for "Limit" folder in "Limit" target */,
+			);
 			path = Limit;
 			sourceTree = "<group>";
 		};
@@ -311,6 +324,7 @@
 				DEVELOPMENT_TEAM = 6U9V38M6H4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Limit/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Limit;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -348,6 +362,7 @@
 				DEVELOPMENT_TEAM = 6U9V38M6H4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Limit/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Limit;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
