@@ -183,6 +183,11 @@ struct LimitApp: App {
             .onOpenURL { url in
                 handleDeepLink(url)
             }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
+                if let url = userActivity.webpageURL {
+                    handleUniversalLink(url)
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 if client.isAuthenticated {
                     notificationManager.startPeriodicRefresh()
@@ -260,7 +265,12 @@ struct LimitApp: App {
                 pendingDeepLink = nil
                 // Process on main actor to ensure UI updates
                 await MainActor.run {
-                    processDeepLink(pending)
+                    // Check if it's a universal link or custom scheme
+                    if pending.host == "ios.hyper-limit.app" {
+                        processUniversalLink(pending)
+                    } else {
+                        processDeepLink(pending)
+                    }
                 }
             }
         } else {
@@ -290,8 +300,72 @@ struct LimitApp: App {
         processDeepLink(url)
     }
     
+    private func handleUniversalLink(_ url: URL) {
+        DevLogger.shared.log("LimitApp - Handling universal link: \(url)")
+        
+        // Check if it's our domain
+        guard url.host == "ios.hyper-limit.app" else {
+            DevLogger.shared.log("LimitApp - Not our domain: \(url.host ?? "nil")")
+            return
+        }
+        
+        // Check authentication state (same as handleDeepLink)
+        if !client.isAuthenticated {
+            DevLogger.shared.log("LimitApp - User not authenticated, storing universal link for later")
+            pendingDeepLink = url  // Store it as pending
+            
+            // Trigger login if not already in progress
+            if appState.value == .unauthenticated {
+                Task {
+                    await tryAutoLogin()
+                }
+            }
+            return
+        }
+        
+        // Process the universal link immediately
+        processUniversalLink(url)
+    }
+    
+    private func processUniversalLink(_ url: URL) {
+        DevLogger.shared.log("LimitApp - Processing universal link: \(url)")
+        
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
+        
+        // Handle bookmark links: https://ios.hyper-limit.app/bookmark/{did}/{collection}/{rkey}
+        // or shortened: https://ios.hyper-limit.app/b/{did}/{collection}/{rkey}
+        if pathComponents.count >= 4 && (pathComponents[0] == "bookmark" || pathComponents[0] == "b") {
+            let did = pathComponents[1]
+            let collection = pathComponents[2]
+            let rkey = pathComponents[3]
+            
+            // Reconstruct AT URI
+            let atUri = "at://\(did)/\(collection)/\(rkey)"
+            
+            DevLogger.shared.log("LimitApp - Parsed universal link: did=\(did), collection=\(collection), rkey=\(rkey)")
+            
+            // Check if it's user's own bookmark
+            let isOwner = AccountManager.shared.currentAccount?.did == did || client.currentDID == did
+            
+            // Navigate based on ownership
+            if isOwner {
+                router.navigateTo(.bookmarkDetail(id: rkey))
+            } else {
+                router.navigateTo(.externalBookmark(uri: atUri, isOwner: false))
+            }
+            
+            DevLogger.shared.log("LimitApp - Navigating to bookmark from universal link: \(atUri), isOwner: \(isOwner)")
+        }
+    }
+    
     private func processDeepLink(_ url: URL) {
         DevLogger.shared.log("LimitApp - Processing deep link: \(url)")
+        
+        // Handle universal links that were redirected here
+        if url.host == "ios.hyper-limit.app" {
+            processUniversalLink(url)
+            return
+        }
         
         // Parse: limit://bookmark/{did}/{collection}/{rkey}
         if url.scheme == "limit" && url.host == "bookmark" {

@@ -244,24 +244,33 @@ struct BookmarkCardView: View {
     }
 
     private func shareDeepLink() {
-        let deepLink = generateDeepLink()
-        UIPasteboard.general.string = deepLink
+        // Use universal link instead of deep link
+        guard let universalLink = BookmarkShareUtils.generateUniversalLink(for: bookmark.uri) else {
+            DevLogger.shared.log("BookmarkCardView - Failed to generate universal link")
+            return
+        }
+        
+        UIPasteboard.general.string = universalLink.absoluteString
         withAnimation { showShareConfirmation = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation { showShareConfirmation = false }
         }
-        DevLogger.shared.log("BookmarkCardView - Deep link copied: \(deepLink)")
+        DevLogger.shared.log("BookmarkCardView - Universal link copied: \(universalLink.absoluteString)")
     }
 
     private func shareToSystem() {
-        let deepLink = generateDeepLink()
-        let shareText = """
-        Check out this bookmark: \(bookmark.record.title)
-
-        \(bookmark.record.url)
-
-        Open in Limit: \(deepLink)
-        """
+        // Use universal link instead of deep link
+        guard let universalLink = BookmarkShareUtils.generateUniversalLink(for: bookmark.uri) else {
+            DevLogger.shared.log("BookmarkCardView - Failed to generate universal link for system share")
+            return
+        }
+        
+        let shareText = BookmarkShareUtils.generateShareText(
+            title: bookmark.record.title,
+            description: bookmark.record.description,
+            universalLink: universalLink
+        )
+        
         let activityVC = UIActivityViewController(activityItems: [shareText], applicationActivities: nil)
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootVC = windowScene.windows.first?.rootViewController {
@@ -273,15 +282,7 @@ struct BookmarkCardView: View {
         }
     }
 
-    private func generateDeepLink() -> String {
-        guard let components = ATProtoUtils.parseURI(bookmark.uri) else {
-            DevLogger.shared.log("BookmarkCardView - Failed to parse URI: \(bookmark.uri)")
-            return bookmark.record.url
-        }
-        let deepLink = "limit://bookmark/\(components.repo)/\(components.collection)/\(components.rkey)"
-        DevLogger.shared.log("BookmarkCardView - Generated deep link: \(deepLink)")
-        return deepLink
-    }
+    // Note: generateDeepLink() removed - now using BookmarkShareUtils for universal links
 
     private func getCachedImageBlob() -> Data? { nil }
 

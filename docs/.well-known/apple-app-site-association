@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "6U9V38M6H4.P24L.Limit",
+        "paths": [
+          "/bookmark/*",
+          "/b/*"
+        ]
+      },
+      {
+        "appID": "6U9V38M6H4.P24L.Limit.dev",
+        "paths": [
+          "/bookmark/*",
+          "/b/*"
+        ]
+      }
+    ]
+  }
+}
