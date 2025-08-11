@@ -1,0 +1,14 @@
+# GitHub Pages configuration
+title: Limit - Premium Bluesky Client for iOS
+description: Experience Bluesky with advanced bookmark management and powerful features
+
+# Include hidden directories
+include:
+  - .well-known
+
+# Ensure proper MIME type for AASA file
+defaults:
+  - scope:
+      path: ".well-known/apple-app-site-association"
+    values:
+      layout: null
