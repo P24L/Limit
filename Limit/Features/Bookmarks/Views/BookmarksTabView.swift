@@ -28,30 +28,28 @@ struct BookmarksTabView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            Group {
-                switch selectedSubTab {
-                case .saved:
-                    SavedBookmarksListView(searchText: $searchText)
-                case .lists:
-                    BookmarkListsView()
-                }
+        Group {
+            switch selectedSubTab {
+            case .saved:
+                SavedBookmarksListView(searchText: $searchText)
+            case .lists:
+                BookmarkListsView()
             }
-            .navigationTitle("Bookmarks")
-            .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: "Search bookmarks")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        router.presentedSheet = .bookmarkEdit(id: nil)
-                    } label: {
-                        Image(systemName: "plus")
-                            .foregroundColor(.mintAccent)
-                    }
-                }
-            }
-            .safeAreaInset(edge: .top) { subTabPicker }
         }
+        .navigationTitle("Bookmarks")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "Search bookmarks")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    router.presentedSheet = .bookmarkEdit(id: nil)
+                } label: {
+                    Image(systemName: "plus")
+                        .foregroundColor(.mintAccent)
+                }
+            }
+        }
+        .safeAreaInset(edge: .top) { subTabPicker }
     }
     
     // MARK: - Sub Tab Picker
