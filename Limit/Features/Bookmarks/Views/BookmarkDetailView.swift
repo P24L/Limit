@@ -15,7 +15,14 @@ struct BookmarkDetailView: View {
     @Environment(AppRouter.self) private var router
     
     var bookmark: BookmarkView? {
-        bookmarkManager.bookmarks.first { $0.uri.contains(bookmarkId) }
+        // bookmarkId is the rkey - find bookmark by checking if URI ends with this rkey
+        bookmarkManager.bookmarks.first { bookmark in
+            // Parse URI to get rkey: at://did/collection/rkey
+            if let lastComponent = bookmark.uri.split(separator: "/").last {
+                return String(lastComponent) == bookmarkId
+            }
+            return false
+        }
     }
     
     var body: some View {
@@ -182,7 +189,27 @@ struct BookmarkDetailView: View {
                 }
             }
         } else {
-            Text("Bookmark not found").foregroundColor(.secondary)
+            VStack(spacing: 20) {
+                Text("⚠️ BOOKMARK NOT FOUND")
+                    .font(.largeTitle)
+                    .foregroundColor(.red)
+                    .padding()
+                
+                Text("Looking for bookmark with ID:")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Text(bookmarkId)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal)
+                
+                Text("Total bookmarks in cache: \(bookmarkManager.bookmarks.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            //.frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.yellow.opacity(0.3))
         }
     }
 }

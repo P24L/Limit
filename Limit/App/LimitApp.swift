@@ -349,9 +349,13 @@ struct LimitApp: App {
             
             // Navigate based on ownership
             if isOwner {
-                router.navigateTo(.bookmarkDetail(id: rkey))
+                // Switch to bookmarks tab first, then navigate
+                router.selectedTab = .bookmarks
+                router.navigateTo(.bookmarkDetail(id: rkey), for: .bookmarks)
             } else {
-                router.navigateTo(.externalBookmark(uri: atUri, isOwner: false))
+                // For external bookmarks, also switch to bookmarks tab
+                router.selectedTab = .bookmarks  
+                router.navigateTo(.externalBookmark(uri: atUri, isOwner: false), for: .bookmarks)
             }
             
             DevLogger.shared.log("LimitApp - Navigating to bookmark from universal link: \(atUri), isOwner: \(isOwner)")
@@ -393,10 +397,12 @@ struct LimitApp: App {
             // Navigate based on ownership
             if isOwner {
                 // For own bookmarks, use regular detail view
-                router.navigateTo(.bookmarkDetail(id: rkey))
+                router.selectedTab = .bookmarks
+                router.navigateTo(.bookmarkDetail(id: rkey), for: .bookmarks)
             } else {
                 // For external bookmarks, use external view
-                router.navigateTo(.externalBookmark(uri: atUri, isOwner: false))
+                router.selectedTab = .bookmarks
+                router.navigateTo(.externalBookmark(uri: atUri, isOwner: false), for: .bookmarks)
             }
             
             DevLogger.shared.log("LimitApp - Navigating to bookmark: \(atUri), isOwner: \(isOwner)")

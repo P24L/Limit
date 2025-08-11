@@ -22,14 +22,14 @@ struct AppRootView: View {
         ZStack {
             TabView(selection: $router.selectedTab) {
           ForEach(AppTab.allCases) { tab in
-              GeometryReader { _ in
+              //GeometryReader { _ in
                 NavigationStack(path: $router[tab]) {
                   view(for: tab)
                     .navigationDestination(for: Destination.self) { destination in
                       destinationView(for: destination)
                     }
                 }
-              }
+              //}
             .tabItem {
                 Label(tab.description, systemImage: tab.icon)
             }
