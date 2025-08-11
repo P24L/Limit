@@ -48,6 +48,8 @@ struct PostItemWrappedView: View {
 
     @State private var selectedImageIndex: Int = 0
     @State private var fullScreenImages: [PostImage] = []
+    @State private var showSaveConfirmation: Bool = false
+    @State private var savedBookmarkId: String? = nil
     
     // Stores the calculated height of the view's content.
     // When nil, the view renders with a flexible height. Once a height is measured

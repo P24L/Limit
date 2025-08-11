@@ -1,0 +1,236 @@
+// SavedBookmarksListView.swift
+
+import SwiftUI
+
+struct SavedBookmarksListView: View {
+    @Environment(BookmarkManager.self) private var bookmarkManager
+    @Environment(AppRouter.self) private var router
+    
+    @Binding var searchText: String
+    @State private var isLoadingMore = false
+    @State private var selectedTags: Set<String> = []
+    
+    init(searchText: Binding<String> = .constant("")) {
+        self._searchText = searchText
+    }
+
+    // Available tags (unique, case-insensitive, sorted by frequency then name)
+    private var availableTags: [String] {
+        let tags = bookmarkManager.bookmarks.flatMap { $0.record.tags ?? [] }
+        guard !tags.isEmpty else { return [] }
+        var freq: [String:Int] = [:]
+        for t in tags { freq[t, default: 0] += 1 }
+        return freq
+            .sorted { lhs, rhs in
+                if lhs.value != rhs.value { return lhs.value > rhs.value }
+                return lhs.key.localizedCaseInsensitiveCompare(rhs.key) == .orderedAscending
+            }
+            .map { $0.key }
+    }
+
+    private var allBookmarks: [BookmarkView] { bookmarkManager.bookmarks }
+
+    // MARK: - Filtering
+    private var filtered: [BookmarkView] {
+        // Base set
+        let base: [BookmarkView]
+        if searchText.isEmpty {
+            base = allBookmarks
+        } else {
+            base = allBookmarks.filter { b in
+                if b.record.title.localizedCaseInsensitiveContains(searchText) { return true }
+                if let d = b.record.description, d.localizedCaseInsensitiveContains(searchText) { return true }
+                if b.record.url.localizedCaseInsensitiveContains(searchText) { return true }
+                if let n = b.record.note, n.localizedCaseInsensitiveContains(searchText) { return true }
+                if let tags = b.record.tags, tags.contains(where: { $0.localizedCaseInsensitiveContains(searchText) }) { return true }
+                return false
+            }
+        }
+        // Tag filter (multi-select chips)
+        if selectedTags.isEmpty { return base }
+        return base.filter { b in
+            guard let tags = b.record.tags else { return false }
+            return !selectedTags.isDisjoint(with: Set(tags))
+        }
+    }
+    
+    // MARK: - Body
+    var body: some View {
+        ZStack {
+            List {
+                ForEach(filtered, id: \.uri) { bookmark in
+                    // Tvůj card view přímo v List řádku
+                    BookmarkCardView(bookmark: bookmark)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button {
+                                router.presentedSheet = .bookmarkEdit(id: extractBookmarkId(from: bookmark.uri))
+                            } label: { Label("Edit", systemImage: "pencil") }
+                            
+                            Button {
+                                if let url = URL(string: bookmark.record.url) {
+                                    router.navigateTo(.safari(url: url))
+                                }
+                            } label: { Label("Open Link", systemImage: "safari") }
+                            
+                            Button(role: .destructive) {
+                                Task { try? await bookmarkManager.deleteBookmark(bookmark) }
+                            } label: { Label("Delete", systemImage: "trash") }
+                        }
+                        // Leading swipe: rychlé otevření
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            Button {
+                                if let url = URL(string: bookmark.record.url) {
+                                    router.navigateTo(.safari(url: url))
+                                }
+                            } label: { Label("Open", systemImage: "safari") }
+                        }
+                        // Trailing swipe: edit / share / delete
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button {
+                                router.presentedSheet = .bookmarkEdit(id: extractBookmarkId(from: bookmark.uri))
+                            } label: { Label("Edit", systemImage: "pencil") }
+                            
+                            Button {
+                                router.presentedSheet = .composePost(quotedPost: nil, replyTo: nil, bookmark: bookmark)
+                            } label: { Label("Share", systemImage: "square.and.arrow.up") }
+                            
+                            Button(role: .destructive) {
+                                Task { try? await bookmarkManager.deleteBookmark(bookmark) }
+                            } label: { Label("Delete", systemImage: "trash") }
+                        }
+                        .onAppear {
+                            if searchText.isEmpty && bookmark.uri == filtered.last?.uri {
+                                Task { await loadMore() }
+                            }
+                        }
+                }
+                
+                if bookmarkManager.isLoadingPage {
+                    HStack {
+                        Spacer()
+                        ProgressView().padding()
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                }
+            }
+            .listStyle(.plain)
+            .safeAreaInset(edge: .top) {
+                if !availableTags.isEmpty {
+                    TagChipsBar(tags: availableTags,
+                                selected: selectedTags,
+                                onToggle: { tag in
+                                    if selectedTags.contains(tag) {
+                                        selectedTags.remove(tag)
+                                    } else {
+                                        selectedTags.insert(tag)
+                                    }
+                                },
+                                onClear: {
+                                    selectedTags.removeAll()
+                                })
+                }
+            }
+            .refreshable {
+                await bookmarkManager.fetchAndSyncBookmarks()
+            }
+            .task {
+                if bookmarkManager.bookmarks.isEmpty {
+                    await bookmarkManager.fetchAndSyncBookmarks()
+                }
+            }
+            
+            if filtered.isEmpty {
+                EmptySavedState(searchText: searchText) {
+                    router.presentedSheet = .bookmarkEdit(id: nil)
+                }
+                .padding(.horizontal, 24)
+            }
+        }
+    }
+    
+    // MARK: - Paging
+    private func loadMore() async {
+        guard !isLoadingMore else { return }
+        isLoadingMore = true
+        await bookmarkManager.loadNextPage()
+        isLoadingMore = false
+    }
+    
+    // MARK: - Helpers
+    private func extractBookmarkId(from uri: String) -> String {
+        let c = uri.split(separator: "/")
+        if let last = c.last { return String(last) }
+        return uri
+    }
+}
+
+// MARK: - Chips Bar
+private struct TagChipsBar: View {
+    let tags: [String]
+    let selected: Set<String>
+    let onToggle: (String) -> Void
+    let onClear: () -> Void
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                // "All" chip
+                Button(action: onClear) {
+                    HStack(spacing: 6) {
+                        Image(systemName: selected.isEmpty ? "checkmark.circle.fill" : "circle")
+                            .font(.caption)
+                        Text("All")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(selected.isEmpty ? Color.mintAccent : Color.gray.opacity(0.12))
+                    )
+                    .foregroundColor(selected.isEmpty ? .white : .primary)
+                }
+                .buttonStyle(.plain)
+                
+                ForEach(tags, id: \.self) { tag in
+                    let isOn = selected.contains(tag)
+                    Button {
+                        onToggle(tag)
+                    } label: {
+                        HStack(spacing: 6) {
+                            if isOn { Image(systemName: "checkmark").font(.caption) }
+                            Text("#\(tag)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(isOn ? Color.mintAccent : Color.gray.opacity(0.12))
+                        )
+                        .foregroundColor(isOn ? .white : .primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(
+            // Slight card background to separate from content
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.cardBackground)
+                .padding(.horizontal, 8)
+        )
+        .padding(.horizontal, 8)
+        .padding(.top, 4)
+    }
+}

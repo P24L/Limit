@@ -16,6 +16,18 @@ public class WebImageExtractor {
         }
     }
     
+    public struct WebMetadata: Sendable {
+        public let title: String?
+        public let description: String?
+        public let imageUrl: String?
+        
+        public init(title: String? = nil, description: String? = nil, imageUrl: String? = nil) {
+            self.title = title
+            self.description = description
+            self.imageUrl = imageUrl
+        }
+    }
+    
     public init() {}
     
     /// Fetches the best possible image for a given URL
@@ -39,6 +51,96 @@ public class WebImageExtractor {
         
         // 4. Fallback to favicon
         return getFaviconResult(for: url)
+    }
+    
+    /// Fetches metadata (title, description, image URL) from a webpage
+    public func fetchMetadata(for url: URL) async -> WebMetadata {
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            guard let html = String(data: data, encoding: .utf8) else {
+                return WebMetadata()
+            }
+            
+            let extractor = ImageURLExtractor()
+            
+            // Extract title
+            let title = extractor.extractTitle(from: html) ?? url.host ?? "Untitled"
+            
+            // Extract description
+            let description = extractor.extractDescription(from: html)
+            
+            // Extract image URL
+            var imageUrl: String? = nil
+            if let ogImage = extractor.extractOpenGraphImage(from: html) {
+                imageUrl = makeAbsoluteURL(ogImage, baseURL: url)
+            } else if let twitterImage = extractor.extractTwitterCardImage(from: html) {
+                imageUrl = makeAbsoluteURL(twitterImage, baseURL: url)
+            }
+            
+            return WebMetadata(
+                title: title,
+                description: description,
+                imageUrl: imageUrl
+            )
+        } catch {
+            print("WebImageExtractor - Failed to fetch metadata: \(error)")
+            return WebMetadata(title: url.host ?? "Untitled")
+        }
+    }
+    
+    /// Fetches both metadata and best image for a webpage
+    /// More efficient than calling fetchMetadata and fetchBestImage separately
+    public func fetchMetadataAndImage(for url: URL) async -> (metadata: WebMetadata, image: ImageResult) {
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            guard let html = String(data: data, encoding: .utf8) else {
+                return (WebMetadata(), getFaviconResult(for: url))
+            }
+            
+            let extractor = ImageURLExtractor()
+            
+            // Extract metadata
+            let title = extractor.extractTitle(from: html) ?? url.host ?? "Untitled"
+            let description = extractor.extractDescription(from: html)
+            
+            // Extract image URL
+            var imageUrl: String? = nil
+            if let ogImage = extractor.extractOpenGraphImage(from: html) {
+                imageUrl = makeAbsoluteURL(ogImage, baseURL: url)
+            } else if let twitterImage = extractor.extractTwitterCardImage(from: html) {
+                imageUrl = makeAbsoluteURL(twitterImage, baseURL: url)
+            } else if let firstImage = extractor.extractFirstSignificantImage(from: html) {
+                imageUrl = makeAbsoluteURL(firstImage, baseURL: url)
+            }
+            
+            let metadata = WebMetadata(
+                title: title,
+                description: description,
+                imageUrl: imageUrl
+            )
+            
+            // Prepare image result
+            let imageResult: ImageResult
+            if let imageUrl = imageUrl {
+                imageResult = ImageResult(imageURL: imageUrl)
+            } else {
+                // Try screenshot or favicon as fallback
+                if let screenshotResult = await tryScreenshot(for: url) {
+                    imageResult = screenshotResult
+                } else {
+                    imageResult = getFaviconResult(for: url)
+                }
+            }
+            
+            return (metadata, imageResult)
+            
+        } catch {
+            print("WebImageExtractor - Failed to fetch metadata and image: \(error)")
+            return (
+                WebMetadata(title: url.host ?? "Untitled"),
+                getFaviconResult(for: url)
+            )
+        }
     }
     
     // MARK: - LPMetadata Approach

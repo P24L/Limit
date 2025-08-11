@@ -159,16 +159,13 @@ enum Destination: DestinationType {
 
 #### Share Post Integration
 ```swift
-// Využití existujícího BlueskyClient
-func shareBookmark(bookmark: BookmarkRecord) async {
-    let text = "Check out this bookmark I saved: \(bookmark.title)"
-    
-    // Použij existující createPost metodu
-    await blueskyClient.createPost(
-        text: text,
-        embed: createBookmarkEmbed(bookmark)
-    )
-}
+// Otevření ComposePostView s předvyplněným bookmarkem
+// Uživatel může upravit text před odesláním
+router.presentedSheet = .composePost(
+    quotedPost: nil, 
+    replyTo: nil, 
+    bookmark: bookmark
+)
 ```
 
 ### 3.3 AT Protocol Integration
@@ -277,33 +274,35 @@ struct PostBookmarkOverlay: View {
 
 ## 4. Implementation Phases
 
-### Phase 1: Core Features (Current Focus)
-- [ ] Tab struktura refactor (Home, Bookmarks, +, Search, Profile)
-- [ ] SaveConfirmationOverlay komponenta
-- [ ] PostBookmarkOverlay pro "+" button
-- [ ] BookmarkEditSheet (create/edit unified)
-- [ ] Clipboard URL detection
-- [ ] Basic metadata extraction (použij existující funkce)
-- [ ] List assignment UI
-- [ ] AppRouter integration pro nové routes
+### Phase 1: Core Features (COMPLETED ✅)
+- [x] ✅ Tab struktura refactor (Home, Bookmarks, +, Search, Profile)
+- [x] ✅ SaveConfirmationOverlay komponenta
+- [x] ✅ PostBookmarkOverlay pro "+" button (implementováno jako FAB)
+- [x] ✅ BookmarkEditSheet (create/edit unified)
+- [x] ✅ Clipboard URL detection
+- [x] ✅ Basic metadata extraction (WebImageExtractor)
+- [x] ✅ List assignment UI
+- [x] ✅ AppRouter integration pro nové routes
 
-### Phase 2: Advanced Features
-- [ ] Deep link handling + App Store fallback
-- [ ] Share to Bluesky composer
-- [ ] Advanced metadata extraction (OpenGraph)
-- [ ] Bookmark search & filtering
-- [ ] Bulk operations (select multiple)
-- [ ] Import/Export bookmarks
+### Phase 2: Advanced Features (PARTIALLY COMPLETED)
+- [x] ✅ Deep link handling (kód hotový, čeká na Info.plist)
+- [x] ✅ Share to Bluesky composer
+- [x] ✅ Advanced metadata extraction (WebImageExtractor s OpenGraph)
+- [x] ✅ Bookmark search & filtering
+- [x] ✅ External bookmark view (pro cizí bookmarky)
+- [ ] ⏭️ Bulk operations (select multiple) - SKIP
+- [ ] ⏭️ Import/Export bookmarks - SKIP
 - [ ] Bookmark duplicates detection
+- [ ] App Store fallback pro deep linky
 
-### Phase 3: Profile Tab Redesign
-- [ ] Přesun Saved Posts z You → Profile
-- [ ] Přesun Notifications z You → Profile  
-- [ ] Redesign Profile tabu (modernější UI)
-- [ ] Account switcher vylepšení
-- [ ] User stats dashboard
-- [ ] Activity feed
-- [ ] Settings reorganizace
+### Phase 3: Profile Tab Redesign (MOSTLY COMPLETED)
+- [x] ✅ Přesun Saved Posts z You → Profile
+- [x] ✅ Přesun Notifications z You → Profile  
+- [x] ✅ Redesign Profile tabu (modernější UI)
+- [x] ✅ Account switcher (základní implementace)
+- [ ] ⏭️ User stats dashboard (nice-to-have)
+- [ ] ⏭️ Activity feed (nice-to-have)
+- [ ] ⏭️ Settings reorganizace (nice-to-have)
 
 ### Phase 4: Future Enhancements
 - [ ] Collaborative lists (sdílené s jinými uživateli)
@@ -338,7 +337,6 @@ enum Sheet: SheetType {
     case none // existující
     // Případně přidat:
     case bookmarkEdit(state: BookmarkEditState)
-    case postBookmarkSelector
 }
 
 // V AppRoute.swift - AppTab enum:
@@ -395,6 +393,6 @@ Po implementaci každé komponenty označit zde:
 
 ---
 
-*Document Version: 2.0*  
-*Last Updated: Phase-based approach*  
-*Status: Ready for Phase 1 Implementation*
+*Document Version: 2.2*  
+*Last Updated: 2025-08-10*  
+*Status: Phase 1 COMPLETED ✅ | Phase 2 MOSTLY COMPLETED | Phase 3 MOSTLY COMPLETED*

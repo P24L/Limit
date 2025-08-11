@@ -53,6 +53,7 @@ struct LimitApp: App {
     @State private var currentUser = CurrentUser()
     @State private var aiService = AIService()
     @State private var notificationManager = NotificationManager.shared
+    @State private var pendingDeepLink: URL? = nil
     
     let container: ModelContainer = {
         let config = ModelConfiguration(
@@ -179,6 +180,9 @@ struct LimitApp: App {
             .task {
                 await tryAutoLogin()
             }
+            .onOpenURL { url in
+                handleDeepLink(url)
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 if client.isAuthenticated {
                     notificationManager.startPeriodicRefresh()
@@ -249,9 +253,79 @@ struct LimitApp: App {
                     await computedFeed.prepareSessionCacheInBackground(client: client)
                 }
             }
+            
+            // Process any pending deep link after successful login
+            if let pending = pendingDeepLink {
+                DevLogger.shared.log("LimitApp - Processing pending deep link after login")
+                pendingDeepLink = nil
+                // Process on main actor to ensure UI updates
+                await MainActor.run {
+                    processDeepLink(pending)
+                }
+            }
         } else {
             computedFeed.clearSession()
             appState.setUnauthenticated()
+        }
+    }
+    
+    private func handleDeepLink(_ url: URL) {
+        DevLogger.shared.log("LimitApp - Handling deep link: \(url)")
+        
+        // Check authentication state
+        if !client.isAuthenticated {
+            DevLogger.shared.log("LimitApp - User not authenticated, storing deep link for later")
+            pendingDeepLink = url
+            
+            // Trigger login if not already in progress
+            if appState.value == .unauthenticated {
+                Task {
+                    await tryAutoLogin()
+                }
+            }
+            return
+        }
+        
+        // Process the deep link immediately
+        processDeepLink(url)
+    }
+    
+    private func processDeepLink(_ url: URL) {
+        DevLogger.shared.log("LimitApp - Processing deep link: \(url)")
+        
+        // Parse: limit://bookmark/{did}/{collection}/{rkey}
+        if url.scheme == "limit" && url.host == "bookmark" {
+            let pathComponents = url.pathComponents.filter { $0 != "/" }
+            
+            // Expected format: [did, collection, rkey]
+            guard pathComponents.count >= 3 else {
+                DevLogger.shared.log("LimitApp - Invalid deep link format: \(url)")
+                return
+            }
+            
+            let did = pathComponents[0]
+            let collection = pathComponents[1]
+            let rkey = pathComponents[2]
+            
+            // Reconstruct AT URI
+            let atUri = "at://\(did)/\(collection)/\(rkey)"
+            
+            DevLogger.shared.log("LimitApp - Parsed deep link: did=\(did), collection=\(collection), rkey=\(rkey)")
+            
+            // Check if it's user's own bookmark
+            // Use AccountManager since client.currentDID might be nil on cold start
+            let isOwner = AccountManager.shared.currentAccount?.did == did || client.currentDID == did
+            
+            // Navigate based on ownership
+            if isOwner {
+                // For own bookmarks, use regular detail view
+                router.navigateTo(.bookmarkDetail(id: rkey))
+            } else {
+                // For external bookmarks, use external view
+                router.navigateTo(.externalBookmark(uri: atUri, isOwner: false))
+            }
+            
+            DevLogger.shared.log("LimitApp - Navigating to bookmark: \(atUri), isOwner: \(isOwner)")
         }
     }
     

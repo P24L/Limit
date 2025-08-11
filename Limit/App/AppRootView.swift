@@ -14,11 +14,13 @@ struct AppRootView: View {
     @Environment(NotificationManager.self) private var notificationManager
     
     @State private var isTopbarHidden = false
+    @State private var showPostBookmarkOverlay = false
     
     var body: some View {
         @Bindable var router = router
         
-        TabView(selection: $router.selectedTab) {
+        ZStack {
+            TabView(selection: $router.selectedTab) {
           ForEach(AppTab.allCases) { tab in
               GeometryReader { _ in
                 NavigationStack(path: $router[tab]) {
@@ -28,34 +30,41 @@ struct AppRootView: View {
                     }
                 }
               }
-                  .ignoresSafeArea()
             .tabItem {
                 Label(tab.description, systemImage: tab.icon)
             }
-            .badge(tab == .favorites && notificationManager.unreadCount > 0 ? notificationManager.unreadCount : 0)
+            .badge(tab == .profile && notificationManager.unreadCount > 0 ? notificationManager.unreadCount : 0)
             .tag(tab)
           }
-        }
-        //.tint(.mintAccent)
-        .background(.warmBackground)
-        .onAppear {
-            configureTabBarAppearance()
-        }
-        .task {
-            if !client.isAuthenticated {
-                router.presentedSheet = .login
+            }
+            //.tint(.mintAccent)
+            .background(.warmBackground)
+            .onAppear {
+                configureTabBarAppearance()
+            }
+            .task {
+                if !client.isAuthenticated {
+                    router.presentedSheet = .login
+                }
+            }
+            .sheet(item: $router.presentedSheet) { sheet in
+              sheetView(for: sheet)
+            }
+            .onChange(of: router.selectedTab) { oldValue, newValue in
+                // Show overlay when + tab is selected
+                if newValue == .post {
+                    showPostBookmarkOverlay = true
+                    // Switch back to previous tab
+                    router.selectedTab = oldValue
+                }
+            }
+            
+            // FAB Overlay
+            if showPostBookmarkOverlay {
+                PostBookmarkFAB(isPresented: $showPostBookmarkOverlay)
             }
         }
-        .sheet(item: $router.presentedSheet) { sheet in
-          sheetView(for: sheet)
-        }
-        .onChange(of: router.presentedSheet) { oldValue, newValue in
-            // When compose sheet is dismissed and we're on post tab, go to home
-            if case .composePost = oldValue, newValue == nil, router.selectedTab == .post {
-                router.selectedTab = .timeline
-            }
-        }
-      }
+    }
     
     private func configureTabBarAppearance() {
         let tabBarAppearance = UITabBarAppearance()
@@ -88,18 +97,15 @@ struct AppRootView: View {
         switch tab {
         case .timeline:
             ATTimelineView_experimental()
-        case .favorites:
-            FavoritesViews()
+        case .bookmarks:
+            BookmarksTabView()
         case .post:
-            // Empty view - we'll show compose sheet instead
+            // Empty view - FAB is shown via tab change
             Color.clear
-                .onAppear {
-                    router.presentedSheet = .composePost()
-                }
         case .search:
             SearchTabView()
-        case .settings:
-            SettingsView()
+        case .profile:
+            ProfileTabView()
         }
     }
     
@@ -136,6 +142,16 @@ struct AppRootView: View {
             FeedTimelineView(feedURI: uri, feedDisplayName: displayName)
         case .bookmarkListManagement:
             BookmarkListManagementView()
+        case .bookmarkDetail(let id):
+            BookmarkDetailView(bookmarkId: id)
+        case .bookmarkEdit(let id):
+            BookmarkEditSheet(bookmarkId: id)
+        case .externalBookmark(let uri, let isOwner):
+            ExternalBookmarkView(bookmarkUri: uri, isOwner: isOwner)
+        case .notifications:
+            NotificationsListView()
+        case .savedPosts:
+            SavedPostsView()
         }
     }
     
@@ -155,8 +171,8 @@ struct AppRootView: View {
             LoginTabView(
                 onDismiss: { router.presentedSheet = nil }
             )
-        case .composePost(let quotedPost, let replyTo):
-            ComposePostView(quotedPost: quotedPost, replyTo: replyTo)
+        case .composePost(let quotedPost, let replyTo, let bookmark):
+            ComposePostView(quotedPost: quotedPost, replyTo: replyTo, bookmark: bookmark)
         case .aiExplanation(let type):
             AIExplanationBottomSheet(explanationType: type)
                 .presentationDetents([.medium, .large])
@@ -169,6 +185,10 @@ struct AppRootView: View {
             RepostOptionsSheet(post: post)
                 .presentationDetents([.height(280)])
                 .presentationDragIndicator(.hidden)
+        case .bookmarkEdit(let id):
+            BookmarkEditSheet(bookmarkId: id)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 }

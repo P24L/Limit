@@ -192,7 +192,7 @@ struct BookmarkListManagementItemView: View {
         HStack(spacing: 12) {
             // List icon with color
             Group {
-                let backgroundColor = list.record.color.map { Color(hex: $0) } ?? Color.orange
+                let backgroundColor = list.record.color != nil ? Color(hex: list.record.color!) : Color.orange
                 RoundedRectangle(cornerRadius: 8)
                     .fill(backgroundColor.opacity(0.15))
                     .frame(width: 44, height: 44)
@@ -274,7 +274,6 @@ struct BookmarkListManagementItemView: View {
     }
 }
 
-
 #Preview {
     let previewClient = BlueskyClient.preview()
     let previewContainer = try! ModelContainer(for: Schema(BookmarkCacheSchema.allModels))
@@ -283,11 +282,11 @@ struct BookmarkListManagementItemView: View {
         client: previewClient
     )
     
-    return NavigationStack {
+    NavigationStack {
         BookmarkListManagementView()
     }
     .environment(previewClient)
     .environment(CurrentUser())
-    .environment(AppRouter(initialTab: .settings))
+    .environment(AppRouter(initialTab: .profile))
     .environment(bookmarkManager)
 }

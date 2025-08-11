@@ -224,7 +224,9 @@ class PostComposerViewModel {
         currentDraft.displayText = displayText
         
         // Extract first URL for potential embed (only if no media attached and no quoted post)
-        if currentDraft.images.isEmpty && currentDraft.video == nil && currentDraft.quotedPost == nil {
+        // Skip if this is a bookmark share (already has external link set)
+        if currentDraft.images.isEmpty && currentDraft.video == nil && 
+           currentDraft.quotedPost == nil && !currentDraft.isBookmarkShare {
             await extractFirstURLForEmbed(from: quickFacets)
         }
         

@@ -27,10 +27,12 @@ struct ComposePostView: View {
     
     let quotedPost: TimelinePostWrapper?
     let replyTo: TimelinePostWrapper?
+    let bookmark: BookmarkView?
     
-    init(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil) {
+    init(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil, bookmark: BookmarkView? = nil) {
         self.quotedPost = quotedPost
         self.replyTo = replyTo
+        self.bookmark = bookmark
     }
     
     var body: some View {
@@ -187,6 +189,11 @@ struct ComposePostView: View {
                     viewModel.setReplyTo(replyTo)
                 }
                 
+                // Set bookmark as external link if provided
+                if let bookmark = bookmark {
+                    setupBookmarkAsExternalLink(bookmark)
+                }
+                
                 // Configure handle validator
                 if let protoClient = client.protoClient {
                     let validator = HandleValidator(atProtoKit: protoClient)
@@ -259,6 +266,29 @@ struct ComposePostView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func setupBookmarkAsExternalLink(_ bookmark: BookmarkView) {
+        // Set flag to indicate this is a bookmark share
+        viewModel.currentDraft.isBookmarkShare = true
+        
+        // Set default text
+        viewModel.currentDraft.text = "Check out this bookmark I saved: \(bookmark.record.title)"
+        
+        // Create external link preview from bookmark
+        if let url = URL(string: bookmark.record.url) {
+            viewModel.currentDraft.externalLink = ExternalLinkPreview(
+                url: url,
+                title: bookmark.record.title,
+                description: bookmark.record.description,
+                thumbnailURL: bookmark.record.imageUrl.flatMap { URL(string: $0) }
+            )
+        }
+        
+        // Trigger text parsing for facets
+        viewModel.textDidChange(viewModel.currentDraft.text)
     }
 }
 

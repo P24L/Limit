@@ -589,6 +589,7 @@ enum BookmarkError: Error {
     case noKeychain
     case invalidURL
     case syncFailed(String)
+    case notFound
 }
 
 struct SyncConflict {
