@@ -274,11 +274,21 @@ struct ComposePostView: View {
         // Set flag to indicate this is a bookmark share
         viewModel.currentDraft.isBookmarkShare = true
         
-        // Set default text
-        viewModel.currentDraft.text = "Check out this bookmark I saved: \(bookmark.record.title)"
+        // Set default text with article URL at the end
+        var shareText = "Check out this bookmark I saved: \(bookmark.record.title)"
+        shareText += "\n\n\(bookmark.record.url)"
+        viewModel.currentDraft.text = shareText
         
-        // Create external link preview from bookmark
-        if let url = URL(string: bookmark.record.url) {
+        // Create external link preview using universal link instead of article URL
+        if let universalLink = BookmarkShareUtils.generateUniversalLink(for: bookmark.uri) {
+            viewModel.currentDraft.externalLink = ExternalLinkPreview(
+                url: universalLink,
+                title: bookmark.record.title,
+                description: bookmark.record.description ?? "View this bookmark in Limit app",
+                thumbnailURL: bookmark.record.imageUrl.flatMap { URL(string: $0) }
+            )
+        } else if let url = URL(string: bookmark.record.url) {
+            // Fallback to article URL if universal link generation fails
             viewModel.currentDraft.externalLink = ExternalLinkPreview(
                 url: url,
                 title: bookmark.record.title,
