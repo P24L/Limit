@@ -14,6 +14,8 @@ struct BookmarksTabView: View {
     
     @State private var selectedSubTab: BookmarkSubTab = .saved
     @State private var searchText = ""
+    @State private var selectedListUri: String?
+    @State private var selectedListName: String?
     
     enum BookmarkSubTab: String, CaseIterable {
         case saved = "Saved"
@@ -31,15 +33,43 @@ struct BookmarksTabView: View {
         Group {
             switch selectedSubTab {
             case .saved:
-                SavedBookmarksListView(searchText: $searchText)
+                SavedBookmarksListView(
+                    searchText: $searchText,
+                    filterListUri: selectedListUri,
+                    filterListName: selectedListName
+                )
             case .lists:
-                BookmarkListsView()
+                BookmarkListsView(
+                    selectedListUri: $selectedListUri,
+                    selectedListName: $selectedListName,
+                    selectedSubTab: $selectedSubTab
+                )
             }
         }
         .navigationTitle("Bookmarks")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "Search bookmarks")
+        .searchable(
+            text: $searchText, 
+            prompt: selectedListName != nil ? "Search in \(selectedListName!)" : "Search bookmarks"
+        )
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if selectedListUri != nil {
+                    Button {
+                        selectedListUri = nil
+                        selectedListName = nil
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.footnote)
+                            Text("Clear filter")
+                                .font(.footnote)
+                        }
+                        .foregroundColor(.mintAccent)
+                    }
+                }
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     router.presentedSheet = .bookmarkEdit(id: nil)
@@ -67,7 +97,7 @@ struct BookmarksTabView: View {
                             .fontWeight(selectedSubTab == tab ? .semibold : .regular)
                     }
                     .foregroundColor(selectedSubTab == tab ? .white : .primary)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)
                     .padding(.horizontal, 12)
                     .frame(maxWidth: .infinity)
                     .background(
@@ -85,8 +115,8 @@ struct BookmarksTabView: View {
                 .fill(Color.cardBackground)
         )
         .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+        .padding(.top, 0)
+        .padding(.bottom, 0)
     }
 }
 
@@ -98,9 +128,14 @@ struct BookmarkListsView: View {
     @Environment(BookmarkManager.self) var bookmarkManager
     @Environment(AppRouter.self) var router
     
+    @Binding var selectedListUri: String?
+    @Binding var selectedListName: String?
+    @Binding var selectedSubTab: BookmarksTabView.BookmarkSubTab
+    
     var body: some View {
-        LazyVStack(spacing: 12) {
-            if bookmarkManager.bookmarkLists.isEmpty {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                if bookmarkManager.bookmarkLists.isEmpty {
                 // Empty state
                 VStack(spacing: 16) {
                     Image(systemName: "folder.badge.plus")
@@ -132,14 +167,31 @@ struct BookmarkListsView: View {
                 .padding(.vertical, 60)
                 .frame(maxWidth: .infinity)
             } else {
-                // Lists
-                ForEach(bookmarkManager.bookmarkLists, id: \.uri) { list in
-                    BookmarkListRow(list: list)
+                    // Lists - sorted by pinned status then alphabetically
+                    let sortedLists = bookmarkManager.bookmarkLists.sorted { list1, list2 in
+                        let isPinned1 = list1.record.pinned ?? false
+                        let isPinned2 = list2.record.pinned ?? false
+                        
+                        if isPinned1 != isPinned2 {
+                            return isPinned1 // pinned first
+                        }
+                        
+                        return list1.record.name.localizedCaseInsensitiveCompare(list2.record.name) == .orderedAscending
+                    }
+                    
+                    ForEach(sortedLists, id: \.uri) { list in
+                        BookmarkListRow(
+                            list: list,
+                            selectedListUri: $selectedListUri,
+                            selectedListName: $selectedListName,
+                            selectedSubTab: $selectedSubTab
+                        )
                         .padding(.horizontal, 16)
+                    }
                 }
             }
+            .padding(.vertical, 8)
         }
-        .padding(.vertical, 8)
     }
 }
 
@@ -150,10 +202,16 @@ struct BookmarkListRow: View {
     let list: BookmarkListView
     @Environment(AppRouter.self) var router
     
+    @Binding var selectedListUri: String?
+    @Binding var selectedListName: String?
+    @Binding var selectedSubTab: BookmarksTabView.BookmarkSubTab
+    
     var body: some View {
         Button {
-            // Navigate to list detail - for now just show management
-            router.navigateTo(.bookmarkListManagement)
+            // Set filter and switch to saved tab
+            selectedListUri = list.uri
+            selectedListName = list.record.name
+            selectedSubTab = .saved
         } label: {
             HStack {
                 // Icon
@@ -167,10 +225,17 @@ struct BookmarkListRow: View {
                     .cornerRadius(8)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(list.record.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
+                    HStack(spacing: 4) {
+                        if list.record.pinned ?? false {
+                            Image(systemName: "pin.fill")
+                                .font(.caption2)
+                                .foregroundColor(.orange)
+                        }
+                        Text(list.record.name)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                    }
                     
                     if let description = list.record.description {
                         Text(description)

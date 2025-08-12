@@ -92,6 +92,7 @@ struct ATTimelineView_experimental: View {
     @State private var selectedTab: TopbarTab = .timeline
     @State private var isRefreshingAline = false
     @State private var showBookmarkConfirmation = false
+    @State private var lastBookmarkId: String?
     
     // Swipe gesture states
     @State private var dragOffset: CGSize = .zero
@@ -184,8 +185,11 @@ struct ATTimelineView_experimental: View {
                 }
             }
         }
-        .saveConfirmationOverlay(show: $showBookmarkConfirmation)
-        .onReceive(NotificationCenter.default.publisher(for: .bookmarkSaved)) { _ in
+        .saveConfirmationOverlay(show: $showBookmarkConfirmation, bookmarkId: lastBookmarkId)
+        .onReceive(NotificationCenter.default.publisher(for: .bookmarkSaved)) { notification in
+            if let bookmarkId = notification.object as? String {
+                lastBookmarkId = bookmarkId
+            }
             showBookmarkConfirmation = true
         }
     }

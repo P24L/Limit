@@ -477,9 +477,14 @@ private extension BookmarkEditSheet {
         editState.setup(bookmarkManager: bookmarkManager, client: client)
 
         if let bookmarkId = bookmarkId, let bookmark = bookmarkManager.bookmarks.first(where: { $0.uri.contains(bookmarkId) }) {
+            // Edit mode - load existing bookmark
             editState.loadBookmark(bookmark)
-        } else if !editState.url.isEmpty {
-            await editState.fetchMetadata()
+        } else {
+            // Create mode - check clipboard for URL
+            editState.checkClipboard()
+            if !editState.url.isEmpty {
+                await editState.fetchMetadata()
+            }
         }
     }
 

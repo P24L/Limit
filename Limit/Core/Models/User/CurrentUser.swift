@@ -201,21 +201,33 @@ class CurrentUser {
     func refreshFeeds(client: BlueskyClient, limit: Int = 50) async {
         guard let protoClient = await client.protoClient else { return }
         do {
-            var feed_uris: [String] = []
+            var customFeedURIs: [String] = []
+            var timelineFeedURIs: [String] = []
             var newFeedPreferences: [String: (isPinned: Bool, order: Int)] = [:]
             
             let userPreferences = try await protoClient.getPreferences()
             for pref in userPreferences.preferences {
                 switch pref {
                 case .savedFeedsVersion2(let savedV2):
-                    // Get ALL feeds, not just pinned ones
-                    let feedItems = savedV2.items.filter { $0.feedType == .feed }
+                    // Get ALL feeds including timeline (Following)
+                    let allFeedItems = savedV2.items.filter { 
+                        $0.feedType == .feed || $0.feedType == .timeline 
+                    }
+                    
+                    // Separate timeline feeds from custom feeds
+                    let customFeedItems = allFeedItems.filter { $0.feedType == .feed }
+                    let timelineItems = allFeedItems.filter { $0.feedType == .timeline }
                     
                     // Store preferences with order based on array position
-                    for (index, item) in feedItems.enumerated() {
-                        feed_uris.append(item.value)
+                    for (index, item) in allFeedItems.enumerated() {
                         newFeedPreferences[item.value] = (isPinned: item.isPinned, order: index)
                     }
+                    
+                    // Collect URIs separately
+                    customFeedURIs = customFeedItems.map { $0.value }
+                    timelineFeedURIs = timelineItems.map { $0.value }
+                    
+                    DevLogger.shared.log("CurrentUser - refreshFeeds - Found \(customFeedURIs.count) custom feeds and \(timelineFeedURIs.count) timeline feeds")
                 default:
                     break
                 }
@@ -227,21 +239,35 @@ class CurrentUser {
                 self.feedPreferences = finalFeedPreferences
             }
             
-            if !feed_uris.isEmpty {
-                let feedGenerators = try await protoClient.getFeedGenerators(by: feed_uris)
-                
-                // Sort feeds based on preferences (pinned first, then by order)
-                let sortedFeeds = sortFeedsByPreferences(feedGenerators.feeds)
-                
-                await MainActor.run {
-                    self.feeds = sortedFeeds
-                }
-                let pinnedCount = newFeedPreferences.filter { $0.value.isPinned }.count
-                DevLogger.shared.log("CurrentUser - refreshFeeds - add feeds, count: \(feeds.count), pinned: \(pinnedCount)")
+            var allFeeds: [AppBskyLexicon.Feed.GeneratorViewDefinition] = []
+            
+            // Fetch custom feed generators (skip timeline feeds as they don't have generators)
+            if !customFeedURIs.isEmpty {
+                let feedGenerators = try await protoClient.getFeedGenerators(by: customFeedURIs)
+                allFeeds = feedGenerators.feeds
+                DevLogger.shared.log("CurrentUser - refreshFeeds - Fetched \(feedGenerators.feeds.count) custom feed generators")
             }
+            
+            // Note: Timeline feeds like "Following" are built-in and don't have generators
+            // They are handled internally by the AT Protocol
+            // We just store their preferences but don't fetch generator data
+            
+            if !timelineFeedURIs.isEmpty {
+                DevLogger.shared.log("CurrentUser - refreshFeeds - Timeline feeds (like Following) noted: \(timelineFeedURIs)")
+            }
+            
+            // Sort feeds based on preferences (pinned first, then by order)
+            let sortedFeeds = sortFeedsByPreferences(allFeeds)
+            
+            await MainActor.run {
+                self.feeds = sortedFeeds
+            }
+            
+            let pinnedCount = newFeedPreferences.filter { $0.value.isPinned }.count
+            DevLogger.shared.log("CurrentUser - refreshFeeds - Total feeds: \(feeds.count), pinned: \(pinnedCount)")
 
         } catch {
-            DevLogger.shared.log("CurrentUser - refreshFeeds unsucessfull")
+            DevLogger.shared.log("CurrentUser - refreshFeeds error: \(error)")
         }
     }
     

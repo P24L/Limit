@@ -51,8 +51,7 @@ class BookmarkEditState {
     private var client: BlueskyClient?
     
     init() {
-        // Check clipboard on init
-        checkClipboard()
+        // Clipboard check moved to BookmarkEditSheet to only run for new bookmarks
     }
     
     func setup(bookmarkManager: BookmarkManager, client: BlueskyClient) {
@@ -79,7 +78,7 @@ class BookmarkEditState {
     
     // MARK: - Clipboard Detection
     
-    private func checkClipboard() {
+    func checkClipboard() {
         #if !targetEnvironment(simulator)
         if UIPasteboard.general.hasURLs,
            let clipboardURL = UIPasteboard.general.url {

@@ -7,16 +7,20 @@ struct SavedBookmarksListView: View {
     @Environment(AppRouter.self) private var router
     
     @Binding var searchText: String
+    let filterListUri: String?
+    let filterListName: String?
     @State private var isLoadingMore = false
     @State private var selectedTags: Set<String> = []
     
-    init(searchText: Binding<String> = .constant("")) {
+    init(searchText: Binding<String> = .constant(""), filterListUri: String? = nil, filterListName: String? = nil) {
         self._searchText = searchText
+        self.filterListUri = filterListUri
+        self.filterListName = filterListName
     }
 
     // Available tags (unique, case-insensitive, sorted by frequency then name)
     private var availableTags: [String] {
-        let tags = bookmarkManager.bookmarks.flatMap { $0.record.tags ?? [] }
+        let tags = allBookmarks.flatMap { $0.record.tags ?? [] }
         guard !tags.isEmpty else { return [] }
         var freq: [String:Int] = [:]
         for t in tags { freq[t, default: 0] += 1 }
@@ -28,7 +32,15 @@ struct SavedBookmarksListView: View {
             .map { $0.key }
     }
 
-    private var allBookmarks: [BookmarkView] { bookmarkManager.bookmarks }
+    private var allBookmarks: [BookmarkView] { 
+        // Filter by list if specified
+        if let filterListUri = filterListUri {
+            return bookmarkManager.bookmarks.filter { bookmark in
+                bookmark.record.listUris?.contains(filterListUri) ?? false
+            }
+        }
+        return bookmarkManager.bookmarks
+    }
 
     // MARK: - Filtering
     private var filtered: [BookmarkView] {
@@ -189,7 +201,7 @@ private struct TagChipsBar: View {
                             .fontWeight(.medium)
                     }
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
                             .fill(selected.isEmpty ? Color.mintAccent : Color.gray.opacity(0.12))
@@ -211,7 +223,7 @@ private struct TagChipsBar: View {
                                 .lineLimit(1)
                         }
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(isOn ? Color.mintAccent : Color.gray.opacity(0.12))
@@ -222,7 +234,7 @@ private struct TagChipsBar: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.vertical, 0)
         }
         .background(
             // Slight card background to separate from content
@@ -231,6 +243,6 @@ private struct TagChipsBar: View {
                 .padding(.horizontal, 8)
         )
         .padding(.horizontal, 8)
-        .padding(.top, 4)
+        .padding(.top, 0)
     }
 }
