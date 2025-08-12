@@ -1001,6 +1001,8 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             return false
         }
         
+        DevLogger.shared.log("BlueskyClient.swift - putPreferences - Sending \(preferences.count) preferences")
+        
         do {
             try await bskyClient.putPreferences(preferences: preferences)
             DevLogger.shared.log("BlueskyClient.swift - putPreferences - Successfully updated preferences")
@@ -1057,8 +1059,18 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         // Create updated SavedFeedsVersion2
         let newSavedFeeds = SavedFeedBuilder.createSavedFeedsV2(items: items)
         
-        // Save only SavedFeedsV2 preference
-        return await putPreferences(preferences: [.savedFeedsVersion2(newSavedFeeds)])
+        // Preserve all other preferences
+        var updatedPreferences: [AppBskyLexicon.Actor.PreferenceUnion] = []
+        for preference in preferences {
+            if case .savedFeedsVersion2(_) = preference {
+                continue // This will be replaced with the new version
+            }
+            updatedPreferences.append(preference)
+        }
+        updatedPreferences.append(.savedFeedsVersion2(newSavedFeeds))
+        
+        // Save all preferences
+        return await putPreferences(preferences: updatedPreferences)
     }
     
     // Helper method to reorder lists in preferences
@@ -1078,9 +1090,10 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         
         var items = currentSavedFeeds?.items ?? []
         
-        // Separate lists and non-lists
+        // Separate by type: timeline, lists, and feeds
         let lists = items.filter { $0.feedType == .list }
-        let nonLists = items.filter { $0.feedType != .list }
+        let feeds = items.filter { $0.feedType == .feed }
+        let timelines = items.filter { $0.feedType == .timeline }
         
         // Create a map of existing lists
         var listMap: [String: AppBskyLexicon.Actor.SavedFeed] = [:]
@@ -1103,16 +1116,26 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             }
         }
         
-        // Combine reordered lists first, then non-lists (feeds)
-        items = reorderedLists + nonLists
+        // Combine: timeline first, then reordered lists, then feeds
+        items = timelines + reorderedLists + feeds
         
         // Create updated SavedFeedsVersion2
         let newSavedFeeds = SavedFeedBuilder.createSavedFeedsV2(items: items)
         
         DevLogger.shared.log("BlueskyClient.swift - reorderListsInPreferences - Reordering \(reorderedLists.count) lists")
         
-        // Save only SavedFeedsV2 preference
-        return await putPreferences(preferences: [.savedFeedsVersion2(newSavedFeeds)])
+        // Preserve all other preferences
+        var updatedPreferences: [AppBskyLexicon.Actor.PreferenceUnion] = []
+        for preference in preferences {
+            if case .savedFeedsVersion2(_) = preference {
+                continue // This will be replaced with the new version
+            }
+            updatedPreferences.append(preference)
+        }
+        updatedPreferences.append(.savedFeedsVersion2(newSavedFeeds))
+        
+        // Save all preferences
+        return await putPreferences(preferences: updatedPreferences)
     }
     
     // Helper method to update feed preferences
@@ -1167,8 +1190,18 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         // Create updated SavedFeedsVersion2
         let newSavedFeeds = SavedFeedBuilder.createSavedFeedsV2(items: items)
         
-        // Save only SavedFeedsV2 preference
-        return await putPreferences(preferences: [.savedFeedsVersion2(newSavedFeeds)])
+        // Preserve all other preferences
+        var updatedPreferences: [AppBskyLexicon.Actor.PreferenceUnion] = []
+        for preference in preferences {
+            if case .savedFeedsVersion2(_) = preference {
+                continue // This will be replaced with the new version
+            }
+            updatedPreferences.append(preference)
+        }
+        updatedPreferences.append(.savedFeedsVersion2(newSavedFeeds))
+        
+        // Save all preferences
+        return await putPreferences(preferences: updatedPreferences)
     }
     
     // Helper method to reorder feeds in preferences
@@ -1188,9 +1221,10 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
         
         var items = currentSavedFeeds?.items ?? []
         
-        // Separate feeds and non-feeds
+        // Separate by type: timeline, lists, and feeds
         let feeds = items.filter { $0.feedType == .feed }
-        let nonFeeds = items.filter { $0.feedType != .feed }
+        let lists = items.filter { $0.feedType == .list }
+        let timelines = items.filter { $0.feedType == .timeline }
         
         // Create a map of existing feeds
         var feedMap: [String: AppBskyLexicon.Actor.SavedFeed] = [:]
@@ -1213,16 +1247,26 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
             }
         }
         
-        // Combine lists first, then reordered feeds
-        items = nonFeeds + reorderedFeeds
+        // Combine: timeline first, then lists, then reordered feeds
+        items = timelines + lists + reorderedFeeds
         
         // Create updated SavedFeedsVersion2
         let newSavedFeeds = SavedFeedBuilder.createSavedFeedsV2(items: items)
         
         DevLogger.shared.log("BlueskyClient.swift - reorderFeedsInPreferences - Reordering \(reorderedFeeds.count) feeds")
         
-        // Save only SavedFeedsV2 preference
-        return await putPreferences(preferences: [.savedFeedsVersion2(newSavedFeeds)])
+        // Preserve all other preferences
+        var updatedPreferences: [AppBskyLexicon.Actor.PreferenceUnion] = []
+        for preference in preferences {
+            if case .savedFeedsVersion2(_) = preference {
+                continue // This will be replaced with the new version
+            }
+            updatedPreferences.append(preference)
+        }
+        updatedPreferences.append(.savedFeedsVersion2(newSavedFeeds))
+        
+        // Save all preferences
+        return await putPreferences(preferences: updatedPreferences)
     }
     
     // MARK: - Helper Methods

@@ -939,6 +939,23 @@ public struct BookmarkUpdateInput {
         self.reminder = reminder
         self.encrypted = encrypted
     }
+    
+    /// Convenience initializer from BookmarkRecord
+    public init(from record: BookmarkRecord) {
+        self.url = record.url
+        self.title = record.title
+        self.description = record.description
+        self.summary = record.summary
+        self.note = record.note
+        self.imageUrl = record.imageUrl
+        self.imageBlob = record.imageBlob
+        self.tags = record.tags
+        self.listUris = record.listUris
+        self.pinned = record.pinned
+        self.archived = record.archived
+        self.reminder = record.reminder
+        self.encrypted = record.encrypted
+    }
 }
 
 /// Input for updating a bookmark list

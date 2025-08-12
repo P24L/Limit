@@ -221,7 +221,7 @@ class BookmarkManager {
         archived: Bool = false,
         reminder: BookmarkReminder? = nil,
         sourceUri: String? = nil
-    ) async throws {
+    ) async throws -> String {
         guard let protoClient = client.protoClient else {
             throw BookmarkError.noClient
         }
@@ -296,6 +296,8 @@ class BookmarkManager {
         if summary == nil {
             await enqueueForProcessing(newBookmarkView)
         }
+        
+        return result.recordURI
     }
     
     func createBookmark(_ record: BookmarkRecord) async throws {
@@ -357,39 +359,27 @@ class BookmarkManager {
             throw BookmarkError.invalidURL
         }
         
-        // Delete old record
-        try await protoClient.deleteBookmark(repo: repo, rkey: rkey)
+        // Use the proper update method that preserves rkey
+        let updates = BookmarkUpdateInput(from: record)
         
-        // Create new record with preserved createdAt
-        let result = try await protoClient.createBookmark(
-            url: record.url,
-            title: record.title,
-            description: record.description,
-            summary: record.summary,
-            note: record.note,
-            imageUrl: record.imageUrl,
-            imageBlob: record.imageBlob,
-            tags: record.tags,
-            listUris: record.listUris,
-            pinned: record.pinned ?? false,
-            archived: record.archived ?? false,
-            reminder: record.reminder,
-            sourceUri: record.sourceUri,
-            encrypted: record.encrypted ?? false
+        let result = try await protoClient.updateBookmark(
+            repo: repo,
+            rkey: rkey,
+            updates: updates
         )
         
-        // Update local array
+        DevLogger.shared.log("BookmarkManager - Updated bookmark: \(uri)")
+        
+        // Update local array - keep the same URI!
         if let index = bookmarks.firstIndex(where: { $0.uri == uri }) {
             let updatedBookmark = BookmarkView(
-                uri: result.recordURI,
+                uri: uri,  // Keep the same URI!
                 cid: result.recordCID,
                 record: record,
                 author: client.userSession?.handle ?? ""
             )
             bookmarks[index] = updatedBookmark
         }
-        
-        DevLogger.shared.log("BookmarkManager - Updated bookmark: \(uri)")
     }
     
     func deleteBookmark(uri: String) async throws {
@@ -443,14 +433,14 @@ class BookmarkManager {
         } else {
             // Add bookmark
             do {
-                try await createBookmark(
+                let bookmarkId = try await createBookmark(
                     url: urlString,
                     title: title ?? url.host ?? urlString,
                     description: description,
                     imageUrl: imageUrl
                 )
                 await MainActor.run {
-                    NotificationCenter.default.post(name: .bookmarkSaved, object: nil)
+                    NotificationCenter.default.post(name: .bookmarkSaved, object: bookmarkId)
                 }
             } catch {
                 DevLogger.shared.log("BookmarkManager - Failed to create bookmark: \(error)")
