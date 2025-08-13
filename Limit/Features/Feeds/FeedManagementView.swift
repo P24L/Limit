@@ -183,12 +183,3 @@ struct FeedManagementItemView: View {
         }
     }
 }
-
-#Preview {
-    NavigationStack {
-        FeedManagementView()
-    }
-    .environment(BlueskyClient.preview())
-    .environment(CurrentUser())
-    .environment(AppRouter(initialTab: .profile))
-}

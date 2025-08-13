@@ -154,7 +154,3 @@ extension Color {
         )
     }
 }
-
-#Preview {
-    ColorPickerSheet(selectedColor: .constant("#FF0000"))
-}

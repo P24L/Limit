@@ -123,8 +123,3 @@ struct CreateListView: View {
         isCreating = false
     }
 }
-
-#Preview {
-    CreateListView()
-        .environment(BlueskyClient.preview())
-}

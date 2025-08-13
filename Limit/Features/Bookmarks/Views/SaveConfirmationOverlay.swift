@@ -224,12 +224,3 @@ extension View {
         ))
     }
 }
-
-#Preview {
-    VStack {
-        Spacer()
-        SaveConfirmationOverlay()
-        Spacer()
-    }
-    .background(Color.gray.opacity(0.1))
-}

@@ -246,9 +246,3 @@ private struct HeaderThumbnail: View {
         .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
     }
 }
-
-#Preview {
-    NavigationStack {
-        BookmarkDetailView(bookmarkId: "test")
-    }
-}

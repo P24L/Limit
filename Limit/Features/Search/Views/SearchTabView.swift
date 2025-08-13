@@ -166,12 +166,3 @@ struct SearchTabView: View {
         searchState = shouldShowSearchResults ? .active : .idle
     }
 }
-
-#Preview {
-    SearchTabView()
-        .modelContainer(SampleData.shared.modelContainer)
-        .environment(AppRouter(initialTab: .search))
-        .environment(BlueskyClient())
-        .environment(CurrentUser())
-        .environment(FavoritePostManager(context: SampleData.shared.favoritesContainer.mainContext))
-}

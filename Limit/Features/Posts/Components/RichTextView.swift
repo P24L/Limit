@@ -251,17 +251,3 @@ private struct TextSegment {
     let color: Color
     let isUnderlined: Bool
 }
-
-#Preview {
-    VStack(spacing: 20) {
-        // Plain text
-        RichTextView(text: "This is plain text without any facets", facets: nil)
-        
-        // Text with mock facets - we'll add proper preview data later
-        RichTextView(text: "Check out https://example.com and @user.bsky.social #hashtag", facets: nil)
-        
-        Spacer()
-    }
-    .padding()
-    .environment(AppRouter(initialTab: .timeline))
-}

@@ -79,8 +79,3 @@ struct PostBookmarkOverlay: View {
         }
     }
 }
-
-#Preview {
-    PostBookmarkOverlay()
-        .background(Color.gray)
-}

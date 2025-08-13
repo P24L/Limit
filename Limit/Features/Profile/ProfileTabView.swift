@@ -388,14 +388,3 @@ struct ProfileTabView: View {
         appState.setUnauthenticated()
     }
 }
-
-#Preview {
-    // Create required model container
-    let modelContainer = try! ModelContainer(for: TimelinePost.self, FavoritePost.self)
-    let context = modelContainer.mainContext
-    
-    ProfileTabView()
-        .environment(BlueskyClient())
-        .environment(FavoritePostManager(context: context))
-        .modelContainer(modelContainer)
-}
