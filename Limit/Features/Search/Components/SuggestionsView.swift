@@ -92,8 +92,3 @@ struct SuggestionsView: View {
         }
     }
 }
-
-#Preview {
-    SuggestionsView()
-        .environment(BlueskyClient())
-}

@@ -170,10 +170,3 @@ struct PostExplanationView: View {
         }
     }
 }
-
-#Preview {
-    NavigationStack {
-        PostExplanationView(postWrapper: SampleData.shared.makeOneSamplePostWrapper())
-            .environment(AIService())
-    }
-}

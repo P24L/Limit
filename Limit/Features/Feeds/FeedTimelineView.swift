@@ -127,13 +127,3 @@ struct FeedTimelineView: View {
         await loadFeed(refresh: false)
     }
 }
-
-#Preview {
-    NavigationStack {
-        FeedTimelineView(
-            feedURI: "at://did:plc:example/app.bsky.feed.generator/whats-hot",
-            feedDisplayName: "What's Hot"
-        )
-    }
-    .environment(BlueskyClient.preview())
-}

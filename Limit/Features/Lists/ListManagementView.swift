@@ -246,12 +246,3 @@ struct ListManagementItemView: View {
         }
     }
 }
-
-#Preview {
-    NavigationStack {
-        ListManagementView()
-    }
-    .environment(BlueskyClient.preview())
-    .environment(CurrentUser())
-    .environment(AppRouter(initialTab: .profile))
-}

@@ -102,12 +102,3 @@ struct QuotedPostPreview: View {
         )
     }
 }
-
-#Preview {
-    VStack {
-        QuotedPostPreview(post: SampleData.shared.makeOneSamplePostWrapper())
-            .padding()
-        
-        Spacer()
-    }
-}

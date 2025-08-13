@@ -70,11 +70,3 @@ struct SavedPostsView: View {
         isLoading = false
     }
 }
-
-#Preview {
-    NavigationStack {
-        SavedPostsView()
-            .environment(BlueskyClient())
-            .environment(FavoritePostManager(context: ModelContext(try! ModelContainer(for: FavoritePost.self))))
-    }
-}

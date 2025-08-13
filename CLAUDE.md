@@ -388,7 +388,7 @@ Note: Consider adding unit tests for core business logic, especially BlueskyClie
 ### Development Best Practices
 - **Separation of Concerns**: Separate logic from UI for testability
 - **Mock Clients**: Prepare mocked clients and preview data for development
-- **Preview Components**: Design components for SwiftUI Preview usage
+- **SwiftUI Previews**: DO NOT create or use #Preview blocks - they are not used in this project
 - **Validation**: Autonomously validate code by building and testing, iterate until everything works
 
 ### XcodeBuildMCP Integration

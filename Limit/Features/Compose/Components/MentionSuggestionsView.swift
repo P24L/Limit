@@ -197,39 +197,3 @@ extension View {
         )
     }
 }
-
-// MARK: - Preview
-
-#Preview {
-    ZStack {
-        Color.gray.opacity(0.1)
-            .ignoresSafeArea()
-        
-        MentionSuggestionsView(
-            suggestions: [
-                HandleSuggestion(
-                    did: "did:example:1",
-                    handle: "alice.bsky.social",
-                    displayName: "Alice",
-                    avatarURL: nil
-                ),
-                HandleSuggestion(
-                    did: "did:example:2",
-                    handle: "bob.bsky.social",
-                    displayName: "Bob Smith",
-                    avatarURL: nil
-                ),
-                HandleSuggestion(
-                    did: "did:example:3",
-                    handle: "charlie.bsky.social",
-                    displayName: nil,
-                    avatarURL: nil
-                )
-            ],
-            isLoading: false,
-            onSelect: { _ in },
-            onDismiss: { }
-        )
-        .frame(width: 300)
-    }
-}

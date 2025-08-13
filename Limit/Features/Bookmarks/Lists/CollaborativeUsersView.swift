@@ -349,9 +349,3 @@ struct CollaborativeUser: Identifiable, Equatable {
     let displayName: String?
     let avatarURL: String?
 }
-
-#Preview {
-    CollaborativeUsersView(collaborativeUsers: .constant([]))
-        .padding()
-        .environment(BlueskyClient.preview())
-}

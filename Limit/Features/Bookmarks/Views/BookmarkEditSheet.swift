@@ -590,11 +590,3 @@ struct FlowLayout: Layout {
         }
     }
 }
-
-#Preview {
-    BookmarkEditSheet()
-        .environment(BookmarkManager(
-            context: ModelContext(try! ModelContainer(for: CachedBookmark.self)),
-            client: BlueskyClient()
-        ))
-}

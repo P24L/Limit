@@ -25,16 +25,3 @@ struct PinButton: View {
         .accessibilityHint(isPinned ? "Double tap to unpin this item" : "Double tap to pin this item")
     }
 }
-
-#Preview {
-    VStack(spacing: 20) {
-        PinButton(isPinned: false) {
-            print("Pin toggled")
-        }
-        
-        PinButton(isPinned: true) {
-            print("Pin toggled")
-        }
-    }
-    .padding()
-}

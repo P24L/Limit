@@ -111,13 +111,3 @@ struct PostBookmarkFAB: View {
         }
     }
 }
-
-#Preview {
-    @State var showFAB = true
-    
-    return ZStack {
-        Color.gray.ignoresSafeArea()
-        
-        PostBookmarkFAB(isPresented: $showFAB)
-    }
-}

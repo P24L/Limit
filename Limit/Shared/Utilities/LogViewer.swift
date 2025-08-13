@@ -43,7 +43,3 @@ struct LogViewer: View {
         }
     }
 }
-
-#Preview {
-    LogViewer()
-}

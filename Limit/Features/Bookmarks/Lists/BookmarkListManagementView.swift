@@ -273,20 +273,3 @@ struct BookmarkListManagementItemView: View {
         }
     }
 }
-
-#Preview {
-    let previewClient = BlueskyClient.preview()
-    let previewContainer = try! ModelContainer(for: Schema(BookmarkCacheSchema.allModels))
-    let bookmarkManager = BookmarkManager(
-        context: previewContainer.mainContext,
-        client: previewClient
-    )
-    
-    NavigationStack {
-        BookmarkListManagementView()
-    }
-    .environment(previewClient)
-    .environment(CurrentUser())
-    .environment(AppRouter(initialTab: .profile))
-    .environment(bookmarkManager)
-}

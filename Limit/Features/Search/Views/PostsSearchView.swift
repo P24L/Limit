@@ -164,8 +164,3 @@ struct PostsSearchView: View {
         }
     }
 }
-
-#Preview {
-    PostsSearchView(query: "test")
-        .environment(BlueskyClient())
-}

@@ -144,10 +144,3 @@ struct UsersSearchView: View {
         }
     }
 }
-
-#Preview {
-    UsersSearchView(query: "test")
-        .environment(BlueskyClient())
-        .environment(AppRouter(initialTab: .search))
-        .environment(CurrentUser())
-}

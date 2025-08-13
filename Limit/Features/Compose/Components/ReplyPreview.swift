@@ -94,10 +94,3 @@ struct ReplyPreview: View {
         .padding(.top, 8)
     }
 }
-
-#Preview {
-    VStack {
-        ReplyPreview(post: SampleData.shared.makeOneSamplePostWrapper())
-        Spacer()
-    }
-}

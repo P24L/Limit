@@ -196,8 +196,3 @@ struct TrendItemView: View {
         return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
-
-#Preview {
-    TrendsView()
-        .environment(BlueskyClient())
-}

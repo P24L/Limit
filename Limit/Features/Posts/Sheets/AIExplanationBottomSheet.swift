@@ -196,8 +196,3 @@ struct AIExplanationBottomSheet: View {
         }
     }
 }
-
-#Preview {
-    AIExplanationBottomSheet(explanationType: .singlePost(SampleData.shared.makeOneSamplePostWrapper()))
-        .environment(AIService())
-}

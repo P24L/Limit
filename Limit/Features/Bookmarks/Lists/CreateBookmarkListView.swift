@@ -584,8 +584,3 @@ private extension CreateBookmarkListView {
         isCreating = false
     }
 }
-
-#Preview {
-    CreateBookmarkListView()
-        .environment(BlueskyClient.preview())
-}

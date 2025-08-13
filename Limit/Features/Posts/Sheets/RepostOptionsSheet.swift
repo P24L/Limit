@@ -238,9 +238,3 @@ struct RepostOptionsSheet: View {
         }
     }
 }
-
-#Preview {
-    RepostOptionsSheet(post: SampleData.shared.makeOneSamplePostWrapper())
-        .environment(BlueskyClient.preview())
-        .environment(AppRouter(initialTab: .timeline))
-}
