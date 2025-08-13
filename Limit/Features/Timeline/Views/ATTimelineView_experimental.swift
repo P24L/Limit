@@ -128,7 +128,9 @@ struct ATTimelineView_experimental: View {
                 
                 // Refresh timeline in background
                 Task {
+                    DevLogger.shared.log("ATTimelineView - Initial refresh starting")
                     await feed.refreshTimeline()
+                    DevLogger.shared.log("ATTimelineView - Initial refresh completed, updating viewState")
                     await MainActor.run {
                         viewState = .posts(feed.postTimeline)
                         // ScrollPosition API will handle position restoration automatically
@@ -156,12 +158,18 @@ struct ATTimelineView_experimental: View {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            if selectedTab == .timeline && newPhase == .active && Date().timeIntervalSince(lastRefresh) > 60 {
-                Task {
-                    await feed.refreshTimeline()
-                    lastRefresh = .now
-                    viewState = .posts(feed.postTimeline)
-                    // ScrollPosition API will handle position restoration automatically
+            if selectedTab == .timeline && newPhase == .active {
+                let timeSinceRefresh = Date().timeIntervalSince(lastRefresh)
+                DevLogger.shared.log("ATTimelineView - Scene became active, time since last refresh: \(timeSinceRefresh)s")
+                if timeSinceRefresh > 60 {
+                    DevLogger.shared.log("ATTimelineView - Triggering auto-refresh on scene activation")
+                    Task {
+                        await feed.refreshTimeline()
+                        DevLogger.shared.log("ATTimelineView - Auto-refresh completed")
+                        lastRefresh = .now
+                        viewState = .posts(feed.postTimeline)
+                        // ScrollPosition API will handle position restoration automatically
+                    }
                 }
             } else if selectedTab == .aline && newPhase == .active {
                 // Don't auto-refresh A-line on scene activation

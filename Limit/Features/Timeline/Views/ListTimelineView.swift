@@ -100,7 +100,7 @@ struct ListTimelineView: View {
     
     // Modern scrollPosition API approach
     @State private var scrolledID: String? = nil
-    @State private var shouldMaintainPosition = false
+    @State private var isRestoringPosition = false
     @State private var isInitialLoad: Bool = true
 
     var body: some View {
@@ -141,23 +141,35 @@ struct ListTimelineView: View {
         }
         .onChange(of: scrolledID) { _, newID in
             // Save position when user scrolls (not during programmatic changes)
-            if !shouldMaintainPosition, let newID {
+            // Only save for lists, not for feeds
+            if !isRestoringPosition, let newID, case .list = source {
                 TimelinePositionManager.shared.saveListPosition(newID, for: source.uri)
             }
         }
         .onChange(of: posts) { oldPosts, newPosts in
-            // Handle data changes - maintain scroll position if needed
-            if !oldPosts.isEmpty && !newPosts.isEmpty {
-                // If we have a current position and it still exists in new posts
-                if let currentScrolledID = scrolledID,
-                   newPosts.contains(where: { $0.uri == currentScrolledID }) {
-                    // Maintain position
-                    shouldMaintainPosition = true
-                    scrolledID = currentScrolledID
+            // Only restore position for lists, not for feeds
+            if case .list = source {
+                // Try to restore position for current list
+                if !isRestoringPosition,
+                   !newPosts.isEmpty,
+                   let savedPosition = TimelinePositionManager.shared.getListPosition(for: source.uri),
+                   newPosts.contains(where: { $0.uri == savedPosition }) {
                     
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        shouldMaintainPosition = false
+                    isRestoringPosition = true
+                    scrolledID = savedPosition
+                    
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(100))
+                        isRestoringPosition = false
                     }
+                } else if !newPosts.isEmpty && scrolledID == nil {
+                    // If no saved position or post doesn't exist, go to the beginning
+                    scrolledID = newPosts.first?.uri
+                }
+            } else {
+                // For feeds and other sources, always start at the beginning
+                if !newPosts.isEmpty && scrolledID == nil {
+                    scrolledID = newPosts.first?.uri
                 }
             }
         }
@@ -181,42 +193,31 @@ struct ListTimelineView: View {
         // 1. Fetch all data
         let allWrappers = await fetchAllData()
         
-        // 2. Try to find saved position
-        let savedID = TimelinePositionManager.shared.getListPosition(for: source.uri)
-        
         await MainActor.run {
-            if let savedID = savedID,
-               let savedIndex = allWrappers.firstIndex(where: { $0.uri == savedID }) {
-                // 3A. We have saved position - use prepend strategy
-                
-                // Show posts from saved position down
-                let visiblePosts = Array(allWrappers[savedIndex...])
-                self.posts = visiblePosts
-                self.scrolledID = savedID
-                self.shouldMaintainPosition = true
-                
-                // After small delay, prepend older posts
-                if savedIndex > 0 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        let olderPosts = Array(allWrappers[0..<savedIndex])
-                        self.posts.insert(contentsOf: olderPosts, at: 0)
-                        // scrollPosition API will maintain position on savedID
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            self.shouldMaintainPosition = false
-                        }
+            // 2. Simply set all posts
+            self.posts = allWrappers
+            
+            // 3. For lists, try to restore saved position
+            if case .list = source {
+                if let savedID = TimelinePositionManager.shared.getListPosition(for: source.uri),
+                   allWrappers.contains(where: { $0.uri == savedID }) {
+                    // Restore saved position
+                    self.isRestoringPosition = true
+                    self.scrolledID = savedID
+                    
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(100))
+                        self.isRestoringPosition = false
                     }
-                } else {
-                    // No older posts to prepend
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        self.shouldMaintainPosition = false
-                    }
+                } else if !allWrappers.isEmpty {
+                    // No saved position or doesn't exist - start at beginning
+                    self.scrolledID = allWrappers.first?.uri
                 }
             } else {
-                // 3B. No saved position or post doesn't exist - normal load
-                self.posts = allWrappers
-                self.scrolledID = nil
-                self.shouldMaintainPosition = false
+                // For feeds and other sources, always start at beginning
+                if !allWrappers.isEmpty {
+                    self.scrolledID = allWrappers.first?.uri
+                }
             }
             
             self.isInitialLoad = false

@@ -29,11 +29,14 @@ class TimelinePositionManager {
     
     // MARK: - Timeline Position
     func saveTimelinePosition(_ postID: String) {
+        DevLogger.shared.log("TimelinePositionManager - Saving position: \(postID) for key: \(timelineKey())")
         userDefaults.set(postID, forKey: timelineKey())
     }
     
     func getTimelinePosition() -> String? {
-        return userDefaults.string(forKey: timelineKey())
+        let position = userDefaults.string(forKey: timelineKey())
+        DevLogger.shared.log("TimelinePositionManager - Getting position: \(position ?? "nil") for key: \(timelineKey())")
+        return position
     }
     
     // MARK: - List Position
