@@ -30,9 +30,8 @@ struct TimelinePostList: View {
     
     // Hybrid approach: scrollPosition API + TimelinePositionManager
     @State private var scrolledID: String? = nil
-    @State private var shouldMaintainPosition = false
+    @State private var isRestoringPosition = false
     @State private var isScrolling: Bool = false
-    @State private var needsToRestorePositionForNewUser = false
 
     @Binding var newPostsAboveCount: Int
     @Binding var hideDirectionIsUp: Bool
@@ -87,60 +86,45 @@ struct TimelinePostList: View {
                     newPostsAboveCount = 0
                 }
                 
-                // Save position only when user scrolls (not during programmatic changes)
-                if !shouldMaintainPosition {
+                // Save position only on genuine user scrolls (not programmatic changes)
+                if isScrolling && !isRestoringPosition {
+                    DevLogger.shared.log("TimelinePostList - SAVING position: \(newID), isScrolling: \(isScrolling)")
                     TimelinePositionManager.shared.saveTimelinePosition(newID)
+                } else {
+                    DevLogger.shared.log("TimelinePostList - NOT SAVING position: \(newID), isScrolling: \(isScrolling), isRestoringPosition: \(isRestoringPosition)")
                 }
             }
         }
         .onChange(of: posts) { oldPosts, newPosts in
-            // Fallback: if scroll position hasn't been set yet (race with refresh),
-            // restore from saved position as soon as posts update
-            if scrolledID == nil,
-               let savedID = TimelinePositionManager.shared.getTimelinePosition(),
-               newPosts.contains(where: { $0.uri == savedID }) {
-                shouldMaintainPosition = true
-                scrolledID = savedID
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    shouldMaintainPosition = false
-                }
-            }
-
-            // Handle prepend operation - maintain scroll position
-            if !oldPosts.isEmpty && !newPosts.isEmpty {
-                // Check if this is a prepend (new posts at beginning)
-                let oldFirstID = oldPosts.first?.uri
-                let newFirstID = newPosts.first?.uri
+            // Always try to restore position for current user
+            // (TimelinePositionManager automatically uses the correct key for current user)
+            if !isRestoringPosition,
+               !newPosts.isEmpty,
+               let savedPosition = TimelinePositionManager.shared.getTimelinePosition(),
+               newPosts.contains(where: { $0.uri == savedPosition }) {
                 
-                if oldFirstID != newFirstID {
-                    // This is likely a prepend operation
-                    if let currentScrolledID = scrolledID,
-                       newPosts.contains(where: { $0.uri == currentScrolledID }) {
-                        // The previously visible post still exists, maintain position
-                        shouldMaintainPosition = true
-                        scrolledID = currentScrolledID
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            shouldMaintainPosition = false
-                        }
-                    }
+                DevLogger.shared.log("TimelinePostList - onChange(posts) - Attempting restore, saved: \(savedPosition), found: true")
+                isRestoringPosition = true
+                scrolledID = savedPosition
+                DevLogger.shared.log("TimelinePostList - RESTORED position to: \(savedPosition)")
+                
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(100))
+                    isRestoringPosition = false
                 }
-                if let index = posts.firstIndex(where: { $0.uri == scrolledID }) {
-                    newPostsAboveCount = index
-                } else {
-                    newPostsAboveCount = 0
-                }
+            } else if !newPosts.isEmpty && scrolledID == nil {
+                // If no saved position or post doesn't exist, go to the beginning
+                DevLogger.shared.log("TimelinePostList - Setting to FIRST post: \(newPosts.first?.uri ?? "nil"), scrolledID was: \(scrolledID ?? "nil")")
+                scrolledID = newPosts.first?.uri
             }
             
-            // After an account switch, restore scroll position
-            if needsToRestorePositionForNewUser && !newPosts.isEmpty {
-                restoreScrollPosition(posts: newPosts)
-                needsToRestorePositionForNewUser = false
+            // Update new posts count
+            if let currentID = scrolledID,
+               let index = newPosts.firstIndex(where: { $0.uri == currentID }) {
+                newPostsAboveCount = index
+            } else {
+                newPostsAboveCount = 0
             }
-        }
-        .onChange(of: currentUser.did) {
-            // When user changes, flag that we need to restore position once posts are loaded
-            needsToRestorePositionForNewUser = true
         }
         .task {
             // Restore saved position on initial load
@@ -150,6 +134,7 @@ struct TimelinePostList: View {
             DevLogger.shared.log("TimeLinePostList.swift - Main timeline loaded with scrollPosition API")
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            DevLogger.shared.log("TimelinePostList - willEnterForeground triggered, calling restoreScrollPosition")
             restoreScrollPosition(posts: posts)
         }
     }
@@ -177,11 +162,13 @@ struct TimelinePostList: View {
 
         if let savedID = TimelinePositionManager.shared.getTimelinePosition(),
            posts.contains(where: { $0.uri == savedID }) {
-            shouldMaintainPosition = true
+            DevLogger.shared.log("TimelinePostList - restoreScrollPosition: saved: \(savedID), found in posts: true")
+            isRestoringPosition = true
             scrolledID = savedID
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                shouldMaintainPosition = false
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
+                isRestoringPosition = false
             }
         }
     }

@@ -42,7 +42,7 @@ enum AppTab: String, TabType, CaseIterable {
         case .search:
             return "Search"
         case .profile:
-            return "Profile"
+            return "You"
         }
     }
 }

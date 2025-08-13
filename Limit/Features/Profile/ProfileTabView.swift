@@ -234,7 +234,7 @@ struct ProfileTabView: View {
                     }
                 }
         }
-        .navigationTitle("Profile")
+        .navigationTitle("You")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             // Refresh user data when view appears
