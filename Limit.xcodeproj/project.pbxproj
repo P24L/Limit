@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		F00503BB2DE6423A00362B00 /* KeychainSwift in Frameworks */ = {isa = PBXBuildFile; productRef = F00503BA2DE6423A00362B00 /* KeychainSwift */; };
 		F00927A52DF1A76500A61A93 /* AppRouter in Frameworks */ = {isa = PBXBuildFile; productRef = F00927A42DF1A76500A61A93 /* AppRouter */; };
+		F009A3ED2E4D17CF0005FD3C /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = F009A3EC2E4D17CF0005FD3C /* FirebaseAnalytics */; };
+		F009A3F22E4D1B1C0005FD3C /* GoogleService-Info-Analytics.plist in Resources */ = {isa = PBXBuildFile; fileRef = F009A3F12E4D1B1B0005FD3C /* GoogleService-Info-Analytics.plist */; };
 		F022E1852E35629400612E14 /* WebImageExtractor in Frameworks */ = {isa = PBXBuildFile; productRef = F022E1842E35629400612E14 /* WebImageExtractor */; };
 		F0B5F5BC2DEA3D5D00FD79BD /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = F0B5F5BB2DEA3D5D00FD79BD /* SDWebImageSwiftUI */; };
 		F0B84CAB2DD71B6C0007E370 /* ATMacro in Frameworks */ = {isa = PBXBuildFile; productRef = F0B84CAA2DD71B6C0007E370 /* ATMacro */; };
@@ -19,6 +21,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F009A3F12E4D1B1B0005FD3C /* GoogleService-Info-Analytics.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info-Analytics.plist"; sourceTree = "<group>"; };
 		F0B84C982DD71AF30007E370 /* Limit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Limit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0BC66752E0F267300BC679A /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		F0DC6A462E198597005C392D /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -59,12 +62,20 @@
 				F0F1234D2E0F400000BC679A /* FirebaseCore in Frameworks */,
 				F022E1852E35629400612E14 /* WebImageExtractor in Frameworks */,
 				F0F123512E0F400000BC679A /* FirebaseFunctions in Frameworks */,
+				F009A3ED2E4D17CF0005FD3C /* FirebaseAnalytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		F009A3EB2E4D17CF0005FD3C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		F09195762E192FB2006B537F /* Recovered References */ = {
 			isa = PBXGroup;
 			children = (
@@ -81,6 +92,8 @@
 				F0BC66752E0F267300BC679A /* Local.xcconfig */,
 				F09195762E192FB2006B537F /* Recovered References */,
 				F0DC6A462E198597005C392D /* GoogleService-Info.plist */,
+				F009A3F12E4D1B1B0005FD3C /* GoogleService-Info-Analytics.plist */,
+				F009A3EB2E4D17CF0005FD3C /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -120,6 +133,7 @@
 				F0F1234C2E0F400000BC679A /* FirebaseCore */,
 				F0F123502E0F400000BC679A /* FirebaseFunctions */,
 				F022E1842E35629400612E14 /* WebImageExtractor */,
+				F009A3EC2E4D17CF0005FD3C /* FirebaseAnalytics */,
 			);
 			productName = Limit;
 			productReference = F0B84C982DD71AF30007E370 /* Limit.app */;
@@ -172,6 +186,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F009A3F22E4D1B1C0005FD3C /* GoogleService-Info-Analytics.plist in Resources */,
 				F0DC6A472E198598005C392D /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -321,7 +336,7 @@
 				CODE_SIGN_ENTITLEMENTS = Limit/Limit.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.9.1;
+				CURRENT_PROJECT_VERSION = 1.10.1;
 				DEVELOPMENT_TEAM = 6U9V38M6H4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -337,7 +352,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.9;
+				MARKETING_VERSION = 1.10;
 				PRODUCT_BUNDLE_IDENTIFIER = P24L.Limit.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -360,7 +375,7 @@
 				CODE_SIGN_ENTITLEMENTS = Limit/LimitRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.9.1;
+				CURRENT_PROJECT_VERSION = 1.10.1;
 				DEVELOPMENT_TEAM = 6U9V38M6H4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -376,7 +391,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.9;
+				MARKETING_VERSION = 1.10;
 				PRODUCT_BUNDLE_IDENTIFIER = P24L.Limit;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -473,6 +488,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F00927A32DF1A76500A61A93 /* XCRemoteSwiftPackageReference "AppRouter" */;
 			productName = AppRouter;
+		};
+		F009A3EC2E4D17CF0005FD3C /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F0F123492E0F400000BC679A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
 		};
 		F022E1842E35629400612E14 /* WebImageExtractor */ = {
 			isa = XCSwiftPackageProductDependency;
