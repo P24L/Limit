@@ -11,6 +11,7 @@ import Observation
 import SwiftUI
 import SwiftData
 import FirebaseCore
+import FirebaseAnalytics
 import SDWebImage
 import ATProtoKit
 
@@ -54,6 +55,7 @@ struct LimitApp: App {
     @State private var aiService = AIService()
     @State private var notificationManager = NotificationManager.shared
     @State private var pendingDeepLink: URL? = nil
+    @State private var analyticsService = AnalyticsService.shared
     
     let container: ModelContainer = {
         let config = ModelConfiguration(
@@ -178,6 +180,9 @@ struct LimitApp: App {
                 }
             }
             .task {
+                // Initialize analytics with delay for performance
+                analyticsService.initializeDelayed()
+                
                 await tryAutoLogin()
             }
             .onOpenURL { url in
@@ -192,6 +197,8 @@ struct LimitApp: App {
                 if client.isAuthenticated {
                     notificationManager.startPeriodicRefresh()
                 }
+                // Log app becoming active (foreground)
+                analyticsService.logSessionStart()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
                 notificationManager.stopPeriodicRefresh()

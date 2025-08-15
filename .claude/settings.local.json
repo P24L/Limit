@@ -34,7 +34,8 @@
       "Bash(swift-syntax-checker:*)",
       "Bash(mv:*)",
       "Bash(mkdir:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(firebase apps:sdkconfig:*)"
     ],
     "deny": []
   }

@@ -40,11 +40,33 @@ struct ExternalBookmarkView: View {
                 .padding()
             } else if let error = error {
                 VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle").font(.largeTitle).foregroundColor(.red)
-                    Text("Failed to load bookmark").font(.headline)
-                    Text(error).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                    Button("Try Again") { Task { await loadExternalBookmark() } }
-                        .buttonStyle(.borderedProminent)
+                    if error == "deleted" {
+                        // UI for deleted bookmark
+                        Image(systemName: "bookmark.slash")
+                            .font(.largeTitle)
+                            .foregroundColor(.secondary)
+                        Text("Bookmark was deleted")
+                            .font(.headline)
+                        Text("This bookmark no longer exists or was removed by the author")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Close") { dismiss() }
+                            .buttonStyle(.borderedProminent)
+                    } else {
+                        // UI for other errors
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundColor(.orange)
+                        Text("Failed to load bookmark")
+                            .font(.headline)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Try Again") { Task { await loadExternalBookmark() } }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
                 .padding()
             } else if let bookmark = externalBookmark {
@@ -281,8 +303,27 @@ struct ExternalBookmarkView: View {
                 authorHandle = try? await resolveHandle(for: repo)
             }
             
+        } catch let apiError as ATAPIError {
+            switch apiError {
+            case .badRequest(let httpError):
+                // Check if it's specifically a RecordNotFound error
+                if httpError.error == "RecordNotFound" {
+                    self.error = "deleted"  // Special flag for deleted bookmark
+                    DevLogger.shared.log("ExternalBookmarkView - Bookmark was deleted (RecordNotFound)")
+                } else {
+                    self.error = "Failed to load bookmark. Please check your connection and try again."
+                    DevLogger.shared.log("ExternalBookmarkView - Failed to load bookmark: \(apiError)")
+                }
+            case .notFound:
+                // Keep this case for potential future API changes
+                self.error = "deleted"
+                DevLogger.shared.log("ExternalBookmarkView - Bookmark was deleted (404)")
+            default:
+                self.error = "Failed to load bookmark. Please check your connection and try again."
+                DevLogger.shared.log("ExternalBookmarkView - Failed to load bookmark: \(apiError)")
+            }
         } catch {
-            self.error = error.localizedDescription
+            self.error = "Failed to load bookmark. Please check your connection and try again."
             DevLogger.shared.log("ExternalBookmarkView - Failed to load bookmark: \(error)")
         }
         

@@ -96,6 +96,25 @@ struct TimelinePostList: View {
             }
         }
         .onChange(of: posts) { oldPosts, newPosts in
+            // Special handling for when we're at the top and new posts arrive
+            if !oldPosts.isEmpty && !newPosts.isEmpty {
+                // Detect if we're at the top: scrolledID is nil or it's the first post
+                let wasAtTop = scrolledID == nil || scrolledID == oldPosts.first?.uri
+                
+                if wasAtTop {
+                    // Find the first old post in new posts and set it as position
+                    if let firstOldPost = oldPosts.first,
+                       newPosts.contains(where: { $0.uri == firstOldPost.uri }) {
+                        DevLogger.shared.log("TimelinePostList - Was at top, maintaining position on first old post: \(firstOldPost.uri)")
+                        scrolledID = firstOldPost.uri
+                        
+                        // Explicitly save this position
+                        DevLogger.shared.log("TimelinePostList - Saving top position after refresh: \(firstOldPost.uri)")
+                        TimelinePositionManager.shared.saveTimelinePosition(firstOldPost.uri)
+                    }
+                }
+            }
+            
             // Always try to restore position for current user
             // (TimelinePositionManager automatically uses the correct key for current user)
             if !isRestoringPosition,
