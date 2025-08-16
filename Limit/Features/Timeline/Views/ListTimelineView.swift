@@ -106,9 +106,6 @@ struct ListTimelineView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                Color.clear
-                    .frame(height: 120)
-                
                 if isLoading && posts.isEmpty {
                     // Show loading inside ScrollView to maintain state
                     ProgressView("Loading posts…")
@@ -131,6 +128,7 @@ struct ListTimelineView: View {
             .padding(.horizontal, 12)
             .scrollTargetLayout()
         }
+        .contentMargins(.top, 120)
         .scrollPosition(id: $scrolledID, anchor: .top)
         .onScrollPhaseChange { old, new in
             if new == .tracking || new == .interacting {

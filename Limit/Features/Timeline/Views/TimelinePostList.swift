@@ -40,8 +40,6 @@ struct TimelinePostList: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                Color.clear
-                    .frame(height: 100) // Výška topbaru + safe area margin
                 ForEach(posts) { wrapper in
                     postView(for: wrapper)
                 }
@@ -68,6 +66,7 @@ struct TimelinePostList: View {
             .background(.warmBackground)
             .scrollTargetLayout()
         }
+        .contentMargins(.top, 100)
         .scrollPosition(id: $scrolledID, anchor: .top)
         .onScrollPhaseChange { old, new in
             isScrolling = new != .idle
@@ -95,26 +94,7 @@ struct TimelinePostList: View {
                 }
             }
         }
-        .onChange(of: posts) { oldPosts, newPosts in
-            // Special handling for when we're at the top and new posts arrive
-            if !oldPosts.isEmpty && !newPosts.isEmpty {
-                // Detect if we're at the top: scrolledID is nil or it's the first post
-                let wasAtTop = scrolledID == nil || scrolledID == oldPosts.first?.uri
-                
-                if wasAtTop {
-                    // Find the first old post in new posts and set it as position
-                    if let firstOldPost = oldPosts.first,
-                       newPosts.contains(where: { $0.uri == firstOldPost.uri }) {
-                        DevLogger.shared.log("TimelinePostList - Was at top, maintaining position on first old post: \(firstOldPost.uri)")
-                        scrolledID = firstOldPost.uri
-                        
-                        // Explicitly save this position
-                        DevLogger.shared.log("TimelinePostList - Saving top position after refresh: \(firstOldPost.uri)")
-                        TimelinePositionManager.shared.saveTimelinePosition(firstOldPost.uri)
-                    }
-                }
-            }
-            
+        .onChange(of: posts) { oldPosts, newPosts in                       
             // Always try to restore position for current user
             // (TimelinePositionManager automatically uses the correct key for current user)
             if !isRestoringPosition,
@@ -151,10 +131,6 @@ struct TimelinePostList: View {
         }
         .onAppear {
             DevLogger.shared.log("TimeLinePostList.swift - Main timeline loaded with scrollPosition API")
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            DevLogger.shared.log("TimelinePostList - willEnterForeground triggered, calling restoreScrollPosition")
-            restoreScrollPosition(posts: posts)
         }
     }
     

@@ -10,21 +10,21 @@
 		F00503BB2DE6423A00362B00 /* KeychainSwift in Frameworks */ = {isa = PBXBuildFile; productRef = F00503BA2DE6423A00362B00 /* KeychainSwift */; };
 		F00927A52DF1A76500A61A93 /* AppRouter in Frameworks */ = {isa = PBXBuildFile; productRef = F00927A42DF1A76500A61A93 /* AppRouter */; };
 		F009A3ED2E4D17CF0005FD3C /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = F009A3EC2E4D17CF0005FD3C /* FirebaseAnalytics */; };
-		F009A3F22E4D1B1C0005FD3C /* GoogleService-Info-Analytics.plist in Resources */ = {isa = PBXBuildFile; fileRef = F009A3F12E4D1B1B0005FD3C /* GoogleService-Info-Analytics.plist */; };
 		F022E1852E35629400612E14 /* WebImageExtractor in Frameworks */ = {isa = PBXBuildFile; productRef = F022E1842E35629400612E14 /* WebImageExtractor */; };
 		F0B5F5BC2DEA3D5D00FD79BD /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = F0B5F5BB2DEA3D5D00FD79BD /* SDWebImageSwiftUI */; };
 		F0B84CAB2DD71B6C0007E370 /* ATMacro in Frameworks */ = {isa = PBXBuildFile; productRef = F0B84CAA2DD71B6C0007E370 /* ATMacro */; };
 		F0B84CAD2DD71B6C0007E370 /* ATProtoKit in Frameworks */ = {isa = PBXBuildFile; productRef = F0B84CAC2DD71B6C0007E370 /* ATProtoKit */; };
 		F0DC6A472E198598005C392D /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F0DC6A462E198597005C392D /* GoogleService-Info.plist */; };
+		F0E5D4D52E4FBE6D0061C91C /* GoogleService-Info-Analytics.plist in Resources */ = {isa = PBXBuildFile; fileRef = F0E5D4D42E4FBE6D0061C91C /* GoogleService-Info-Analytics.plist */; };
 		F0F1234D2E0F400000BC679A /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = F0F1234C2E0F400000BC679A /* FirebaseCore */; };
 		F0F123512E0F400000BC679A /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = F0F123502E0F400000BC679A /* FirebaseFunctions */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		F009A3F12E4D1B1B0005FD3C /* GoogleService-Info-Analytics.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info-Analytics.plist"; sourceTree = "<group>"; };
 		F0B84C982DD71AF30007E370 /* Limit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Limit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0BC66752E0F267300BC679A /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		F0DC6A462E198597005C392D /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		F0E5D4D42E4FBE6D0061C91C /* GoogleService-Info-Analytics.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info-Analytics.plist"; sourceTree = "<group>"; };
 		F0G123442E0F500000BC679A /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -92,7 +92,7 @@
 				F0BC66752E0F267300BC679A /* Local.xcconfig */,
 				F09195762E192FB2006B537F /* Recovered References */,
 				F0DC6A462E198597005C392D /* GoogleService-Info.plist */,
-				F009A3F12E4D1B1B0005FD3C /* GoogleService-Info-Analytics.plist */,
+				F0E5D4D42E4FBE6D0061C91C /* GoogleService-Info-Analytics.plist */,
 				F009A3EB2E4D17CF0005FD3C /* Frameworks */,
 			);
 			sourceTree = "<group>";
@@ -186,7 +186,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F009A3F22E4D1B1C0005FD3C /* GoogleService-Info-Analytics.plist in Resources */,
+				F0E5D4D52E4FBE6D0061C91C /* GoogleService-Info-Analytics.plist in Resources */,
 				F0DC6A472E198598005C392D /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
