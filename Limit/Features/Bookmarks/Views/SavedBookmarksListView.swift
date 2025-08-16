@@ -11,6 +11,7 @@ struct SavedBookmarksListView: View {
     let filterListName: String?
     @State private var isLoadingMore = false
     @State private var selectedTags: Set<String> = []
+    @State private var includeArchived = false
     
     init(searchText: Binding<String> = .constant(""), filterListUri: String? = nil, filterListName: String? = nil) {
         self._searchText = searchText
@@ -44,12 +45,21 @@ struct SavedBookmarksListView: View {
 
     // MARK: - Filtering
     private var filtered: [BookmarkView] {
-        // Base set
+        // First filter by archived status
+        let archivedFiltered = allBookmarks.filter { bookmark in
+            if includeArchived {
+                return true // Show all bookmarks
+            } else {
+                return bookmark.record.archived != true // Hide archived
+            }
+        }
+        
+        // Then apply search filter
         let base: [BookmarkView]
         if searchText.isEmpty {
-            base = allBookmarks
+            base = archivedFiltered
         } else {
-            base = allBookmarks.filter { b in
+            base = archivedFiltered.filter { b in
                 if b.record.title.localizedCaseInsensitiveContains(searchText) { return true }
                 if let d = b.record.description, d.localizedCaseInsensitiveContains(searchText) { return true }
                 if b.record.url.localizedCaseInsensitiveContains(searchText) { return true }
@@ -131,10 +141,12 @@ struct SavedBookmarksListView: View {
                 }
             }
             .listStyle(.plain)
+            .background(.warmBackground)
             .safeAreaInset(edge: .top) {
                 if !availableTags.isEmpty {
                     TagChipsBar(tags: availableTags,
                                 selected: selectedTags,
+                                includeArchived: includeArchived,
                                 onToggle: { tag in
                                     if selectedTags.contains(tag) {
                                         selectedTags.remove(tag)
@@ -144,6 +156,9 @@ struct SavedBookmarksListView: View {
                                 },
                                 onClear: {
                                     selectedTags.removeAll()
+                                },
+                                onToggleArchived: {
+                                    includeArchived.toggle()
                                 })
                 }
             }
@@ -185,8 +200,10 @@ struct SavedBookmarksListView: View {
 private struct TagChipsBar: View {
     let tags: [String]
     let selected: Set<String>
+    let includeArchived: Bool
     let onToggle: (String) -> Void
     let onClear: () -> Void
+    let onToggleArchived: () -> Void
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -204,9 +221,28 @@ private struct TagChipsBar: View {
                     .padding(.vertical, 4)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(selected.isEmpty ? Color.mintAccent : Color.gray.opacity(0.12))
+                            .fill(selected.isEmpty ? Color.mintAccent : Color.mintInactive.opacity(0.3))
                     )
                     .foregroundColor(selected.isEmpty ? .white : .primary)
+                }
+                .buttonStyle(.plain)
+                
+                // "Archived" chip
+                Button(action: onToggleArchived) {
+                    HStack(spacing: 6) {
+                        Image(systemName: includeArchived ? "archivebox.fill" : "archivebox")
+                            .font(.caption)
+                        Text("Archived")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(includeArchived ? Color.mintAccent : Color.mintInactive.opacity(0.3))
+                    )
+                    .foregroundColor(includeArchived ? .white : .primary)
                 }
                 .buttonStyle(.plain)
                 
@@ -226,7 +262,7 @@ private struct TagChipsBar: View {
                         .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(isOn ? Color.mintAccent : Color.gray.opacity(0.12))
+                                .fill(isOn ? Color.mintAccent : Color.mintInactive.opacity(0.3))
                         )
                         .foregroundColor(isOn ? .white : .primary)
                     }
@@ -236,12 +272,6 @@ private struct TagChipsBar: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 0)
         }
-        .background(
-            // Slight card background to separate from content
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.cardBackground)
-                .padding(.horizontal, 8)
-        )
         .padding(.horizontal, 8)
         .padding(.top, 0)
     }

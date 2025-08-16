@@ -90,7 +90,7 @@ struct BookmarkCardView: View {
                 }
             }
 
-            Divider().padding(.top, 4)
+            //Divider().padding(.top, 4)
 
             // MARK: Footer actions
             HStack(spacing: 10) {
@@ -100,7 +100,13 @@ struct BookmarkCardView: View {
                         router.navigateTo(.safari(url: url))
                     }
                 } label: {
-                    actionLabel(system: "safari", title: "Open")
+                    Image(systemName: "safari")
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
 
@@ -127,11 +133,31 @@ struct BookmarkCardView: View {
                 .buttonStyle(.plain)
                 .disabled(isSharing)
 
+                // Archive/Unarchive
+                Button {
+                    Task { await toggleArchiveBookmark() }
+                } label: {
+                    Image(systemName: bookmark.record.archived == true ? "archivebox.fill" : "archivebox")
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
                 // Edit
                 Button {
                     router.presentedSheet = .bookmarkEdit(id: extractBookmarkId())
                 } label: {
-                    actionLabel(system: "pencil", title: "Edit")
+                    Image(systemName: "pencil")
+                        .font(.caption)
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.gray.opacity(0.1))
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
 
@@ -242,6 +268,39 @@ struct BookmarkCardView: View {
             router.presentedSheet = .composePost(quotedPost: nil, replyTo: nil, bookmark: bookmark)
         }
     }
+    
+    private func toggleArchiveBookmark() async {
+        // Toggle the archived state
+        let newArchivedState = !(bookmark.record.archived ?? false)
+        
+        // Create a copy of the record with toggled archived state
+        let updatedRecord = BookmarkRecord(
+            url: bookmark.record.url,
+            title: bookmark.record.title,
+            createdAt: bookmark.record.createdAt,
+            description: bookmark.record.description,
+            summary: bookmark.record.summary,
+            note: bookmark.record.note,
+            imageUrl: bookmark.record.imageUrl,
+            imageBlob: bookmark.record.imageBlob,
+            tags: bookmark.record.tags,
+            listUris: bookmark.record.listUris,
+            pinned: bookmark.record.pinned,
+            archived: newArchivedState,  // Toggle archived state
+            reminder: bookmark.record.reminder,
+            sourceUri: bookmark.record.sourceUri,
+            encrypted: bookmark.record.encrypted,
+            updatedAt: Date()  // Update the timestamp
+        )
+        
+        do {
+            try await bookmarkManager.updateBookmark(uri: bookmark.uri, record: updatedRecord)
+            let action = newArchivedState ? "Archived" : "Unarchived"
+            DevLogger.shared.log("BookmarkCardView - \(action) bookmark: \(bookmark.uri)")
+        } catch {
+            DevLogger.shared.log("BookmarkCardView - Failed to toggle archive state: \(error)")
+        }
+    }
 
     private func shareDeepLink() {
         // Use universal link instead of deep link
@@ -286,16 +345,4 @@ struct BookmarkCardView: View {
 
     private func getCachedImageBlob() -> Data? { nil }
 
-    // MARK: - Small action label
-    private func actionLabel(system: String, title: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: system).font(.caption)
-            Text(title).font(.caption)
-        }
-        .foregroundColor(.primary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color.gray.opacity(0.1))
-        .clipShape(Capsule())
-    }
 }
