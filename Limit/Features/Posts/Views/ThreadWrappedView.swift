@@ -28,12 +28,12 @@ struct ThreadWrappedView: View {
                         PostItemWrappedView(post: post, isThreadView: true, showCard: true)
                             .id(post.uri)  // Use URI instead of ID for stable anchoring
                     }
-                    VStack {}.frame(height: 500)
                 }
                 .padding(.horizontal, 6)
                 .background(.warmBackground)
                 .scrollTargetLayout()
             }
+            .contentMargins(.bottom, 500)
             .scrollPosition(id: $scrolledID, anchor: .top)
             .task {
                 // 1. Show the main post immediately
