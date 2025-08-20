@@ -10,7 +10,7 @@ import Foundation
 enum BookmarkShareUtils {
     
     /// Generate a universal link for sharing a bookmark
-    /// Format: https://ios.hyperlimit.app/bookmark/{did}/{collection}/{rkey}
+    /// Format: https://viewer.hyperlimit.app/at/{did}/{collection}/{rkey}
     static func generateUniversalLink(for bookmarkURI: String) -> URL? {
         // Parse AT URI: at://did:plc:xyz/app.hyper-limit.bookmark/abc123
         guard bookmarkURI.hasPrefix("at://") else {
@@ -31,8 +31,8 @@ enum BookmarkShareUtils {
         let collection = String(components[1])
         let rkey = String(components[2])
         
-        // Build universal link
-        let urlString = "https://ios.hyperlimit.app/bookmark/\(did)/\(collection)/\(rkey)"
+        // Build universal link - now using viewer.hyperlimit.app
+        let urlString = "https://viewer.hyperlimit.app/at/\(did)/\(collection)/\(rkey)"
         
         DevLogger.shared.log("BookmarkShareUtils - Generated universal link: \(urlString)")
         return URL(string: urlString)

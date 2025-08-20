@@ -273,7 +273,7 @@ struct LimitApp: App {
                 // Process on main actor to ensure UI updates
                 await MainActor.run {
                     // Check if it's a universal link or custom scheme
-                    if pending.host == "ios.hyperlimit.app" {
+                    if pending.host == "viewer.hyperlimit.app" {
                         processUniversalLink(pending)
                     } else {
                         processDeepLink(pending)
@@ -311,7 +311,7 @@ struct LimitApp: App {
         DevLogger.shared.log("LimitApp - Handling universal link: \(url)")
         
         // Check if it's our domain
-        guard url.host == "ios.hyperlimit.app" else {
+        guard url.host == "viewer.hyperlimit.app" else {
             DevLogger.shared.log("LimitApp - Not our domain: \(url.host ?? "nil")")
             return
         }
@@ -339,9 +339,8 @@ struct LimitApp: App {
         
         let pathComponents = url.pathComponents.filter { $0 != "/" }
         
-        // Handle bookmark links: https://ios.hyperlimit.app/bookmark/{did}/{collection}/{rkey}
-        // or shortened: https://ios.hyperlimit.app/b/{did}/{collection}/{rkey}
-        if pathComponents.count >= 4 && (pathComponents[0] == "bookmark" || pathComponents[0] == "b") {
+        // Handle bookmark links: https://viewer.hyperlimit.app/at/{did}/{collection}/{rkey}
+        if pathComponents.count >= 4 && pathComponents[0] == "at" {
             let did = pathComponents[1]
             let collection = pathComponents[2]
             let rkey = pathComponents[3]
@@ -373,7 +372,7 @@ struct LimitApp: App {
         DevLogger.shared.log("LimitApp - Processing deep link: \(url)")
         
         // Handle universal links that were redirected here
-        if url.host == "ios.hyperlimit.app" {
+        if url.host == "viewer.hyperlimit.app" {
             processUniversalLink(url)
             return
         }

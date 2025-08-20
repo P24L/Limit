@@ -78,106 +78,111 @@ struct SavedBookmarksListView: View {
     
     // MARK: - Body
     var body: some View {
-        ZStack {
-            List {
-                ForEach(filtered, id: \.uri) { bookmark in
-                    // Tvůj card view přímo v List řádku
-                    BookmarkCardView(bookmark: bookmark)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-                        .listRowBackground(Color.clear)
-                        .contentShape(Rectangle())
-                        .contextMenu {
-                            Button {
-                                router.presentedSheet = .bookmarkEdit(id: extractBookmarkId(from: bookmark.uri))
-                            } label: { Label("Edit", systemImage: "pencil") }
-                            
-                            Button {
-                                if let url = URL(string: bookmark.record.url) {
-                                    router.navigateTo(.safari(url: url))
+        VStack(spacing: 0) {
+            // TagChipsBar fixed at top
+            if !availableTags.isEmpty {
+                TagChipsBar(tags: availableTags,
+                            selected: selectedTags,
+                            includeArchived: includeArchived,
+                            onToggle: { tag in
+                                if selectedTags.contains(tag) {
+                                    selectedTags.remove(tag)
+                                } else {
+                                    selectedTags.insert(tag)
                                 }
-                            } label: { Label("Open Link", systemImage: "safari") }
-                            
-                            Button(role: .destructive) {
-                                Task { try? await bookmarkManager.deleteBookmark(bookmark) }
-                            } label: { Label("Delete", systemImage: "trash") }
-                        }
-                        // Leading swipe: rychlé otevření
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            Button {
-                                if let url = URL(string: bookmark.record.url) {
-                                    router.navigateTo(.safari(url: url))
-                                }
-                            } label: { Label("Open", systemImage: "safari") }
-                        }
-                        // Trailing swipe: edit / share / delete
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button {
-                                router.presentedSheet = .bookmarkEdit(id: extractBookmarkId(from: bookmark.uri))
-                            } label: { Label("Edit", systemImage: "pencil") }
-                            
-                            Button {
-                                router.presentedSheet = .composePost(quotedPost: nil, replyTo: nil, bookmark: bookmark)
-                            } label: { Label("Share", systemImage: "square.and.arrow.up") }
-                            
-                            Button(role: .destructive) {
-                                Task { try? await bookmarkManager.deleteBookmark(bookmark) }
-                            } label: { Label("Delete", systemImage: "trash") }
-                        }
-                        .onAppear {
-                            if searchText.isEmpty && bookmark.uri == filtered.last?.uri {
-                                Task { await loadMore() }
-                            }
-                        }
-                }
-                
-                if bookmarkManager.isLoadingPage {
-                    HStack {
-                        Spacer()
-                        ProgressView().padding()
-                        Spacer()
-                    }
-                    .listRowBackground(Color.clear)
-                }
-            }
-            .listStyle(.plain)
-            .background(.warmBackground)
-            .safeAreaInset(edge: .top) {
-                if !availableTags.isEmpty {
-                    TagChipsBar(tags: availableTags,
-                                selected: selectedTags,
-                                includeArchived: includeArchived,
-                                onToggle: { tag in
-                                    if selectedTags.contains(tag) {
-                                        selectedTags.remove(tag)
-                                    } else {
-                                        selectedTags.insert(tag)
-                                    }
-                                },
-                                onClear: {
-                                    selectedTags.removeAll()
-                                },
-                                onToggleArchived: {
-                                    includeArchived.toggle()
-                                })
-                }
-            }
-            .refreshable {
-                await bookmarkManager.fetchAndSyncBookmarks()
-            }
-            .task {
-                if bookmarkManager.bookmarks.isEmpty {
-                    await bookmarkManager.fetchAndSyncBookmarks()
-                }
+                            },
+                            onClear: {
+                                selectedTags.removeAll()
+                            },
+                            onToggleArchived: {
+                                includeArchived.toggle()
+                            })
+                .padding(.vertical, 8)
             }
             
-            if filtered.isEmpty {
-                EmptySavedState(searchText: searchText) {
-                    router.presentedSheet = .bookmarkEdit(id: nil)
+            // Scrollable content below
+            ZStack {
+                List {
+                    ForEach(filtered, id: \.uri) { bookmark in
+                        // Tvůj card view přímo v List řádku
+                        BookmarkCardView(bookmark: bookmark)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .contentShape(Rectangle())
+                            .contextMenu {
+                                Button {
+                                    router.presentedSheet = .bookmarkEdit(id: extractBookmarkId(from: bookmark.uri))
+                                } label: { Label("Edit", systemImage: "pencil") }
+                                
+                                Button {
+                                    if let url = URL(string: bookmark.record.url) {
+                                        router.navigateTo(.safari(url: url))
+                                    }
+                                } label: { Label("Open Link", systemImage: "safari") }
+                                
+                                Button(role: .destructive) {
+                                    Task { try? await bookmarkManager.deleteBookmark(bookmark) }
+                                } label: { Label("Delete", systemImage: "trash") }
+                            }
+                            // Leading swipe: rychlé otevření
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button {
+                                    if let url = URL(string: bookmark.record.url) {
+                                        router.navigateTo(.safari(url: url))
+                                    }
+                                } label: { Label("Open", systemImage: "safari") }
+                            }
+                            // Trailing swipe: edit / share / delete
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button {
+                                    router.presentedSheet = .bookmarkEdit(id: extractBookmarkId(from: bookmark.uri))
+                                } label: { Label("Edit", systemImage: "pencil") }
+                                
+                                Button {
+                                    router.presentedSheet = .composePost(quotedPost: nil, replyTo: nil, bookmark: bookmark)
+                                } label: { Label("Share", systemImage: "square.and.arrow.up") }
+                                
+                                Button(role: .destructive) {
+                                    Task { try? await bookmarkManager.deleteBookmark(bookmark) }
+                                } label: { Label("Delete", systemImage: "trash") }
+                            }
+                            .onAppear {
+                                if searchText.isEmpty && bookmark.uri == filtered.last?.uri {
+                                    Task { await loadMore() }
+                                }
+                            }
+                    }
+                    
+                    if bookmarkManager.isLoadingPage {
+                        HStack {
+                            Spacer()
+                            ProgressView().padding()
+                            Spacer()
+                        }
+                        .listRowBackground(Color.clear)
+                    }
                 }
-                .padding(.horizontal, 24)
+                .listStyle(.plain)
+                .background(.warmBackground)
+                .refreshable {
+                    await bookmarkManager.fetchAndSyncBookmarks()
+                }
+                .task {
+                    if bookmarkManager.bookmarks.isEmpty {
+                        await bookmarkManager.fetchAndSyncBookmarks()
+                    }
+                }
+                
+                if filtered.isEmpty {
+                    EmptySavedState(searchText: searchText) {
+                        router.presentedSheet = .bookmarkEdit(id: nil)
+                    }
+                    .padding(.horizontal, 24)
+                }
             }
         }
+        .background(.warmBackground)
     }
     
     // MARK: - Paging

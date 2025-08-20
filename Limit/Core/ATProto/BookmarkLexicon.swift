@@ -84,7 +84,8 @@ public struct BookmarkRecord: ATRecordProtocol, Hashable, Equatable {
         
         self.url = try container.decode(String.self, forKey: .url)
         self.title = try container.decode(String.self, forKey: .title)
-        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+        // Use decodeDate for ISO-8601, fallback to current date if old numeric format
+        self.createdAt = (try? container.decodeDate(forKey: .createdAt)) ?? Date()
         
         self.description = try container.decodeIfPresent(String.self, forKey: .description)
         self.summary = try container.decodeIfPresent(String.self, forKey: .summary)
@@ -98,7 +99,8 @@ public struct BookmarkRecord: ATRecordProtocol, Hashable, Equatable {
         self.reminder = try container.decodeIfPresent(ATProtoBookmarkReminder.self, forKey: .reminder)
         self.sourceUri = try container.decodeIfPresent(String.self, forKey: .sourceUri)
         self.encrypted = try container.decodeIfPresent(Bool.self, forKey: .encrypted)
-        self.updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+        // Use decodeDateIfPresent for optional ISO-8601 date
+        self.updatedAt = try? container.decodeDateIfPresent(forKey: .updatedAt) ?? nil
     }
     
     // MARK: - Encodable
@@ -108,7 +110,8 @@ public struct BookmarkRecord: ATRecordProtocol, Hashable, Equatable {
         try container.encode(Self.type, forKey: .type)
         try container.encode(url, forKey: .url)
         try container.encode(title, forKey: .title)
-        try container.encode(createdAt, forKey: .createdAt)
+        // Use encodeDate to ensure ISO-8601 format
+        try container.encodeDate(createdAt, forKey: .createdAt)
         
         try container.encodeIfPresent(description, forKey: .description)
         try container.encodeIfPresent(summary, forKey: .summary)
@@ -122,7 +125,8 @@ public struct BookmarkRecord: ATRecordProtocol, Hashable, Equatable {
         try container.encodeIfPresent(reminder, forKey: .reminder)
         try container.encodeIfPresent(sourceUri, forKey: .sourceUri)
         try container.encodeIfPresent(encrypted, forKey: .encrypted)
-        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
+        // Use encodeDateIfPresent for optional ISO-8601 date
+        try container.encodeDateIfPresent(updatedAt, forKey: .updatedAt)
     }
 }
 
@@ -134,6 +138,26 @@ public struct ATProtoBookmarkReminder: Codable, Sendable, Equatable, Hashable {
     public init(date: Date, note: String? = nil) {
         self.date = date
         self.note = note
+    }
+    
+    // MARK: - Decodable
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Use decodeDate for ISO-8601, fallback to current date if old numeric format
+        self.date = (try? container.decodeDate(forKey: .date)) ?? Date()
+        self.note = try container.decodeIfPresent(String.self, forKey: .note)
+    }
+    
+    // MARK: - Encodable
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        // Use encodeDate to ensure ISO-8601 format
+        try container.encodeDate(date, forKey: .date)
+        try container.encodeIfPresent(note, forKey: .note)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case date, note
     }
 }
 
@@ -195,7 +219,8 @@ public struct BookmarkListRecord: ATRecordProtocol {
         
         self.name = try container.decode(String.self, forKey: .name)
         self.visibility = try container.decode(BookmarkListVisibility.self, forKey: .visibility)
-        self.createdAt = try container.decode(Date.self, forKey: .createdAt)
+        // Use decodeDate for ISO-8601, fallback to current date if old numeric format
+        self.createdAt = (try? container.decodeDate(forKey: .createdAt)) ?? Date()
         
         self.description = try container.decodeIfPresent(String.self, forKey: .description)
         self.color = try container.decodeIfPresent(String.self, forKey: .color)
@@ -204,7 +229,8 @@ public struct BookmarkListRecord: ATRecordProtocol {
         self.parent = try container.decodeIfPresent(String.self, forKey: .parent)
         self.pinned = try container.decodeIfPresent(Bool.self, forKey: .pinned)
         self.permissions = try container.decodeIfPresent(BookmarkListPermissions.self, forKey: .permissions)
-        self.updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+        // Use decodeDateIfPresent for optional ISO-8601 date
+        self.updatedAt = try? container.decodeDateIfPresent(forKey: .updatedAt) ?? nil
     }
     
     // MARK: - Encodable
@@ -214,7 +240,8 @@ public struct BookmarkListRecord: ATRecordProtocol {
         try container.encode(Self.type, forKey: .type)
         try container.encode(name, forKey: .name)
         try container.encode(visibility, forKey: .visibility)
-        try container.encode(createdAt, forKey: .createdAt)
+        // Use encodeDate to ensure ISO-8601 format
+        try container.encodeDate(createdAt, forKey: .createdAt)
         
         try container.encodeIfPresent(description, forKey: .description)
         try container.encodeIfPresent(color, forKey: .color)
@@ -223,7 +250,8 @@ public struct BookmarkListRecord: ATRecordProtocol {
         try container.encodeIfPresent(parent, forKey: .parent)
         try container.encodeIfPresent(pinned, forKey: .pinned)
         try container.encodeIfPresent(permissions, forKey: .permissions)
-        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
+        // Use encodeDateIfPresent for optional ISO-8601 date
+        try container.encodeDateIfPresent(updatedAt, forKey: .updatedAt)
     }
 }
 
@@ -288,6 +316,34 @@ public struct BookmarkView: Codable, Sendable, Hashable, Equatable {
         self.record = record
         self.author = author
         self.indexedAt = indexedAt
+    }
+    
+    // MARK: - Decodable
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        self.uri = try container.decode(String.self, forKey: .uri)
+        self.cid = try container.decode(String.self, forKey: .cid)
+        self.record = try container.decode(BookmarkRecord.self, forKey: .record)
+        self.author = try container.decode(String.self, forKey: .author)
+        // Use decodeDateIfPresent for optional ISO-8601 date
+        self.indexedAt = try? container.decodeDateIfPresent(forKey: .indexedAt) ?? nil
+    }
+    
+    // MARK: - Encodable
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(uri, forKey: .uri)
+        try container.encode(cid, forKey: .cid)
+        try container.encode(record, forKey: .record)
+        try container.encode(author, forKey: .author)
+        // Use encodeDateIfPresent for optional ISO-8601 date
+        try container.encodeDateIfPresent(indexedAt, forKey: .indexedAt)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case uri, cid, record, author, indexedAt
     }
 }
 
