@@ -26,9 +26,24 @@ struct AccountRowView: View {
                 Text("@\(account.handle)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                
+                // Re-auth required text
+                if account.needsReauth {
+                    Text("Re-authentication required")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
             }
             
             Spacer()
+            
+            // Re-authentication required indicator
+            if account.needsReauth {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.system(size: 20))
+                    .help("Re-authentication required")
+            }
             
             // Current account indicator
             if isCurrent {

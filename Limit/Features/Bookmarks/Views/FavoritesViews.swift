@@ -12,7 +12,7 @@ import SDWebImageSwiftUI
 struct FavoritesViews: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) private var context
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(FavoritePostManager.self) private var favoritesPost
     @Environment(NotificationManager.self) private var notificationManager

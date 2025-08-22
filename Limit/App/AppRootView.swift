@@ -10,7 +10,7 @@ import SwiftUI
 
 struct AppRootView: View {
     @Environment(AppRouter.self) private var router
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(NotificationManager.self) private var notificationManager
     
     @State private var isTopbarHidden = false

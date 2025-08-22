@@ -13,7 +13,7 @@ import SwiftUI
 struct ComputedTimelineContainer: View {
     let posts: [TimelinePostWrapper]
     
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(ComputedTimelineFeed.self) private var computedFeed
     
     @Binding var isTopbarHidden: Bool

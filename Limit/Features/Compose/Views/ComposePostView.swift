@@ -12,7 +12,7 @@ import Combine
 
 struct ComposePostView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
     
     @State private var viewModel = PostComposerViewModel()

@@ -13,7 +13,7 @@ import SwiftUI
 
 @MainActor
 struct ATTimelineView_experimental: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(\.modelContext) var context
     @Environment(\.scenePhase) private var scenePhase
     @Environment(TimelineFeed.self) private var feed

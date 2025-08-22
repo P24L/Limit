@@ -13,7 +13,7 @@ import SDWebImageSwiftUI
 struct UsersSearchView: View {
     let query: String
     
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
     @Environment(CurrentUser.self) private var currentUser
     

@@ -9,7 +9,7 @@ import SwiftUI
 import ATProtoKit
 
 struct FeedManagementView: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
     @Environment(AppRouter.self) private var router
     

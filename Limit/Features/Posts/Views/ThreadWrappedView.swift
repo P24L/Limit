@@ -11,7 +11,7 @@ import SwiftUI
 struct ThreadWrappedView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
     
     let postThread: TimelinePostWrapper

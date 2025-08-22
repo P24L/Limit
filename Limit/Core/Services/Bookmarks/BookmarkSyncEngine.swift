@@ -12,9 +12,9 @@ import ATProtoKit
 @MainActor
 class BookmarkSyncEngine {
     private let context: ModelContext
-    private let client: BlueskyClient
+    private let client: MultiAccountClient
     
-    init(context: ModelContext, client: BlueskyClient) {
+    init(context: ModelContext, client: MultiAccountClient) {
         self.context = context
         self.client = client
     }

@@ -9,7 +9,7 @@ import SwiftUI
 import ATProtoKit
 
 struct PostsSearchView: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     
     let query: String
     

@@ -10,7 +10,7 @@ import SwiftData
 import AppRouter
 
 struct SearchTabView: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(\.modelContext) var context
     @Environment(AppRouter.self) private var router
     @Environment(CurrentUser.self) private var currentUser

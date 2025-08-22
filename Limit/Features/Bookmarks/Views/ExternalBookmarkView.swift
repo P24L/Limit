@@ -15,7 +15,7 @@ import SwiftData
 struct ExternalBookmarkView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(BookmarkManager.self) private var bookmarkManager
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
     
     let bookmarkUri: String
@@ -406,7 +406,7 @@ struct ExternalBookmarkView: View {
     )
     .environment(BookmarkManager(
         context: ModelContext(try! ModelContainer(for: CachedBookmark.self)),
-        client: BlueskyClient()
+        client: MultiAccountClient()
     ))
 }
 

@@ -46,7 +46,7 @@ class AppState {
 struct LimitApp: App {
     @State private var appState = AppState()
     @State private var router = AppRouter(initialTab: .timeline)
-    @State private var client = BlueskyClient()
+    @State private var client = MultiAccountClient()
     @State private var bookmarkManager: BookmarkManager
     @State private var favoritesPostManager: FavoritePostManager
     @State private var feed: TimelineFeed
@@ -91,15 +91,15 @@ struct LimitApp: App {
     }()
 
     init() {
-        let blueskyClient = BlueskyClient()
-        _client = State(initialValue: blueskyClient)
+        let multiAccountClient = MultiAccountClient()
+        _client = State(initialValue: multiAccountClient)
         _bookmarkManager = State(initialValue: BookmarkManager(
             context: bookmarkCacheContainer.mainContext,
-            client: blueskyClient,
+            client: multiAccountClient,
             favoritesContext: favoritesContainer.mainContext
         ))
         _favoritesPostManager = State(initialValue: FavoritePostManager(context: favoritesContainer.mainContext))
-        _feed = State(initialValue: TimelineFeed(context: container.mainContext, client: blueskyClient))
+        _feed = State(initialValue: TimelineFeed(context: container.mainContext, client: multiAccountClient))
         
         // Configure LinkMetadataService
         LinkMetadataService.shared.configure(context: container.mainContext)
@@ -208,16 +208,48 @@ struct LimitApp: App {
     
     
     private func tryAutoLogin() async {
-        guard let currentAccount = AccountManager.shared.currentAccount,
-              let appPassword = AccountManager.shared.getAppPassword(for: currentAccount) else {
+        guard let currentAccount = AccountManager.shared.currentAccount else {
             computedFeed.clearSession()
             appState.setUnauthenticated()
             return
         }
         
-        client.handle = currentAccount.handle
-        client.appPassword = appPassword
-        await client.login()
+        // Check if account has proper session UUID (new system) or needs migration
+        if currentAccount.sessionUUID == UUID(uuidString: "00000000-0000-0000-0000-000000000000") {
+            // Legacy account without proper UUID - needs migration
+            if let appPassword = AccountManager.shared.getAppPassword(for: currentAccount) {
+                // Re-add account with proper UUID
+                AccountManager.shared.addOrUpdateAccount(
+                    did: currentAccount.did,
+                    handle: currentAccount.handle,
+                    appPassword: appPassword,
+                    displayName: currentAccount.displayName,
+                    avatarURL: currentAccount.avatarURL
+                )
+            }
+        }
+        
+        // Try current account first
+        await client.initializeWithCurrentAccount()
+        
+        // If current account failed and it's OAuth, try other accounts
+        if !client.isAuthenticated && currentAccount.authType == .oauth {
+            DevLogger.shared.log("LimitApp - Current OAuth account failed, trying other accounts")
+            
+            // Find another valid account
+            for account in AccountManager.shared.accounts where account.id != currentAccount.id && !account.needsReauth {
+                DevLogger.shared.log("LimitApp - Trying account: \(account.handle)")
+                
+                // Switch to this account
+                AccountManager.shared.switchToAccount(account)
+                await client.switchToAccount(account)
+                
+                if client.isAuthenticated {
+                    DevLogger.shared.log("LimitApp - Successfully switched to account: \(account.handle)")
+                    break
+                }
+            }
+        }
         
         if client.isAuthenticated {
             feed.updateClient(client)
@@ -244,14 +276,17 @@ struct LimitApp: App {
                     
                     // Update DID if it was a legacy account
                     if currentAccount.did.hasPrefix("legacy:"), let realDID = client.currentDID {
-                        AccountManager.shared.addAccount(
-                            did: realDID,
-                            handle: currentAccount.handle,
-                            appPassword: appPassword,
-                            displayName: currentUser.displayName,
-                            avatarURL: currentUser.avatarURL
-                        )
-                        AccountManager.shared.deleteAccount(currentAccount)
+                        // Get appPassword from AccountManager for this account
+                        if let appPassword = AccountManager.shared.getAppPassword(for: currentAccount) {
+                            AccountManager.shared.addAccount(
+                                did: realDID,
+                                handle: currentAccount.handle,
+                                appPassword: appPassword,
+                                displayName: currentUser.displayName,
+                                avatarURL: currentUser.avatarURL
+                            )
+                            AccountManager.shared.deleteAccount(currentAccount)
+                        }
                     }
                 }
                 
@@ -289,7 +324,15 @@ struct LimitApp: App {
     private func handleDeepLink(_ url: URL) {
         DevLogger.shared.log("LimitApp - Handling deep link: \(url)")
         
-        // Check authentication state
+        // OAuth callback MUST be processed immediately, even when not authenticated
+        // (because the user is in the process of authenticating!)
+        if url.scheme == "limit" && url.host == "auth" {
+            DevLogger.shared.log("LimitApp - OAuth callback detected, processing immediately")
+            processDeepLink(url)
+            return
+        }
+        
+        // Check authentication state for other deep links
         if !client.isAuthenticated {
             DevLogger.shared.log("LimitApp - User not authenticated, storing deep link for later")
             pendingDeepLink = url
@@ -374,6 +417,15 @@ struct LimitApp: App {
         // Handle universal links that were redirected here
         if url.host == "viewer.hyperlimit.app" {
             processUniversalLink(url)
+            return
+        }
+        
+        // Handle OAuth callback: limit://auth?code=... or limit://auth?error=...
+        if url.scheme == "limit" && url.host == "auth" {
+            DevLogger.shared.log("LimitApp - OAuth callback received")
+            Task { @MainActor in
+                OAuthService.shared.handleOAuthCallback(url: url)
+            }
             return
         }
         

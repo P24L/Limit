@@ -1340,31 +1340,13 @@ final class BlueskyClient { // Přidáno Sendable pro bezpečné použití v kon
     }
     
     /// Fetches notifications with pagination support
+    /// DEPRECATED: Use MultiAccountClient instead
     @MainActor
     func fetchNotifications(limit: Int = 50, cursor: String? = nil) async -> (notifications: [NotificationWrapper], cursor: String?) {
-        guard let client = protoClient else {
-            DevLogger.shared.log("BlueskyClient.swift - fetchNotifications - no protoClient")
-            return (notifications: [], cursor: nil)
-        }
-        
-        let result = await performAuthenticatedRequest {
-            try await client.listNotifications(
-                with: nil,
-                limit: limit,
-                isPriority: nil,
-                cursor: cursor
-            )
-        }
-        
-        guard let response = result else {
-            return (notifications: [], cursor: nil)
-        }
-        
-        let wrappers = response.notifications.map { notification in
-            NotificationWrapper(from: notification, client: self)
-        }
-        
-        return (notifications: wrappers, cursor: response.cursor)
+        // This method is deprecated. BlueskyClient is being replaced by MultiAccountClient.
+        // Return empty result to avoid compilation errors with NotificationWrapper
+        DevLogger.shared.log("BlueskyClient.swift - fetchNotifications - DEPRECATED: Use MultiAccountClient instead")
+        return (notifications: [], cursor: nil)
     }
     
     // MARK: - Post Creation

@@ -11,7 +11,7 @@ import AppRouter
 struct SafariTabView: View {
     @State private var id: UUID = UUID()
     @Environment(AppRouter.self) private var router
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     
     var safariURL: URL?
 

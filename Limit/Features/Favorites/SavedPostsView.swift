@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 struct SavedPostsView: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(FavoritePostManager.self) private var favoritesPost
     @State private var posts: [TimelinePostWrapper]? = nil
     @State private var isLoading = true

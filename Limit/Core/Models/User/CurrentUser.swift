@@ -26,7 +26,7 @@ class CurrentUser {
     var feedPreferences: [String: (isPinned: Bool, order: Int)] = [:] // URI -> (isPinned, order)
     
     // Volá se po přihlášení nebo na refresh
-    func refreshProfile(client: BlueskyClient) async {
+    func refreshProfile(client: MultiAccountClient) async {
         guard let did = await client.currentDID else { return }
         guard let profile = await client.getProfile(for: did) else { return }
         
@@ -58,7 +58,7 @@ class CurrentUser {
     }
     
     // Načte seznam vlastních lists
-    func refreshLists(client: BlueskyClient, limit: Int = 50) async {
+    func refreshLists(client: MultiAccountClient, limit: Int = 50) async {
         guard !did.isEmpty else { 
             DevLogger.shared.log("CurrentUser - refreshLists - did empty")
             return 
@@ -87,7 +87,7 @@ class CurrentUser {
     }
     
     // Refresh list preferences from server
-    private func refreshListPreferences(client: BlueskyClient) async {
+    private func refreshListPreferences(client: MultiAccountClient) async {
         guard let preferencesOutput = await client.getPreferences() else {
             DevLogger.shared.log("CurrentUser - refreshListPreferences - Failed to get preferences")
             return
@@ -143,7 +143,7 @@ class CurrentUser {
     }
     
     // Toggle pin status for a list
-    func toggleListPin(listURI: String, client: BlueskyClient) async -> Bool {
+    func toggleListPin(listURI: String, client: MultiAccountClient) async -> Bool {
         let currentPinStatus = listPreferences[listURI]?.isPinned ?? false
         let newPinStatus = !currentPinStatus
         
@@ -172,7 +172,7 @@ class CurrentUser {
     }
     
     // Update list order after drag-to-reorder
-    func updateListOrder(client: BlueskyClient) async -> Bool {
+    func updateListOrder(client: MultiAccountClient) async -> Bool {
         // Get current list URIs in their display order
         let listURIs = lists.map { $0.uri }
         
@@ -198,7 +198,7 @@ class CurrentUser {
         return success
     }
 
-    func refreshFeeds(client: BlueskyClient, limit: Int = 50) async {
+    func refreshFeeds(client: MultiAccountClient, limit: Int = 50) async {
         guard let protoClient = await client.protoClient else { return }
         do {
             var customFeedURIs: [String] = []
@@ -297,7 +297,7 @@ class CurrentUser {
     }
     
     // Toggle pin status for a feed
-    func toggleFeedPin(feedURI: String, client: BlueskyClient) async -> Bool {
+    func toggleFeedPin(feedURI: String, client: MultiAccountClient) async -> Bool {
         let currentPinStatus = feedPreferences[feedURI]?.isPinned ?? false
         let newPinStatus = !currentPinStatus
         
@@ -326,7 +326,7 @@ class CurrentUser {
     }
     
     // Update feed order after drag-to-reorder
-    func updateFeedOrder(client: BlueskyClient) async -> Bool {
+    func updateFeedOrder(client: MultiAccountClient) async -> Bool {
         // Get current feed URIs in their display order
         let feedURIs = feeds.map { $0.feedURI }
         

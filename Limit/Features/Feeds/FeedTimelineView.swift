@@ -13,7 +13,7 @@ struct FeedTimelineView: View {
     let feedURI: String
     let feedDisplayName: String
     
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     
     @State private var posts: [TimelinePostWrapper] = []
     @State private var isLoading = false

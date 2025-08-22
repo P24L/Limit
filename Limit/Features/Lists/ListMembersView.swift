@@ -11,7 +11,7 @@ import ATProtoKit
 struct ListMembersView: View {
     let list: AppBskyLexicon.Graph.ListViewDefinition
     
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
     
     @State private var members: [AppBskyLexicon.Graph.ListItemViewDefinition] = []

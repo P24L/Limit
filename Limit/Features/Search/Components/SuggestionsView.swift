@@ -9,7 +9,7 @@ import SwiftUI
 import ATProtoKit
 
 struct SuggestionsView: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     
     @State private var suggestions: [AppBskyLexicon.Actor.ProfileViewDefinition] = []
     @State private var isLoading = false

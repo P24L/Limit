@@ -9,7 +9,7 @@ import KeychainSwift
 import SwiftUI
 
 struct LoginTabView: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
     //@Binding var areCredentialsAvailable: Bool
     
@@ -20,7 +20,9 @@ struct LoginTabView: View {
     @State private var showLoginError: Bool = false
     
     @State private var isLoading = false
+    @State private var isOAuthLoading = false
     @State private var errorMessage: String?
+    @State private var showOAuthWebView = false
     
     let onDismiss: () -> Void
     
@@ -67,6 +69,33 @@ struct LoginTabView: View {
                 }
 
                 Section {
+                    // OAuth Login Button
+                    Button {
+                        loginWithOAuth()
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if isOAuthLoading {
+                                ProgressView()
+                            } else {
+                                VStack(spacing: 4) {
+                                    Label("Continue with Bluesky", systemImage: "link.circle.fill")
+                                        .bold()
+                                    if !handle.isEmpty {
+                                        Text("as @\(handle)")
+                                            .font(.caption)
+                                            .opacity(0.9)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+                    }
+                    .disabled(isOAuthLoading || isLoading)
+                    .foregroundColor(.white)
+                    .listRowBackground(Color.blue)
+                    
+                    // App Password Login Button
                     Button {
                         login()
                     } label: {
@@ -75,13 +104,13 @@ struct LoginTabView: View {
                             if isLoading {
                                 ProgressView()
                             } else {
-                                Text("Log In")
-                                    .bold()
+                                Text("Log In with App Password")
+                                    .font(.footnote)
                             }
                             Spacer()
                         }
                     }
-                    .disabled(handle.isEmpty || appPassword.isEmpty || isLoading)
+                    .disabled(handle.isEmpty || appPassword.isEmpty || isLoading || isOAuthLoading)
                 }
             }
             .navigationTitle("Login")
@@ -100,18 +129,82 @@ struct LoginTabView: View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
     
+    private func loginWithOAuth() {
+        isOAuthLoading = true
+        errorMessage = nil
+        
+        DevLogger.shared.log("LoginTabView - Starting OAuth login")
+        
+        Task {
+            do {
+                // Start OAuth flow - use handle from text field if provided (optional)
+                let oauthService = OAuthService.shared
+                // Handle is optional - if user typed it, it will pre-fill on Bluesky
+                let tokens = try await oauthService.startOAuthFlow(handle: handle)
+                
+                DevLogger.shared.log("LoginTabView - OAuth successful, got tokens for: \(tokens.handle)")
+                
+                // Add OAuth account to AccountManager
+                AccountManager.shared.addOAuthAccount(
+                    did: tokens.did,
+                    handle: tokens.handle,
+                    tokens: tokens,
+                    displayName: tokens.handle,
+                    avatarURL: nil
+                )
+                
+                // Switch to the new OAuth account
+                if let account = AccountManager.shared.accounts.first(where: { $0.did == tokens.did }) {
+                    // Small delay to ensure tokens are properly saved
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                    await client.switchToAccount(account)
+                    
+                    // Refresh profile to get display name and avatar
+                    await currentUser.refreshProfile(client: client)
+                    
+                    // Update account with profile info
+                    AccountManager.shared.updateAccountProfile(
+                        for: tokens.did,
+                        displayName: currentUser.displayName,
+                        avatarURL: currentUser.avatarURL
+                    )
+                }
+                
+                await MainActor.run {
+                    isOAuthLoading = false
+                    onDismiss()
+                }
+                
+            } catch {
+                DevLogger.shared.log("LoginTabView - OAuth error: \(error.localizedDescription)")
+                await MainActor.run {
+                    errorMessage = "OAuth login failed: \(error.localizedDescription)"
+                    isOAuthLoading = false
+                }
+            }
+        }
+    }
+    
     private func login() {
         isLoading = true
         errorMessage = nil
         
         DevLogger.shared.log("LoginTabView - Starting login for handle: \(handle)")
 
-        client.handle = handle
-        client.appPassword = appPassword
-
         Task {
             do {
-                await client.login()
+                // Add account first
+                AccountManager.shared.addOrUpdateAccount(
+                    did: "temp:\(handle)", // Temporary DID until we get real one
+                    handle: handle,
+                    appPassword: appPassword,
+                    displayName: "",
+                    avatarURL: nil
+                )
+                
+                // Initialize client with the new account
+                await client.initializeWithCurrentAccount()
+                
                 if client.isAuthenticated {
                     // Get the real DID from the authenticated session
                     guard let realDID = client.currentDID else {

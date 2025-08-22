@@ -28,12 +28,12 @@ final class NotificationWrapper: Identifiable {
     }
     var indexedAt: Date { notification.indexedAt }
     
-    private var client: BlueskyClient?
+    private var client: MultiAccountClient?
     
     // Pro navigaci na posty
     var linkedPost: TimelinePostWrapper? = nil
     
-    init(from notification: AppBskyLexicon.Notification.Notification, client: BlueskyClient) {
+    init(from notification: AppBskyLexicon.Notification.Notification, client: MultiAccountClient) {
         self.notification = notification
         self.client = client
         

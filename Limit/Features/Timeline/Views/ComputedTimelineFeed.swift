@@ -32,7 +32,7 @@ final class ComputedTimelineFeed {
     // MARK: - Public Methods
     
     /// Loads computed timeline posts. Won't reload if already loaded in session unless forced.
-    func loadPosts(client: BlueskyClient, forceRefresh: Bool = false) async {
+    func loadPosts(client: MultiAccountClient, forceRefresh: Bool = false) async {
         guard !isLoading else { return }
         
         // If we already have posts and it's not a force refresh, don't reload
@@ -75,7 +75,7 @@ final class ComputedTimelineFeed {
     }
     
     /// Fast refresh: immediately shows available posts, generates new ones in background
-    func fastRefresh(client: BlueskyClient) async {
+    func fastRefresh(client: MultiAccountClient) async {
         guard !isLoading else { return }
         
         isLoading = true
@@ -105,7 +105,7 @@ final class ComputedTimelineFeed {
     }
     
     /// Forces a refresh of computed timeline posts, invalidating session cache
-    func refresh(client: BlueskyClient) async {
+    func refresh(client: MultiAccountClient) async {
         guard !isLoading else { return }
         
         DevLogger.shared.log("ComputedTimelineFeed - refresh - invalidating session cache")
@@ -136,7 +136,7 @@ final class ComputedTimelineFeed {
     }
     
     /// Prepares the session cache in background without blocking UI
-    func prepareSessionCacheInBackground(client: BlueskyClient) async {
+    func prepareSessionCacheInBackground(client: MultiAccountClient) async {
         // Check cache state on main actor
         let shouldProceed = await MainActor.run {
             // Don't start another background task if we already have valid cache
@@ -171,7 +171,7 @@ final class ComputedTimelineFeed {
     }
     
     /// Loads more posts for infinity scroll - adds next batch and prepares another
-    func loadMorePosts(client: BlueskyClient) async {
+    func loadMorePosts(client: MultiAccountClient) async {
         guard !nextBatchPosts.isEmpty else {
             // If no batch ready, start preparing one
             prepareNextBatch(client: client)
@@ -189,7 +189,7 @@ final class ComputedTimelineFeed {
     }
     
     /// Prepares next batch of posts in background for infinity scroll
-    private func prepareNextBatch(client: BlueskyClient) {
+    private func prepareNextBatch(client: MultiAccountClient) {
         // Don't start if already preparing
         guard !isPreparingNextBatch else { return }
         

@@ -10,7 +10,7 @@ import ATProtoKit
 
 struct NotificationsListView: View {
     @Environment(NotificationManager.self) var notificationManager
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @State private var isLoading = false
     @State private var hasLoadedInitial = false
     @State private var errorMessage: String? = nil

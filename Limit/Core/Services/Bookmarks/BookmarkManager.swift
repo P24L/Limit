@@ -32,7 +32,7 @@ class BookmarkManager {
     // Cache management
     private var syncEngine: BookmarkSyncEngine
     private var cacheContext: ModelContext
-    private var client: BlueskyClient
+    private var client: MultiAccountClient
     
     // Processing queue
     private var processingQueue: BookmarkProcessingQueue
@@ -47,7 +47,7 @@ class BookmarkManager {
     var lastSyncDate: Date?
     var migrationInProgress = false
     
-    init(context: ModelContext, client: BlueskyClient, favoritesContext: ModelContext? = nil) {
+    init(context: ModelContext, client: MultiAccountClient, favoritesContext: ModelContext? = nil) {
         self.cacheContext = context
         self.client = client
         self.syncEngine = BookmarkSyncEngine(context: context, client: client)

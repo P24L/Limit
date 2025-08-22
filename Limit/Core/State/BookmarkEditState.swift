@@ -48,13 +48,13 @@ class BookmarkEditState {
     
     // Dependencies
     private var bookmarkManager: BookmarkManager?
-    private var client: BlueskyClient?
+    private var client: MultiAccountClient?
     
     init() {
         // Clipboard check moved to BookmarkEditSheet to only run for new bookmarks
     }
     
-    func setup(bookmarkManager: BookmarkManager, client: BlueskyClient) {
+    func setup(bookmarkManager: BookmarkManager, client: MultiAccountClient) {
         self.bookmarkManager = bookmarkManager
         self.client = client
         self.availableLists = bookmarkManager.bookmarkLists

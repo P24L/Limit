@@ -19,7 +19,7 @@ struct PostItemActionsView: View {
     
     let hideMoreActions = false
     
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     
     private var isOwnPost: Bool {
         postWrapper.authorHandle == client.handle || postWrapper.authorID == client.currentDID

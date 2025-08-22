@@ -13,9 +13,9 @@ import ATProtoKit
 class BookmarkMigrationManager {
     private weak var bookmarkManager: BookmarkManager?
     private let favoritesContext: ModelContext
-    private let client: BlueskyClient
+    private let client: MultiAccountClient
     
-    init(bookmarkManager: BookmarkManager, favoritesContext: ModelContext, client: BlueskyClient) {
+    init(bookmarkManager: BookmarkManager, favoritesContext: ModelContext, client: MultiAccountClient) {
         self.bookmarkManager = bookmarkManager
         self.favoritesContext = favoritesContext
         self.client = client

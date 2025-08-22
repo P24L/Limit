@@ -14,7 +14,7 @@ struct AddToListSheet: View {
     let actorDisplayName: String?
     let actorAvatarURL: URL?
     
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
     @Environment(\.dismiss) private var dismiss
     

@@ -19,7 +19,7 @@ import SDWebImageSwiftUI
 struct BookmarkEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(BookmarkManager.self) private var bookmarkManager
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
 
     @State private var editState = BookmarkEditState()
     @State private var showDeleteAlert = false

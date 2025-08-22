@@ -13,13 +13,13 @@ import WebImageExtractor
 
 @MainActor
 class BookmarkProcessingQueue {
-    private let client: BlueskyClient
+    private let client: MultiAccountClient
     private let context: ModelContext
     weak var bookmarkManager: BookmarkManager?
     private var processingTask: Task<Void, Never>?
     private var isProcessing = false
     
-    init(client: BlueskyClient, context: ModelContext, bookmarkManager: BookmarkManager? = nil) {
+    init(client: MultiAccountClient, context: ModelContext, bookmarkManager: BookmarkManager? = nil) {
         self.client = client
         self.context = context
         self.bookmarkManager = bookmarkManager

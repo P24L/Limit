@@ -24,7 +24,7 @@ struct TimelinePostList: View {
     let posts: [TimelinePostWrapper]
 
     @Environment(\.modelContext) private var context
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(TimelineFeed.self) private var feed
     @Environment(CurrentUser.self) private var currentUser
     

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct LoadingScreenView: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(AppState.self) private var appState
     @Environment(TimelineFeed.self) private var feed
     @Environment(CurrentUser.self) private var currentUser

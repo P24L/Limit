@@ -1062,7 +1062,7 @@ private let urlTracker = URLFetchingTracker()
   }
 
   // MARK: - ToggleLike
-  func toggleLike(using client: BlueskyClient) async {
+  func toggleLike(using client: MultiAccountClient) async {
     let originalURI = viewerLikeURI
     if let likeURI = viewerLikeURI {
       viewerLikeURI = nil
@@ -1087,7 +1087,7 @@ private let urlTracker = URLFetchingTracker()
   }
   
   // MARK: - ToggleRepost
-  func toggleRepost(using client: BlueskyClient) async {
+  func toggleRepost(using client: MultiAccountClient) async {
     let originalURI = viewerRepostURI
     if let repostURI = viewerRepostURI {
       viewerRepostURI = nil
@@ -1192,7 +1192,7 @@ final class TimelineFeed {
   private(set) var oldestCursor: String?
   private let context: ModelContext
 
-  private var client: BlueskyClient
+  private var client: MultiAccountClient
   private var currentAccountDID: String?
   
   // Memory management constants
@@ -1203,7 +1203,7 @@ final class TimelineFeed {
   private let hardCleanupThreshold = 2000      // When to force hard trim (aggressive cleanup)
   private let keepAroundVisible = 30           // Posts to keep below visible post in soft trim
 
-  init(context: ModelContext, client: BlueskyClient) {
+  init(context: ModelContext, client: MultiAccountClient) {
     self.context = context
     self.client = client
     Task { @MainActor in
@@ -1211,7 +1211,7 @@ final class TimelineFeed {
     }
   }
 
-  func updateClient(_ newClient: BlueskyClient) {
+  func updateClient(_ newClient: MultiAccountClient) {
     self.client = newClient
     Task { @MainActor in
       self.currentAccountDID = newClient.currentDID

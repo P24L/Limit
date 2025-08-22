@@ -12,7 +12,7 @@ import SwiftUI
 struct ComputedTimelineView: View {
     @Environment(AppRouter.self) private var router
     @Environment(\EnvironmentValues.modelContext) private var context
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(ComputedTimelineFeed.self) private var feed
     
     @State private var isTopbarHidden = false

@@ -20,7 +20,7 @@ final class NotificationManager {
     private var nextCursor: String? = nil
     
     @ObservationIgnored
-    private var client: BlueskyClient?
+    private var client: MultiAccountClient?
     
     var unreadCount: Int = 0
     var hasMoreNotifications = true
@@ -31,7 +31,7 @@ final class NotificationManager {
     
     private init() {}
     
-    func setClient(_ client: BlueskyClient) {
+    func setClient(_ client: MultiAccountClient) {
         self.client = client
     }
     

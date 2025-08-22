@@ -655,7 +655,7 @@ class PostComposerViewModel {
     }
     
     // MARK: - Post Submission
-    func submitPost(using client: BlueskyClient) async throws {
+    func submitPost(using client: MultiAccountClient) async throws {
         guard canPost else {
             throw PostComposerError.noContent
         }
@@ -685,7 +685,7 @@ class PostComposerViewModel {
         }
     }
     
-    private func postSingle(_ draft: PostDraft, using client: BlueskyClient, replyTo: AppBskyLexicon.Feed.PostRecord.ReplyReference? = nil) async throws -> ComAtprotoLexicon.Repository.StrongReference {
+    private func postSingle(_ draft: PostDraft, using client: MultiAccountClient, replyTo: AppBskyLexicon.Feed.PostRecord.ReplyReference? = nil) async throws -> ComAtprotoLexicon.Repository.StrongReference {
         DevLogger.shared.log("PostComposerViewModel.swift - Posting: \(draft.text.prefix(50))...")
         
         // Prepare embed
@@ -704,7 +704,7 @@ class PostComposerViewModel {
         return result
     }
     
-    private func postThread(using client: BlueskyClient) async throws {
+    private func postThread(using client: MultiAccountClient) async throws {
         var lastPostRef: ComAtprotoLexicon.Repository.StrongReference?
         var rootRef: ComAtprotoLexicon.Repository.StrongReference?
         
@@ -753,7 +753,7 @@ class PostComposerViewModel {
         }
     }
     
-    private func prepareEmbed(for draft: PostDraft, using client: BlueskyClient) async throws -> ATProtoBluesky.EmbedIdentifier? {
+    private func prepareEmbed(for draft: PostDraft, using client: MultiAccountClient) async throws -> ATProtoBluesky.EmbedIdentifier? {
         // Priority: Quote Post with Media > Quote Post > Images > Video > External Link
         if let quotedPost = draft.quotedPost {
             // Check if we have media to combine with the quote

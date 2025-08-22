@@ -14,7 +14,7 @@ import SwiftUI
 
 @MainActor
 struct ActorView: View {
-  @Environment(BlueskyClient.self) private var client
+  @Environment(MultiAccountClient.self) private var client
   @Environment(\.modelContext) var context
 
   var actorDID: String
@@ -37,7 +37,7 @@ struct ActorView: View {
 
 struct UserProfileView: View {
   var actorWrapped: ActorWrapper
-  @Environment(BlueskyClient.self) private var client
+  @Environment(MultiAccountClient.self) private var client
   @Environment(CurrentUser.self) private var currentUser
   @State private var selectedSection: ProfileSection = .posts
   @State private var interimFollowingURI: String?
@@ -291,7 +291,7 @@ struct PostsSectionView: View {
 struct FollowersSectionView: View {
   let actorWrapper: ActorWrapper
   let sectionType: SectionType
-  @Environment(BlueskyClient.self) private var client
+  @Environment(MultiAccountClient.self) private var client
   @State private var isLoadingMore = false
   @State private var hasMoreData = true
   @State private var lastFollowersCount = 0
@@ -395,7 +395,7 @@ struct FollowersSectionView: View {
 struct FollowerItemView: View {
   let profile: AppBskyLexicon.Actor.ProfileViewDefinition
   @State var followingURI: String?
-  @Environment(BlueskyClient.self) private var client
+  @Environment(MultiAccountClient.self) private var client
   @Environment(AppRouter.self) private var router
 
   var body: some View {
@@ -561,7 +561,7 @@ struct FeedsSectionView: View {
 
 struct FeedItemView: View {
   let feed: AppBskyLexicon.Feed.GeneratorViewDefinition
-  @Environment(BlueskyClient.self) private var client
+  @Environment(MultiAccountClient.self) private var client
   @Environment(CurrentUser.self) private var currentUser
   @State private var isSubscribed: Bool = false
   @State private var isUpdating: Bool = false

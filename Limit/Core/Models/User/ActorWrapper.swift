@@ -10,7 +10,7 @@ import Observation
 
 @Observable
 class ActorWrapper {
-  let client: BlueskyClient
+  let client: MultiAccountClient
 
   let actorDID: String
 
@@ -40,7 +40,7 @@ class ActorWrapper {
   private var likedPostsLastCursor: String?
   private(set) var isLoadingLikes: Bool = true
 
-  init(client: BlueskyClient, DID: String) {
+  init(client: MultiAccountClient, DID: String) {
     self.client = client
     self.actorDID = DID
 

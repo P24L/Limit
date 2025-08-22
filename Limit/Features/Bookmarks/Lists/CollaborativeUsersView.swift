@@ -16,7 +16,7 @@ struct CollaborativeUsersView: View {
     @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
     
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @FocusState private var isInputFocused: Bool
     
     var body: some View {

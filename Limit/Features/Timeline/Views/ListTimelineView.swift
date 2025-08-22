@@ -90,7 +90,7 @@ enum TimelineContentSource: Hashable {
 
 struct ListTimelineView: View {
     let source: TimelineContentSource
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     
     @Binding var isTopbarHidden: Bool
 

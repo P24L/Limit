@@ -14,7 +14,7 @@ import KeychainSwift
 
 
 struct SettingsView: View {
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
     @Environment(AppRouter.self) private var router
     @Environment(TimelineFeed.self) private var feed

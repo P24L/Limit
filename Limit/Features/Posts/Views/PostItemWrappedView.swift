@@ -33,7 +33,7 @@ private struct PostHeightPreferenceKey: PreferenceKey {
 
 struct PostItemWrappedView: View {
     @Environment(\.modelContext) var context
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
     
     @Namespace var namespace

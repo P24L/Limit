@@ -16,6 +16,10 @@
 		F0B84CAD2DD71B6C0007E370 /* ATProtoKit in Frameworks */ = {isa = PBXBuildFile; productRef = F0B84CAC2DD71B6C0007E370 /* ATProtoKit */; };
 		F0DC6A472E198598005C392D /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F0DC6A462E198597005C392D /* GoogleService-Info.plist */; };
 		F0E5D4D52E4FBE6D0061C91C /* GoogleService-Info-Analytics.plist in Resources */ = {isa = PBXBuildFile; fileRef = F0E5D4D42E4FBE6D0061C91C /* GoogleService-Info-Analytics.plist */; };
+		F0E832082E571F5100B802BE /* JWTKit in Frameworks */ = {isa = PBXBuildFile; productRef = F0E832072E571F5100B802BE /* JWTKit */; };
+		F0E832172E57355300B802BE /* ATIdentityTools in Frameworks */ = {isa = PBXBuildFile; productRef = F0E832162E57355300B802BE /* ATIdentityTools */; };
+		F0E832192E57355300B802BE /* DIDCore in Frameworks */ = {isa = PBXBuildFile; productRef = F0E832182E57355300B802BE /* DIDCore */; };
+		F0E8321C2E57383B00B802BE /* ATCryptography in Frameworks */ = {isa = PBXBuildFile; productRef = F0E8321B2E57383B00B802BE /* ATCryptography */; };
 		F0F1234D2E0F400000BC679A /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = F0F1234C2E0F400000BC679A /* FirebaseCore */; };
 		F0F123512E0F400000BC679A /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = F0F123502E0F400000BC679A /* FirebaseFunctions */; };
 /* End PBXBuildFile section */
@@ -59,10 +63,14 @@
 				F0B84CAB2DD71B6C0007E370 /* ATMacro in Frameworks */,
 				F00927A52DF1A76500A61A93 /* AppRouter in Frameworks */,
 				F0B84CAD2DD71B6C0007E370 /* ATProtoKit in Frameworks */,
+				F0E832082E571F5100B802BE /* JWTKit in Frameworks */,
+				F0E832172E57355300B802BE /* ATIdentityTools in Frameworks */,
 				F0F1234D2E0F400000BC679A /* FirebaseCore in Frameworks */,
 				F022E1852E35629400612E14 /* WebImageExtractor in Frameworks */,
+				F0E832192E57355300B802BE /* DIDCore in Frameworks */,
 				F0F123512E0F400000BC679A /* FirebaseFunctions in Frameworks */,
 				F009A3ED2E4D17CF0005FD3C /* FirebaseAnalytics in Frameworks */,
+				F0E8321C2E57383B00B802BE /* ATCryptography in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -134,6 +142,10 @@
 				F0F123502E0F400000BC679A /* FirebaseFunctions */,
 				F022E1842E35629400612E14 /* WebImageExtractor */,
 				F009A3EC2E4D17CF0005FD3C /* FirebaseAnalytics */,
+				F0E832072E571F5100B802BE /* JWTKit */,
+				F0E832162E57355300B802BE /* ATIdentityTools */,
+				F0E832182E57355300B802BE /* DIDCore */,
+				F0E8321B2E57383B00B802BE /* ATCryptography */,
 			);
 			productName = Limit;
 			productReference = F0B84C982DD71AF30007E370 /* Limit.app */;
@@ -170,6 +182,9 @@
 				F00927A32DF1A76500A61A93 /* XCRemoteSwiftPackageReference "AppRouter" */,
 				F0F123492E0F400000BC679A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				F022E1832E35629400612E14 /* XCLocalSwiftPackageReference "Packages/WebImageExtractor" */,
+				F0E832062E571F5100B802BE /* XCRemoteSwiftPackageReference "jwt-kit" */,
+				F0E832152E57355300B802BE /* XCRemoteSwiftPackageReference "ATIdentityTools" */,
+				F0E8321A2E57383B00B802BE /* XCRemoteSwiftPackageReference "ATCryptography" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F0B84C992DD71AF30007E370 /* Products */;
@@ -468,6 +483,30 @@
 				minimumVersion = 0.26.0;
 			};
 		};
+		F0E832062E571F5100B802BE /* XCRemoteSwiftPackageReference "jwt-kit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vapor/jwt-kit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.2.0;
+			};
+		};
+		F0E832152E57355300B802BE /* XCRemoteSwiftPackageReference "ATIdentityTools" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ATProtoKit/ATIdentityTools.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.1;
+			};
+		};
+		F0E8321A2E57383B00B802BE /* XCRemoteSwiftPackageReference "ATCryptography" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ATProtoKit/ATCryptography.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.0;
+			};
+		};
 		F0F123492E0F400000BC679A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -512,6 +551,26 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F0B84CA92DD71B6C0007E370 /* XCRemoteSwiftPackageReference "ATProtoKit" */;
 			productName = ATProtoKit;
+		};
+		F0E832072E571F5100B802BE /* JWTKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F0E832062E571F5100B802BE /* XCRemoteSwiftPackageReference "jwt-kit" */;
+			productName = JWTKit;
+		};
+		F0E832162E57355300B802BE /* ATIdentityTools */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F0E832152E57355300B802BE /* XCRemoteSwiftPackageReference "ATIdentityTools" */;
+			productName = ATIdentityTools;
+		};
+		F0E832182E57355300B802BE /* DIDCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F0E832152E57355300B802BE /* XCRemoteSwiftPackageReference "ATIdentityTools" */;
+			productName = DIDCore;
+		};
+		F0E8321B2E57383B00B802BE /* ATCryptography */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F0E8321A2E57383B00B802BE /* XCRemoteSwiftPackageReference "ATCryptography" */;
+			productName = ATCryptography;
 		};
 		F0F1234C2E0F400000BC679A /* FirebaseCore */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -10,7 +10,7 @@ import SwiftData
 
 struct ProfileTabView: View {
     @Environment(AppRouter.self) private var router
-    @Environment(BlueskyClient.self) private var client
+    @Environment(MultiAccountClient.self) private var client
     @Environment(NotificationManager.self) private var notificationManager
     @Environment(FavoritePostManager.self) private var favoritesPost
     @Environment(BookmarkManager.self) private var bookmarkManager
@@ -173,7 +173,10 @@ struct ProfileTabView: View {
                             isCurrent: account.id == AccountManager.shared.currentAccount?.id
                         )
                         .onTapGesture {
-                            if account.id != AccountManager.shared.currentAccount?.id {
+                            if account.needsReauth {
+                                // Account needs re-authentication, show login sheet
+                                showAddAccountSheet = true
+                            } else if account.id != AccountManager.shared.currentAccount?.id {
                                 Task {
                                     await switchToAccount(account)
                                 }
@@ -192,10 +195,7 @@ struct ProfileTabView: View {
                     
                     // Add Account button
                     Button(action: {
-                        Task {
-                            await client.logout()
-                            showAddAccountSheet = true
-                        }
+                        showAddAccountSheet = true
                     }) {
                         HStack {
                             Image(systemName: "plus.circle.fill")
@@ -291,11 +291,6 @@ struct ProfileTabView: View {
     // MARK: - Helper Methods
     
     private func switchToAccount(_ account: UserAccount) async {
-        guard let password = AccountManager.shared.getAppPassword(for: account) else {
-            DevLogger.shared.log("ProfileTabView - No password found for account")
-            return
-        }
-        
         isSwitchingAccount = true
         defer { isSwitchingAccount = false }
         
@@ -304,23 +299,26 @@ struct ProfileTabView: View {
         feed.clearStorage()
         computedFeed.clearSession()
         
-        // Switch account
-        let success = await client.switchAccount(to: account, password: password)
+        // Update AccountManager first
+        AccountManager.shared.switchToAccount(account)
         
-        if success {
-            // Update AccountManager
-            AccountManager.shared.switchToAccount(account)
-            
-            // Update real DID if needed
+        // Switch account using MultiAccountClient
+        await client.switchToAccount(account)
+        
+        // Check if authenticated
+        if client.isAuthenticated {
+            // Update real DID if needed (for legacy accounts)
             if account.did.hasPrefix("legacy:"), let realDID = client.currentDID {
-                AccountManager.shared.addAccount(
-                    did: realDID,
-                    handle: account.handle,
-                    appPassword: password,
-                    displayName: currentUser.displayName,
-                    avatarURL: currentUser.avatarURL
-                )
-                AccountManager.shared.deleteAccount(account)
+                if let password = AccountManager.shared.getAppPassword(for: account) {
+                    AccountManager.shared.addAccount(
+                        did: realDID,
+                        handle: account.handle,
+                        appPassword: password,
+                        displayName: currentUser.displayName,
+                        avatarURL: currentUser.avatarURL
+                    )
+                    AccountManager.shared.deleteAccount(account, bookmarkManager: bookmarkManager)
+                }
             }
             
             // Refresh user data and reload timeline
