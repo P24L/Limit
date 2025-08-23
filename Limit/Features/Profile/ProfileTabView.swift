@@ -25,6 +25,7 @@ struct ProfileTabView: View {
     @State private var accountToDelete: UserAccount? = nil
     @State private var showDeleteConfirmation = false
     @State private var showLogoutConfirmation = false
+    @State private var accountForReauth: UserAccount? = nil
     
     var body: some View {
         Form {
@@ -174,7 +175,8 @@ struct ProfileTabView: View {
                         )
                         .onTapGesture {
                             if account.needsReauth {
-                                // Account needs re-authentication, show login sheet
+                                // Account needs re-authentication, show login sheet with handle
+                                accountForReauth = account
                                 showAddAccountSheet = true
                             } else if account.id != AccountManager.shared.currentAccount?.id {
                                 Task {
@@ -255,9 +257,10 @@ struct ProfileTabView: View {
             }
         }
         .sheet(isPresented: $showAddAccountSheet) {
-            LoginView { success in
+            LoginView(prefilledHandle: accountForReauth?.handle ?? "") { success in
                 if success {
                     showAddAccountSheet = false
+                    accountForReauth = nil
                     feed.updateClient(client)
                 }
             }

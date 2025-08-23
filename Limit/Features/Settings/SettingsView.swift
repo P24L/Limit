@@ -105,6 +105,15 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    
+                    // Test OAuth re-authentication
+                    Button("Simulate Expired OAuth Token") {
+                        if let currentAccount = AccountManager.shared.currentAccount {
+                            AccountManager.shared.markAccountNeedsReauth(currentAccount)
+                            DevLogger.shared.log("SettingsView - Simulated expired OAuth for: \(currentAccount.handle)")
+                        }
+                    }
+                    .foregroundColor(.orange)
                     NavigationLink("View Logs", destination: LogViewer())
                     SwiftDataCountView()
                 }

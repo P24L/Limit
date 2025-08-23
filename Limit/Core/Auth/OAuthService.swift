@@ -26,6 +26,8 @@ class OAuthService: ObservableObject {
     
     @Published var isAuthenticating = false
     @Published var authError: String?
+    @Published var showWebView = false
+    @Published var authWebViewURL: URL?
     
     // MARK: - Private Properties
     
@@ -61,7 +63,11 @@ class OAuthService: ObservableObject {
     
     /// Handle OAuth callback from deep link or universal link
     func handleOAuthCallback(url: URL) {
-        DevLogger.shared.log("OAuthService - Handling callback: \(url)")
+        // DevLogger.shared.log("OAuthService - Handling callback: \(url)")
+        
+        // Hide WebView when we get callback
+        showWebView = false
+        authWebViewURL = nil
         
         // Parse callback URL
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
@@ -86,7 +92,7 @@ class OAuthService: ObservableObject {
             return
         }
         
-        DevLogger.shared.log("OAuthService - Got authorization code")
+        // DevLogger.shared.log("OAuthService - Got authorization code")
         
         // Exchange code for tokens
         Task {
@@ -110,7 +116,7 @@ class OAuthService: ObservableObject {
     /// Start OAuth flow with backend
     private func startOAuthWithBackend(handle: String) async throws -> URL {
         let url = URL(string: "\(OAuthConfig.backendURL)/api/auth/start")!
-        DevLogger.shared.log("OAuthService - Calling backend: \(url)")
+        // DevLogger.shared.log("OAuthService - Calling backend: \(url)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -120,10 +126,10 @@ class OAuthService: ObservableObject {
         let body: [String: String]
         if handle.isEmpty {
             body = [:]  // Empty body - backend will handle OAuth without pre-filled handle
-            DevLogger.shared.log("OAuthService - Request without handle (user will enter on Bluesky)")
+            // DevLogger.shared.log("OAuthService - Request without handle (user will enter on Bluesky)")
         } else {
             body = ["handle": handle]  // Pre-fill handle on Bluesky login
-            DevLogger.shared.log("OAuthService - Request with handle: '\(handle)'")
+            // DevLogger.shared.log("OAuthService - Request with handle: '\(handle)'")
         }
         request.httpBody = try JSONEncoder().encode(body)
         
@@ -135,7 +141,7 @@ class OAuthService: ObservableObject {
                 throw OAuthServiceError.backendError("Invalid response from backend")
             }
             
-            DevLogger.shared.log("OAuthService - Response status: \(httpResponse.statusCode)")
+            // DevLogger.shared.log("OAuthService - Response status: \(httpResponse.statusCode)")
             
             if httpResponse.statusCode != 200 {
                 let responseString = String(data: data, encoding: .utf8) ?? "No response body"
@@ -144,8 +150,8 @@ class OAuthService: ObservableObject {
             }
             
             // Log successful response
-            let responseString = String(data: data, encoding: .utf8) ?? ""
-            DevLogger.shared.log("OAuthService - Success response: \(responseString)")
+            // let responseString = String(data: data, encoding: .utf8) ?? ""
+            // DevLogger.shared.log("OAuthService - Success response: \(responseString)")
             
             // Parse response
             struct StartResponse: Decodable {
@@ -155,7 +161,7 @@ class OAuthService: ObservableObject {
             }
             
             let startResponse = try JSONDecoder().decode(StartResponse.self, from: data)
-            DevLogger.shared.log("OAuthService - Parsed authUrl: \(startResponse.authUrl)")
+            // DevLogger.shared.log("OAuthService - Parsed authUrl: \(startResponse.authUrl)")
             
             guard let authURL = URL(string: startResponse.authUrl) else {
                 DevLogger.shared.log("OAuthService - Invalid URL: \(startResponse.authUrl)")
@@ -173,7 +179,7 @@ class OAuthService: ObservableObject {
     /// Exchange authorization code for tokens
     private func exchangeCodeForTokens(code: String) async throws -> OAuthTokens {
         let url = URL(string: "\(OAuthConfig.backendURL)/api/auth/tokens")!
-        DevLogger.shared.log("OAuthService - Exchanging code at: \(url)")
+        // DevLogger.shared.log("OAuthService - Exchanging code at: \(url)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -181,7 +187,7 @@ class OAuthService: ObservableObject {
         
         let body = ["code": code]
         request.httpBody = try JSONEncoder().encode(body)
-        DevLogger.shared.log("OAuthService - Exchange request with code: \(code.prefix(10))...")
+        // DevLogger.shared.log("OAuthService - Exchange request with code: \(code.prefix(10))...")
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -191,7 +197,7 @@ class OAuthService: ObservableObject {
                 throw OAuthServiceError.backendError("Invalid response from backend")
             }
             
-            DevLogger.shared.log("OAuthService - Token exchange status: \(httpResponse.statusCode)")
+            // DevLogger.shared.log("OAuthService - Token exchange status: \(httpResponse.statusCode)")
             
             if httpResponse.statusCode != 200 {
                 let responseString = String(data: data, encoding: .utf8) ?? "No response body"
@@ -199,8 +205,8 @@ class OAuthService: ObservableObject {
                 throw OAuthServiceError.backendError("Token exchange failed (\(httpResponse.statusCode)): \(responseString)")
             }
             
-            let responseString = String(data: data, encoding: .utf8) ?? ""
-            DevLogger.shared.log("OAuthService - Token exchange success: \(responseString.prefix(100))...")
+            // let responseString = String(data: data, encoding: .utf8) ?? ""
+            // DevLogger.shared.log("OAuthService - Token exchange success: \(responseString.prefix(100))...")
             
             struct TokenResponse: Decodable {
                 let accessToken: String
@@ -244,33 +250,33 @@ class OAuthService: ObservableObject {
             }
             
             // First log the raw response to debug dpopKey format
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                if let dpopKeyRaw = json["dpopKey"] {
-                    DevLogger.shared.log("OAuthService - dpopKey raw value: \(dpopKeyRaw)")
-                } else {
-                    DevLogger.shared.log("OAuthService - No dpopKey in response")
-                }
-            }
+            // if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            //     if let dpopKeyRaw = json["dpopKey"] {
+            //         // DevLogger.shared.log("OAuthService - dpopKey raw value: \(dpopKeyRaw)")
+            //     } else {
+            //         // DevLogger.shared.log("OAuthService - No dpopKey in response")
+            //     }
+            // }
             
             let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
-            DevLogger.shared.log("OAuthService - Parsed tokens for: \(tokenResponse.handle)")
+            // DevLogger.shared.log("OAuthService - Parsed tokens for: \(tokenResponse.handle)")
             
             // Debug: Log expiration info
-            if let expiresIn = tokenResponse.expiresIn {
-                DevLogger.shared.log("OAuthService - Token expires in \(expiresIn) seconds (\(expiresIn/60) minutes)")
-            } else {
-                DevLogger.shared.log("OAuthService - No expiresIn from backend, using default 1 hour")
-            }
+            // if let expiresIn = tokenResponse.expiresIn {
+            //     // DevLogger.shared.log("OAuthService - Token expires in \(expiresIn) seconds (\(expiresIn/60) minutes)")
+            // } else {
+            //     // DevLogger.shared.log("OAuthService - No expiresIn from backend, using default 1 hour")
+            // }
             
             // Calculate expiration date
             let expiresAt: Date?
             if let expiresIn = tokenResponse.expiresIn {
                 expiresAt = Date().addingTimeInterval(TimeInterval(expiresIn))
-                DevLogger.shared.log("OAuthService - Token will expire at: \(expiresAt!)")
+                // DevLogger.shared.log("OAuthService - Token will expire at: \(expiresAt!)")
             } else {
                 // Default to 1 hour if not specified
                 expiresAt = Date().addingTimeInterval(3600)
-                DevLogger.shared.log("OAuthService - Token will expire at (default): \(expiresAt!)")
+                // DevLogger.shared.log("OAuthService - Token will expire at (default): \(expiresAt!)")
             }
             
             // Extract PDS URL from JWT token's 'aud' field
@@ -285,17 +291,17 @@ class OAuthService: ObservableObject {
                 
                 if let decodedData = Data(base64Encoded: paddedBase64),
                    let json = try? JSONSerialization.jsonObject(with: decodedData) as? [String: Any] {
-                    DevLogger.shared.log("OAuthService - Token payload: \(json)")
+                    // DevLogger.shared.log("OAuthService - Token payload: \(json)")
                     
                     // Extract aud field (audience) which contains PDS URL
                     if let aud = json["aud"] as? String {
-                        DevLogger.shared.log("OAuthService - Token audience (PDS): \(aud)")
+                        // DevLogger.shared.log("OAuthService - Token audience (PDS): \(aud)")
                         
                         // Convert did:web:... to https://...
                         if aud.hasPrefix("did:web:") {
                             let host = aud.replacingOccurrences(of: "did:web:", with: "")
                             pdsURL = "https://\(host)"
-                            DevLogger.shared.log("OAuthService - Extracted PDS URL: \(pdsURL)")
+                            // DevLogger.shared.log("OAuthService - Extracted PDS URL: \(pdsURL)")
                         } else {
                             // Already a URL
                             pdsURL = aud
@@ -305,11 +311,11 @@ class OAuthService: ObservableObject {
             }
             
             // Log DPoP key if provided
-            if let dpopKey = tokenResponse.dpopKey {
-                DevLogger.shared.log("OAuthService - Backend provided DPoP key (kty: \(dpopKey.kty), crv: \(dpopKey.crv))")
-            } else {
-                DevLogger.shared.log("OAuthService - No DPoP key from backend")
-            }
+            // if let dpopKey = tokenResponse.dpopKey {
+            //     // DevLogger.shared.log("OAuthService - Backend provided DPoP key (kty: \(dpopKey.kty), crv: \(dpopKey.crv))")
+            // } else {
+            //     // DevLogger.shared.log("OAuthService - No DPoP key from backend")
+            // }
             
             return OAuthTokens(
                 accessToken: tokenResponse.accessToken,
@@ -329,13 +335,21 @@ class OAuthService: ObservableObject {
     
     /// Present OAuth WebView (to be called from UI)
     private func presentOAuthWebView(url: URL) {
-        // This will be implemented in the UI layer (OAuthWebView)
-        // For now, we'll just open in Safari
-        #if os(iOS)
-        if UIApplication.shared.canOpenURL(url) {
-            UIApplication.shared.open(url)
-        }
-        #endif
+        // Set URL for in-app WebView
+        authWebViewURL = url
+        showWebView = true
+        // DevLogger.shared.log("OAuthService - Presenting in-app WebView for OAuth")
+    }
+    
+    /// Cancel OAuth flow
+    func cancelOAuth() {
+        DevLogger.shared.log("OAuthService - OAuth cancelled by user")
+        showWebView = false
+        authWebViewURL = nil
+        isAuthenticating = false
+        authError = "Authentication cancelled"
+        authCompletion?(.failure(OAuthServiceError.authenticationFailed("User cancelled")))
+        authCompletion = nil
     }
     
     // Token refresh není potřeba - AT Protocol má vlastní refresh mechanismus
@@ -373,14 +387,25 @@ struct OAuthWebView: UIViewRepresentable {
     let onCancel: () -> Void
     
     func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
+        // DevLogger.shared.log("OAuthWebView - Creating WebView with URL: \(url)")
+        
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default() // Use default data store for cookies
+        
+        let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
+        webView.allowsBackForwardNavigationGestures = true
+        
+        // Load the initial request
+        let request = URLRequest(url: url)
+        // DevLogger.shared.log("OAuthWebView - Loading request: \(url)")
+        webView.load(request)
+        
         return webView
     }
     
     func updateUIView(_ webView: WKWebView, context: Context) {
-        let request = URLRequest(url: url)
-        webView.load(request)
+        // Don't reload if already loading
     }
     
     func makeCoordinator() -> Coordinator {
@@ -401,9 +426,20 @@ struct OAuthWebView: UIViewRepresentable {
                 return
             }
             
-            // Check if this is our OAuth callback
-            if url.scheme == OAuthConfig.urlScheme || url.host == OAuthConfig.universalLinkHost {
-                DevLogger.shared.log("OAuthWebView - Got callback URL: \(url)")
+            // DevLogger.shared.log("OAuthWebView - Navigating to: \(url)")
+            
+            // Check if this is our OAuth callback - both deep link and universal link
+            if url.scheme == OAuthConfig.urlScheme && url.host == "auth" {
+                // Deep link callback: limit://auth?code=...
+                // DevLogger.shared.log("OAuthWebView - Got deep link callback: \(url)")
+                parent.onCallback(url)
+                decisionHandler(.cancel)
+                return
+            }
+            
+            if url.host == OAuthConfig.universalLinkHost && url.path.hasPrefix("/auth") {
+                // Universal link callback: https://viewer.hyperlimit.app/auth?code=...
+                // DevLogger.shared.log("OAuthWebView - Got universal link callback: \(url)")
                 parent.onCallback(url)
                 decisionHandler(.cancel)
                 return
@@ -412,12 +448,29 @@ struct OAuthWebView: UIViewRepresentable {
             decisionHandler(.allow)
         }
         
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            // DevLogger.shared.log("OAuthWebView - Started loading")
+        }
+        
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // DevLogger.shared.log("OAuthWebView - Finished loading")
+        }
+        
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            DevLogger.shared.log("OAuthWebView - Navigation failed: \(error)")
-            if (error as NSError).code == NSURLErrorCancelled {
-                // This is expected when we intercept the callback
+            let nsError = error as NSError
+            // DevLogger.shared.log("OAuthWebView - Navigation failed: \(error)")
+            
+            // Error -999 means cancelled, which is expected when we intercept the callback
+            if nsError.code == NSURLErrorCancelled {
                 return
             }
+            
+            // For other errors, notify parent
+            parent.onCancel()
+        }
+        
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            // DevLogger.shared.log("OAuthWebView - Navigation error: \(error)")
             parent.onCancel()
         }
     }

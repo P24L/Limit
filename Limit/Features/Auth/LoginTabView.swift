@@ -7,11 +7,16 @@
 
 import KeychainSwift
 import SwiftUI
+import WebKit
 
 struct LoginTabView: View {
     @Environment(MultiAccountClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
+    @StateObject private var oauthService = OAuthService.shared
     //@Binding var areCredentialsAvailable: Bool
+    
+    // Prefilled handle for re-auth
+    var prefilledHandle: String = ""
     
     @State private var handle: String = ""
     @State private var appPassword: String = ""
@@ -23,6 +28,7 @@ struct LoginTabView: View {
     @State private var isOAuthLoading = false
     @State private var errorMessage: String?
     @State private var showOAuthWebView = false
+    @State private var isSwitchingAccount = false
     
     let onDismiss: () -> Void
     
@@ -39,6 +45,8 @@ struct LoginTabView: View {
         .padding(.top, 20)
         NavigationStack {
             Form {
+                // App Password login is now hidden - OAuth only
+                /*
                 Section(header: Text("Bluesky Login")) {
                     TextField("Handle", text: $handle)
                         .autocapitalization(.none)
@@ -60,6 +68,7 @@ struct LoginTabView: View {
                         }
                     }
                 }
+                */
 
                 if let error = errorMessage {
                     Section {
@@ -79,10 +88,10 @@ struct LoginTabView: View {
                                 ProgressView()
                             } else {
                                 VStack(spacing: 4) {
-                                    Label("Continue with Bluesky", systemImage: "link.circle.fill")
+                                    Label("Connect with your Bluesky account", systemImage: "link.circle.fill")
                                         .bold()
-                                    if !handle.isEmpty {
-                                        Text("as @\(handle)")
+                                    if !prefilledHandle.isEmpty {
+                                        Text("as @\(prefilledHandle)")
                                             .font(.caption)
                                             .opacity(0.9)
                                     }
@@ -95,7 +104,8 @@ struct LoginTabView: View {
                     .foregroundColor(.white)
                     .listRowBackground(Color.blue)
                     
-                    // App Password Login Button
+                    // App Password login is now hidden - OAuth only
+                    /*
                     Button {
                         login()
                     } label: {
@@ -111,9 +121,96 @@ struct LoginTabView: View {
                         }
                     }
                     .disabled(handle.isEmpty || appPassword.isEmpty || isLoading || isOAuthLoading)
+                    */
+                    
+                    // Cancel OAuth button
+                    if isOAuthLoading {
+                        Button {
+                            cancelOAuth()
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Cancel Authentication")
+                                    .foregroundColor(.red)
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+            
+                // Available accounts section
+                if !AccountManager.shared.accounts.isEmpty {
+                    Section(header: Text("Switch Account")) {
+                        // Filter out the account we're currently re-authenticating
+                        ForEach(AccountManager.shared.accounts.filter { account in
+                            let handleToCheck = !prefilledHandle.isEmpty ? prefilledHandle : handle
+                            // Don't show the account we're re-authenticating (it's already shown above)
+                            return account.handle.lowercased() != handleToCheck.lowercased()
+                        }) { account in
+                            Button {
+                                Task {
+                                    // If this is the current account and it works, just close the sheet
+                                    if account.id == AccountManager.shared.currentAccount?.id && !account.needsReauth {
+                                        await MainActor.run {
+                                            onDismiss()
+                                        }
+                                    } else {
+                                        await switchToAccount(account)
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    // Avatar placeholder
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: 40, height: 40)
+                                        .overlay(
+                                            Text(account.handle.prefix(1).uppercased())
+                                                .font(.headline)
+                                                .foregroundColor(.gray)
+                                        )
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if !account.displayName.isEmpty {
+                                            Text(account.displayName)
+                                                .font(.headline)
+                                                .foregroundColor(.primary)
+                                        }
+                                        Text("@\(account.handle)")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    // Show indicators
+                                    HStack(spacing: 8) {
+                                        if account.id == AccountManager.shared.currentAccount?.id {
+                                            Text("(Current)")
+                                                .font(.caption)
+                                                .foregroundColor(.blue)
+                                        }
+                                        
+                                        if account.needsReauth {
+                                            Image(systemName: "exclamationmark.triangle.fill")
+                                                .foregroundColor(.orange)
+                                                .font(.system(size: 16))
+                                        }
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
             }
             .navigationTitle("Login")
+            .onAppear {
+                // Pre-fill handle if provided for re-auth
+                if !prefilledHandle.isEmpty {
+                    handle = prefilledHandle
+                }
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -123,10 +220,88 @@ struct LoginTabView: View {
                 }
             }
         }
+        .onReceive(oauthService.$showWebView) { show in
+            showOAuthWebView = show
+            if show {
+                // DevLogger.shared.log("LoginTabView - OAuthService showWebView changed to: \(show), URL: \(oauthService.authWebViewURL?.absoluteString ?? "nil")")
+            }
+        }
+        .sheet(isPresented: $showOAuthWebView) {
+            if let url = oauthService.authWebViewURL {
+                NavigationStack {
+                    OAuthWebView(
+                        url: url,
+                        onCallback: { callbackURL in
+                            // DevLogger.shared.log("LoginTabView - OAuth callback received")
+                            showOAuthWebView = false
+                            oauthService.handleOAuthCallback(url: callbackURL)
+                        },
+                        onCancel: {
+                            // DevLogger.shared.log("LoginTabView - OAuth cancelled")
+                            showOAuthWebView = false
+                            oauthService.cancelOAuth()
+                        }
+                    )
+                    .navigationTitle("Sign in to Bluesky")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancel") {
+                                showOAuthWebView = false
+                                oauthService.cancelOAuth()
+                            }
+                        }
+                    }
+                }
+                .onAppear {
+                    // DevLogger.shared.log("LoginTabView - OAuth sheet appeared with URL: \(url)")
+                }
+            } else {
+                Text("Error: No OAuth URL available")
+                    .onAppear {
+                        // DevLogger.shared.log("LoginTabView - ERROR: Sheet shown but oauthWebViewURL is nil")
+                    }
+            }
+        }
     }
 
     private func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+    
+    private func cancelOAuth() {
+        isOAuthLoading = false
+        errorMessage = nil
+        oauthService.cancelOAuth()
+        // DevLogger.shared.log("LoginTabView - OAuth authentication cancelled by user")
+    }
+    
+    private func switchToAccount(_ account: UserAccount) async {
+        if account.needsReauth {
+            // Account needs re-auth, start OAuth with this handle
+            await MainActor.run {
+                // Set prefilled handle for OAuth
+                handle = account.handle
+                // Start OAuth flow
+                loginWithOAuth()
+            }
+        } else {
+            // Switch to the account
+            await MainActor.run {
+                isSwitchingAccount = true
+            }
+            
+            await client.switchToAccount(account)
+            // AccountManager is updated automatically by MultiAccountClient.switchToAccount
+            
+            // Refresh UI
+            await currentUser.refreshProfile(client: client)
+            
+            await MainActor.run {
+                isSwitchingAccount = false
+                onDismiss()
+            }
+        }
     }
     
     private func loginWithOAuth() {
@@ -137,10 +312,26 @@ struct LoginTabView: View {
         
         Task {
             do {
-                // Start OAuth flow - use handle from text field if provided (optional)
+                // Start OAuth flow - use prefilled handle or handle from text field
                 let oauthService = OAuthService.shared
-                // Handle is optional - if user typed it, it will pre-fill on Bluesky
-                let tokens = try await oauthService.startOAuthFlow(handle: handle)
+                let handleToUse = !prefilledHandle.isEmpty ? prefilledHandle : handle
+                
+                // Check if this account already exists and works
+                if !handleToUse.isEmpty,
+                   let existingAccount = AccountManager.shared.accounts.first(where: { 
+                       $0.handle.lowercased() == handleToUse.lowercased() && !$0.needsReauth 
+                   }) {
+                    // Account already exists and works, just switch to it
+                    // DevLogger.shared.log("LoginTabView - Account already exists, switching to it")
+                    await switchToAccount(existingAccount)
+                    await MainActor.run {
+                        isOAuthLoading = false
+                    }
+                    return
+                }
+                
+                // Handle is optional - if provided, it will pre-fill on Bluesky
+                let tokens = try await oauthService.startOAuthFlow(handle: handleToUse)
                 
                 DevLogger.shared.log("LoginTabView - OAuth successful, got tokens for: \(tokens.handle)")
                 
@@ -155,6 +346,8 @@ struct LoginTabView: View {
                 
                 // Switch to the new OAuth account
                 if let account = AccountManager.shared.accounts.first(where: { $0.did == tokens.did }) {
+                    // Clear the needsReauth flag after successful OAuth
+                    AccountManager.shared.clearNeedsReauth(for: account)
                     // Small delay to ensure tokens are properly saved
                     try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
                     await client.switchToAccount(account)
