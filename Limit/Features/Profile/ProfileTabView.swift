@@ -210,6 +210,20 @@ struct ProfileTabView: View {
                 
                 // Actions Section
                 Section {
+                    // Send Feedback
+                    Button {
+                        router.presentedSheet = .composePost(initialText: "@limitapp.bsky.social ")
+                    } label: {
+                        HStack {
+                            Label("Send Feedback", systemImage: "bubble.left.and.bubble.right.fill")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
                     // Settings
                     Button {
                         router.navigateTo(.settings)

@@ -480,8 +480,22 @@ private extension BookmarkEditSheet {
             // Edit mode - load existing bookmark
             editState.loadBookmark(bookmark)
         } else {
-            // Create mode - check clipboard for URL
-            editState.checkClipboard()
+            // Create mode - first check for pending URL from Share Extension
+            if let pendingURL = UserDefaults.standard.string(forKey: "pendingBookmarkURL") {
+                editState.url = pendingURL
+                // Check for pending note
+                if let pendingNote = UserDefaults.standard.string(forKey: "pendingBookmarkNote") {
+                    editState.note = pendingNote
+                    UserDefaults.standard.removeObject(forKey: "pendingBookmarkNote")
+                }
+                // Clear the pending URL so it's not used again
+                UserDefaults.standard.removeObject(forKey: "pendingBookmarkURL")
+                DevLogger.shared.log("BookmarkEditSheet - Loaded pending URL from Share Extension: \(pendingURL)")
+            } else {
+                // If no pending URL, check clipboard for URL
+                editState.checkClipboard()
+            }
+            
             if !editState.url.isEmpty {
                 await editState.fetchMetadata()
             }

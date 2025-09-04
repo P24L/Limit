@@ -34,6 +34,7 @@ fastlane/tmp
 # Firebase
 GoogleService-Info.plist
 GoogleService-Info-Analytics.plist
+GoogleService-Info-Analytics-Dev.plist
 
 # Tuples (např. Xcode Cloud)
 *.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved

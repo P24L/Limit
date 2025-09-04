@@ -38,34 +38,68 @@ class AnalyticsService {
             return
         }
         
+        // Determine which config file to use based on bundle ID
+        let currentBundleID = Bundle.main.bundleIdentifier ?? "P24L.Limit"
+        let configFileName: String
+        
+        if currentBundleID.hasSuffix(".dev") {
+            // Try to load dev-specific config first
+            if Bundle.main.path(forResource: "GoogleService-Info-Analytics-Dev", ofType: "plist") != nil {
+                configFileName = "GoogleService-Info-Analytics-Dev"
+                DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Using dev config file")
+            } else {
+                // Fallback to production config with bundle ID override
+                configFileName = "GoogleService-Info-Analytics"
+                DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Dev config not found, using production config with override")
+            }
+        } else {
+            configFileName = "GoogleService-Info-Analytics"
+            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Using production config file")
+        }
+        
         // Load the Analytics configuration file
-        guard let analyticsConfigPath = Bundle.main.path(forResource: "GoogleService-Info-Analytics", ofType: "plist") else {
-            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Analytics config file not found")
+        guard let analyticsConfigPath = Bundle.main.path(forResource: configFileName, ofType: "plist") else {
+            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Analytics config file not found: \(configFileName)")
             return
         }
         
-        guard let analyticsOptions = FirebaseOptions(contentsOfFile: analyticsConfigPath) else {
-            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Failed to load Analytics config")
+        guard var analyticsOptions = FirebaseOptions(contentsOfFile: analyticsConfigPath) else {
+            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Failed to load Analytics config from: \(configFileName)")
             return
         }
         
-        // Check if analytics app already exists
-        if FirebaseApp.app(name: "analytics") == nil {
-            // Configure Firebase Analytics as a secondary app
-            FirebaseApp.configure(name: "analytics", options: analyticsOptions)
-            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Analytics Firebase app configured")
+        // Override Bundle ID if needed (for dev builds using production config)
+        if configFileName == "GoogleService-Info-Analytics" && currentBundleID.hasSuffix(".dev") {
+            analyticsOptions.bundleID = currentBundleID
+            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Overriding bundle ID to: \(currentBundleID)")
         }
         
-        analyticsApp = FirebaseApp.app(name: "analytics")
+        DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Using bundle ID: \(analyticsOptions.bundleID ?? "unknown")")
+        
+        // Check if default Firebase app already exists
+        if FirebaseApp.app() == nil {
+            // Configure Firebase as default app for Analytics to work properly
+            FirebaseApp.configure(options: analyticsOptions)
+            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Default Firebase app configured for Analytics")
+        } else {
+            DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Default Firebase app already exists")
+        }
+        
+        analyticsApp = FirebaseApp.app()
         isInitialized = true
+        
+        // Enable Analytics collection explicitly
+        Analytics.setAnalyticsCollectionEnabled(true)
         
         // Log the first event to confirm initialization
         logEvent("analytics_initialized", parameters: [
             "initialization_delay": 15,
-            "bundle_id": Bundle.main.bundleIdentifier ?? "unknown"
+            "bundle_id": currentBundleID,
+            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "config_type": configFileName.contains("Dev") ? "development" : "production"
         ])
         
-        DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Analytics successfully initialized")
+        DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Analytics successfully initialized with collection enabled")
     }
     
     func logEvent(_ name: String, parameters: [String: Any]? = nil) {

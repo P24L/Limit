@@ -78,7 +78,12 @@ enum Destination: DestinationType {
 enum Sheet: SheetType {
     case none // nebo můžeš později přidat např. compose post apod.
     case login
-    case composePost(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil, bookmark: BookmarkView? = nil)
+    case composePost(
+        quotedPost: TimelinePostWrapper? = nil,
+        replyTo: TimelinePostWrapper? = nil,
+        bookmark: BookmarkView? = nil,
+        initialText: String? = nil
+    )
     case fullScreenImage(images: [ImageDisplayData], initialIndex: Int, namespace: Namespace.ID)
     case aiExplanation(type: AIExplanationType)
     case aiSummary(bookmark: BookmarkView)

@@ -13,14 +13,50 @@ import FirebaseFunctions
 @Observable
 class AIService {
     private var _functions: Functions?
+    private var openAIApp: FirebaseApp?
+    
     private var functions: Functions {
         if _functions == nil {
-            // Configure Firebase if not already configured
-            if FirebaseApp.app() == nil {
-                FirebaseApp.configure()
-                DevLogger.shared.log("AIService.swift - functions - Firebase configured")
+            // Configure separate Firebase app for OpenAI functions
+            if openAIApp == nil {
+                // Load the OpenAI configuration file (GoogleService-Info.plist)
+                guard let openAIConfigPath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") else {
+                    DevLogger.shared.log("AIService.swift - functions - OpenAI config file not found")
+                    fatalError("GoogleService-Info.plist not found for OpenAI functions")
+                }
+                
+                guard let openAIOptions = FirebaseOptions(contentsOfFile: openAIConfigPath) else {
+                    DevLogger.shared.log("AIService.swift - functions - Failed to load OpenAI config")
+                    fatalError("Failed to load GoogleService-Info.plist for OpenAI functions")
+                }
+                
+                // Override bundle ID for dev builds if needed
+                let currentBundleID = Bundle.main.bundleIdentifier ?? "P24L.Limit"
+                if currentBundleID.hasSuffix(".dev") {
+                    openAIOptions.bundleID = currentBundleID
+                    DevLogger.shared.log("AIService.swift - functions - Overriding bundle ID to: \(currentBundleID)")
+                }
+                
+                // Check if OpenAI app already exists
+                if let existingApp = FirebaseApp.app(name: "openai") {
+                    openAIApp = existingApp
+                    DevLogger.shared.log("AIService.swift - functions - Using existing OpenAI Firebase app")
+                } else {
+                    // Configure as a secondary app named "openai"
+                    FirebaseApp.configure(name: "openai", options: openAIOptions)
+                    openAIApp = FirebaseApp.app(name: "openai")
+                    DevLogger.shared.log("AIService.swift - functions - OpenAI Firebase app configured with project: \(openAIOptions.projectID ?? "unknown")")
+                }
             }
-            _functions = Functions.functions()
+            
+            // Use Functions from the OpenAI app
+            if let app = openAIApp {
+                _functions = Functions.functions(app: app, region: "us-central1")
+                DevLogger.shared.log("AIService.swift - functions - Functions initialized with OpenAI app")
+            } else {
+                DevLogger.shared.log("AIService.swift - functions - Failed to get OpenAI app")
+                fatalError("Failed to initialize OpenAI Firebase app")
+            }
         }
         return _functions!
     }
@@ -52,7 +88,7 @@ class AIService {
         
         do {
             let authorName = postWrapper.authorDisplayName ?? postWrapper.authorHandle
-            let prompt = "Explain this post from Bluesky: \(authorName): \(postWrapper.text). Provide clear, concise explanations in English language. Explain area specific terms."
+            let prompt = "Explain this post from Bluesky: \(authorName): \(postWrapper.text). Provide clear, concise explanations in English language. Explain area specific terms and area context. Do not use markdown."
             
             DevLogger.shared.log("AIService.swift - explainPost - starting OpenAI request")
             

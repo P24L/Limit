@@ -28,11 +28,13 @@ struct ComposePostView: View {
     let quotedPost: TimelinePostWrapper?
     let replyTo: TimelinePostWrapper?
     let bookmark: BookmarkView?
+    let initialText: String?
     
-    init(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil, bookmark: BookmarkView? = nil) {
+    init(quotedPost: TimelinePostWrapper? = nil, replyTo: TimelinePostWrapper? = nil, bookmark: BookmarkView? = nil, initialText: String? = nil) {
         self.quotedPost = quotedPost
         self.replyTo = replyTo
         self.bookmark = bookmark
+        self.initialText = initialText
     }
     
     var body: some View {
@@ -192,6 +194,12 @@ struct ComposePostView: View {
                 // Set bookmark as external link if provided
                 if let bookmark = bookmark {
                     setupBookmarkAsExternalLink(bookmark)
+                }
+                
+                // Prefill initial text if provided (e.g., feedback mention)
+                if let initial = initialText, !initial.isEmpty {
+                    viewModel.currentDraft.text = initial
+                    viewModel.textDidChange(initial)
                 }
                 
                 // Configure handle validator
@@ -574,4 +582,3 @@ struct LinkPreviewCard: View {
         .cornerRadius(12)
     }
 }
-

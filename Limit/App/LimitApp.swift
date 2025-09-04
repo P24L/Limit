@@ -55,6 +55,7 @@ struct LimitApp: App {
     @State private var aiService = AIService()
     @State private var notificationManager = NotificationManager.shared
     @State private var pendingDeepLink: URL? = nil
+    @State private var pendingShareData: (url: String, action: String)? = nil
     @State private var analyticsService = AnalyticsService.shared
     
     let container: ModelContainer = {
@@ -183,6 +184,9 @@ struct LimitApp: App {
                 // Initialize analytics with delay for performance
                 analyticsService.initializeDelayed()
                 
+                // Check for pending share data first
+                checkPendingShareData()
+                
                 await tryAutoLogin()
             }
             .onOpenURL { url in
@@ -194,8 +198,18 @@ struct LimitApp: App {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                // Check for pending share data when app becomes active
+                checkPendingShareData()
+                
                 if client.isAuthenticated {
-                    notificationManager.startPeriodicRefresh()
+                    // Delay notification refresh to allow OAuth token refresh to complete
+                    Task {
+                        try? await Task.sleep(for: .seconds(2))
+                        await MainActor.run {
+                            notificationManager.setClient(client)
+                            notificationManager.startPeriodicRefresh()
+                        }
+                    }
                 }
                 // Log app becoming active (foreground)
                 analyticsService.logSessionStart()
@@ -315,6 +329,20 @@ struct LimitApp: App {
                     }
                 }
             }
+            
+            // Process pending share data after successful login
+            if let shareData = pendingShareData {
+                DevLogger.shared.log("LimitApp - Processing pending share data after login")
+                pendingShareData = nil
+                
+                // Delay to allow UI to initialize
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    await MainActor.run {
+                        processShareExtensionData(url: shareData.url, action: shareData.action)
+                    }
+                }
+            }
         } else {
             computedFeed.clearSession()
             appState.setUnauthenticated()
@@ -429,6 +457,26 @@ struct LimitApp: App {
             return
         }
         
+        // Handle add-bookmark from Share Extension: limit://add-bookmark?url=...
+        if url.scheme == "limit" && url.host == "add-bookmark" {
+            DevLogger.shared.log("LimitApp - Add bookmark deep link received")
+            
+            // Parse URL parameters
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            if let encodedURL = components?.queryItems?.first(where: { $0.name == "url" })?.value,
+               let decodedURLString = encodedURL.removingPercentEncoding {
+                
+                DevLogger.shared.log("LimitApp - Opening bookmark editor with URL: \(decodedURLString)")
+                
+                // Open the bookmark edit sheet with the URL
+                router.presentedSheet = .bookmarkEdit(id: nil)
+                
+                // Store the URL to be picked up by BookmarkEditSheet
+                UserDefaults.standard.set(decodedURLString, forKey: "pendingBookmarkURL")
+            }
+            return
+        }
+        
         // Parse: limit://bookmark/{did}/{collection}/{rkey}
         if url.scheme == "limit" && url.host == "bookmark" {
             let pathComponents = url.pathComponents.filter { $0 != "/" }
@@ -486,6 +534,64 @@ struct LimitApp: App {
         } else {
             computedFeed.clearSession()
             notificationManager.clearNotifications()
+        }
+    }
+    
+    // MARK: - Share Extension Support
+    
+    private func checkPendingShareData() {
+        let sharedDefaults = UserDefaults(suiteName: "group.P24L.Limit.dev")
+        
+        if let urlString = sharedDefaults?.string(forKey: "pendingURL"),
+           let action = sharedDefaults?.string(forKey: "pendingAction") {
+            
+            DevLogger.shared.log("LimitApp - Found pending share data: \(action) for \(urlString)")
+            
+            // Get optional note
+            let note = sharedDefaults?.string(forKey: "pendingNote")
+            
+            // Clear shared data immediately
+            sharedDefaults?.removeObject(forKey: "pendingURL")
+            sharedDefaults?.removeObject(forKey: "pendingAction")
+            sharedDefaults?.removeObject(forKey: "pendingNote")
+            sharedDefaults?.synchronize()
+            
+            if !client.isAuthenticated {
+                // Store for later processing after login
+                pendingShareData = (url: urlString, action: action)
+                DevLogger.shared.log("LimitApp - Storing share data for processing after login")
+            } else {
+                // Process immediately
+                DevLogger.shared.log("LimitApp - Processing share data immediately")
+                processShareExtensionData(url: urlString, action: action, note: note)
+            }
+        }
+    }
+    
+    private func processShareExtensionData(url: String, action: String, note: String? = nil) {
+        DevLogger.shared.log("LimitApp - Processing share extension data: \(action) for \(url)")
+        
+        switch action {
+        case "bookmark":
+            // Store URL for BookmarkEditSheet to pick up
+            UserDefaults.standard.set(url, forKey: "pendingBookmarkURL")
+            if let note = note {
+                UserDefaults.standard.set(note, forKey: "pendingBookmarkNote")
+            }
+            // Open bookmark edit sheet
+            router.presentedSheet = .bookmarkEdit(id: nil)
+            
+        case "post":
+            // Store URL for ComposePost to pick up
+            UserDefaults.standard.set(url, forKey: "pendingPostURL")
+            if let note = note {
+                UserDefaults.standard.set(note, forKey: "pendingPostNote")
+            }
+            // Open compose post sheet
+            router.presentedSheet = .composePost(quotedPost: nil, replyTo: nil, bookmark: nil)
+            
+        default:
+            DevLogger.shared.log("LimitApp - Unknown share action: \(action)")
         }
     }
 }
