@@ -14,7 +14,6 @@ struct AppRootView: View {
     @Environment(NotificationManager.self) private var notificationManager
     
     @State private var isTopbarHidden = false
-    @State private var showPostBookmarkOverlay = false
     
     var body: some View {
         @Bindable var router = router
@@ -50,19 +49,6 @@ struct AppRootView: View {
             .sheet(item: $router.presentedSheet) { sheet in
               sheetView(for: sheet)
             }
-            .onChange(of: router.selectedTab) { oldValue, newValue in
-                // Show overlay when + tab is selected
-                if newValue == .post {
-                    showPostBookmarkOverlay = true
-                    // Switch back to previous tab
-                    router.selectedTab = oldValue
-                }
-            }
-            
-            // FAB Overlay
-            if showPostBookmarkOverlay {
-                PostBookmarkFAB(isPresented: $showPostBookmarkOverlay)
-            }
         }
     }
     
@@ -97,11 +83,10 @@ struct AppRootView: View {
         switch tab {
         case .timeline:
             ATTimelineView_experimental()
+        case .news:
+            NewsView()
         case .bookmarks:
             BookmarksTabView()
-        case .post:
-            // Empty view - FAB is shown via tab change
-            Color.clear
         case .search:
             SearchTabView()
         case .profile:

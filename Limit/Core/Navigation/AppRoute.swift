@@ -12,7 +12,7 @@ import SwiftUI
 import ATProtoKit
 
 enum AppTab: String, TabType, CaseIterable {
-    case timeline, bookmarks, post, search, profile
+    case timeline, news, bookmarks, search, profile
     
     var id: String { rawValue}
     
@@ -20,10 +20,10 @@ enum AppTab: String, TabType, CaseIterable {
         switch self {
         case .timeline:
             return "house"
+        case .news:
+            return "newspaper"
         case .bookmarks:
             return "bookmark.fill"
-        case .post:
-            return "plus.circle.fill"
         case .search:
             return "magnifyingglass"
         case .profile:
@@ -35,10 +35,10 @@ enum AppTab: String, TabType, CaseIterable {
         switch self {
         case .timeline:
             return "Home"
+        case .news:
+            return "News"
         case .bookmarks:
             return "Bookmarks"
-        case .post:
-            return ""  // Empty for + button
         case .search:
             return "Search"
         case .profile:

@@ -305,91 +305,101 @@ struct ATTimelineView_experimental: View {
     // MARK: Topbar View
     @ViewBuilder
     private var topbarView: some View {
-        HStack(spacing: 8) {
-            // Timeline tab
-            TabButton(
-                tab: .timeline,
-                isSelected: selectedTab == .timeline,
-                showText: selectedTab == .timeline,
-                badge: selectedTab == .timeline && newPostsAboveCount > 0 ? "\(newPostsAboveCount.abbreviatedRounded)" : nil,
-                action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .timeline } }
-            )
-            
-            // A-line tab
-            TabButton(
-                tab: .aline,
-                isSelected: selectedTab == .aline,
-                showText: selectedTab == .aline,
-                showRefresh: selectedTab == .aline,
-                isRefreshing: isRefreshingAline,
-                refreshAction: {
-                    Task {
-                        isRefreshingAline = true
-                        await computedFeed.fastRefresh(client: client)
-                        isRefreshingAline = false
-                    }
-                },
-                action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .aline } }
-            )
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                // Compose button
+                Button {
+                    router.presentedSheet = .composePost()
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 20, weight: .ultraLight))
+                        .foregroundColor(.mintAccent)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.mintAccent.opacity(0.1))
+                        )
+                }
+                .buttonStyle(.plain)
+                
+                Divider()
+                    .frame(height: 20)
+                    .padding(.horizontal, 4)
+                
+                // Timeline tab
+                TabButton(
+                    tab: .timeline,
+                    isSelected: selectedTab == .timeline,
+                    showText: selectedTab == .timeline,
+                    badge: selectedTab == .timeline && newPostsAboveCount > 0 ? "\(newPostsAboveCount.abbreviatedRounded)" : nil,
+                    action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .timeline } }
+                )
+                
+                // A-line tab
+                TabButton(
+                    tab: .aline,
+                    isSelected: selectedTab == .aline,
+                    showText: selectedTab == .aline,
+                    showRefresh: selectedTab == .aline,
+                    isRefreshing: isRefreshingAline,
+                    refreshAction: {
+                        Task {
+                            isRefreshingAline = true
+                            await computedFeed.fastRefresh(client: client)
+                            isRefreshingAline = false
+                        }
+                    },
+                    action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .aline } }
+                )
 
-                        // A-line tab
-            TabButton(
-                tab: .trendingPosts,
-                isSelected: selectedTab == .trendingPosts,
-                showText: selectedTab == .trendingPosts,
-                showRefresh: selectedTab == .trendingPosts,
-                //isRefreshing: isRefreshingAline,
-                /*refreshAction: {
-                    Task {
-                        isRefreshingAline = true
-                        await computedFeed.fastRefresh(client: client)
-                        isRefreshingAline = false
-                    }
-                },*/
-                action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .trendingPosts } }
-            )
-            
-            // Lists tab (if available)
-            if !currentUser.lists.isEmpty {
+                // Trending tab
                 TabButton(
-                    tab: .list(0),
-                    isSelected: isListOrFeedSelected(.list),
-                    showText: isListOrFeedSelected(.list),
-                    action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            if case .list = selectedTab {
-                                // Already in lists
-                            } else {
-                                selectedTab = .list(0)
+                    tab: .trendingPosts,
+                    isSelected: selectedTab == .trendingPosts,
+                    showText: selectedTab == .trendingPosts,
+                    showRefresh: selectedTab == .trendingPosts,
+                    action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .trendingPosts } }
+                )
+                
+                // Lists tab (if available)
+                if !currentUser.lists.isEmpty {
+                    TabButton(
+                        tab: .list(0),
+                        isSelected: isListOrFeedSelected(.list),
+                        showText: isListOrFeedSelected(.list),
+                        action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                if case .list = selectedTab {
+                                    // Already in lists
+                                } else {
+                                    selectedTab = .list(0)
+                                }
                             }
                         }
-                    }
-                )
-            }
-            
-            // Feeds tab (if available)
-            if !currentUser.feeds.isEmpty {
-                TabButton(
-                    tab: .feed(0),
-                    isSelected: isListOrFeedSelected(.feed),
-                    showText: isListOrFeedSelected(.feed),
-                    action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            if case .feed = selectedTab {
-                                // Already in feeds
-                            } else {
-                                selectedTab = .feed(0)
+                    )
+                }
+                
+                // Feeds tab (if available)
+                if !currentUser.feeds.isEmpty {
+                    TabButton(
+                        tab: .feed(0),
+                        isSelected: isListOrFeedSelected(.feed),
+                        showText: isListOrFeedSelected(.feed),
+                        action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                if case .feed = selectedTab {
+                                    // Already in feeds
+                                } else {
+                                    selectedTab = .feed(0)
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
-            
-            //Spacer()
+            .padding(.horizontal, 16)
         }
-        .padding(.horizontal, 16)
         .frame(height: 44)
-        .frame(maxWidth: .infinity)
         .background(
             Rectangle()
                 .fill(.warmBackground)
