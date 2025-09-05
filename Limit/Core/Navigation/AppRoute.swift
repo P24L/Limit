@@ -68,6 +68,7 @@ enum Destination: DestinationType {
     case externalBookmark(uri: String, isOwner: Bool)
     case notifications
     case savedPosts
+    case newsDetail(url: String)
     
     static func from(path: String, fullPath: [String], parameters: [String : String]) -> Destination? {
         return nil // Nepotřebuješ prozatím deep-linking, lze doplnit později.

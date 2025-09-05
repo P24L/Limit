@@ -8,26 +8,89 @@
 import SwiftUI
 
 struct NewsView: View {
+    @State private var newsService = NewsService()
+    @Environment(AppRouter.self) private var router
+    @Environment(\.refresh) private var refresh
+    
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "newspaper")
-                .font(.system(size: 60))
-                .foregroundColor(.mintAccent)
-                .padding(.top, 50)
+        VStack(spacing: 0) {
+            // Period selector
+            Picker("Period", selection: $newsService.selectedPeriod) {
+                ForEach(TrendingPeriod.allCases, id: \.self) { period in
+                    Text(period.displayName)
+                        .tag(period)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 12)
+            .background(Color.warmBackground)
             
-            Text("Trending Articles")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Text("Coming soon...")
-                .font(.headline)
-                .foregroundColor(.secondary)
-            
-            Spacer()
+            // Content
+            if newsService.isLoading && newsService.trendingItems.isEmpty {
+                Spacer()
+                ProgressView()
+                    .tint(.mintAccent)
+                    .scaleEffect(1.2)
+                Spacer()
+            } else if let error = newsService.errorMessage {
+                Spacer()
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange)
+                    Text(error)
+                        .foregroundColor(.secondaryText)
+                    Button("Retry") {
+                        Task {
+                            await newsService.fetchTrending(forceRefresh: true)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.mintAccent)
+                }
+                Spacer()
+            } else if newsService.trendingItems.isEmpty {
+                Spacer()
+                VStack(spacing: 16) {
+                    Image(systemName: "newspaper")
+                        .font(.system(size: 60))
+                        .foregroundColor(.mintAccent.opacity(0.5))
+                    Text("No trending articles")
+                        .font(.headline)
+                        .foregroundColor(.secondaryText)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        // Filter out items without title
+                        ForEach(newsService.trendingItems.filter { $0.embedTitle != nil }) { item in
+                            TrendingCardView(item: item) {
+                                // Navigate to detail
+                                router.navigateTo(.newsDetail(url: item.url))
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.vertical)
+                }
+                .refreshable {
+                    await newsService.fetchTrending(forceRefresh: true)
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.warmBackground)
-        .navigationTitle("News")
+        .background(Color.warmBackground.opacity(0.3))
+        .navigationTitle("🔥 Trending News")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await newsService.fetchTrending()
+        }
+        .onChange(of: newsService.selectedPeriod) { oldValue, newValue in
+            Task {
+                await newsService.fetchTrending(period: newValue, forceRefresh: true)
+            }
+        }
     }
 }

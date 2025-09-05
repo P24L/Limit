@@ -137,6 +137,8 @@ struct AppRootView: View {
             NotificationsListView()
         case .savedPosts:
             SavedPostsView()
+        case .newsDetail(let url):
+            NewsDetailView(urlString: url)
         }
     }
     
