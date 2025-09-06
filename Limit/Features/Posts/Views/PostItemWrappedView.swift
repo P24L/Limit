@@ -45,6 +45,8 @@ struct PostItemWrappedView: View {
     var isThreadView: Bool = false
     var postViewType: PostViewType = .timeline
     var showCard: Bool = true // Control card background visibility
+    
+    @AppStorage("showDirectReplyContext") private var showDirectReplyContext: Bool = true
 
     @State private var selectedImageIndex: Int = 0
     @State private var fullScreenImages: [PostImage] = []
@@ -110,32 +112,66 @@ struct PostItemWrappedView: View {
                             .foregroundStyle(.tertiaryText)
                     }
 
-                    // MARK: reply text nad postem - na co ten post reaguje - pokud to není hned ten další
-                    if let postRootID = post.rootPost?.uri,
-                    let rootPost = post.rootPost,
-                    postRootID != nextPostThreadRootID,
-                    postRootID != nextPostID {
+                    // MARK: Reply context (root + parent) only in main timeline when ThreadLinkView would NOT show
+                    if !isThreadView && postViewType == .timeline, let rootPost = post.rootPost {
+                        let threadRootID = rootPost.uri
+                        let showsThreadLink = (threadRootID == nextPostThreadRootID) || (threadRootID == nextPostID)
+                        if !showsThreadLink {
+                            // Root context first
+                            let rootAuthorRaw = rootPost.authorDisplayName ?? rootPost.authorHandle
+                            let rootAuthor = rootAuthorRaw.count > 20 ? String(rootAuthorRaw.prefix(20)) + ".." : rootAuthorRaw
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.triangle.branch")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondaryText)
+                                    Text("In thread: \(rootAuthor)")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondaryText)
+                                }
 
-                        let replyAuthorRaw = rootPost.authorDisplayName ?? rootPost.authorHandle
-                        let replyAuthor = replyAuthorRaw.count > 20 ? String(replyAuthorRaw.prefix(20)) + ".." : replyAuthorRaw
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("↪︎ Reply to \(replyAuthor)")
-                                .font(.footnote)
-                                .foregroundStyle(.secondaryText)
-                                .fixedSize(horizontal: false, vertical: true)
+                                if !rootPost.text.isEmpty {
+                                    Text(rootPost.text)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondaryText)
+                                        .lineLimit(2)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                router.navigateTo(.postThreadWrapped(postThread: post))
+                            }
 
-                            if !rootPost.text.isEmpty {
-                                Text(rootPost.text)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondaryText)
-                                    .lineLimit(2)
-                                    .fixedSize(horizontal: false, vertical: true)
+                            // Then optional parent context, only if different from root
+                            if showDirectReplyContext, let parent = post.parentPost, parent.uri != rootPost.uri {
+                                let parentAuthorRaw = parent.authorDisplayName ?? parent.authorHandle
+                                let parentAuthor = parentAuthorRaw.count > 20 ? String(parentAuthorRaw.prefix(20)) + ".." : parentAuthorRaw
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("↪︎ Reply to \(parentAuthor)")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondaryText)
+
+                                    if !parent.text.isEmpty {
+                                        Text(parent.text)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondaryText)
+                                            .lineLimit(2)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    router.navigateTo(.postThreadWrapped(postThread: post))
+                                }
                             }
                         }
                     }
                     
                     // MARK: Post - text
                     RichTextView(text: post.text, facets: post.facets, postWrapper: post)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            router.navigateTo(.postThreadWrapped(postThread: post))
+                        }
 
                     // MARK: Weblink
                     if let linkExt = post.linkExt, depth < 2 {

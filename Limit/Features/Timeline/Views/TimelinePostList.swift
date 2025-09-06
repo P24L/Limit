@@ -27,6 +27,7 @@ struct TimelinePostList: View {
     @Environment(MultiAccountClient.self) private var client
     @Environment(TimelineFeed.self) private var feed
     @Environment(CurrentUser.self) private var currentUser
+    @AppStorage("showRepliesToOthers") private var showRepliesToOthers: Bool = true
     
     // Hybrid approach: scrollPosition API + TimelinePositionManager
     @State private var scrolledID: String? = nil
@@ -79,7 +80,8 @@ struct TimelinePostList: View {
         .onChange(of: scrolledID) { _, newID in
             // Always update new posts count when position changes
             if let newID {
-                if let index = posts.firstIndex(where: { $0.uri == newID }) {
+                let visible = posts.filter { isVisible($0) }
+                if let index = visible.firstIndex(where: { $0.uri == newID }) {
                     newPostsAboveCount = index
                 } else {
                     newPostsAboveCount = 0
@@ -97,10 +99,15 @@ struct TimelinePostList: View {
         .onChange(of: posts) { oldPosts, newPosts in                       
             // Always try to restore position for current user
             // (TimelinePositionManager automatically uses the correct key for current user)
+            let visibleNew = newPosts.filter { wrapper in
+                if showRepliesToOthers { return true }
+                if let root = wrapper.rootPost { return root.authorID == wrapper.authorID }
+                return true
+            }
             if !isRestoringPosition,
-               !newPosts.isEmpty,
+               !visibleNew.isEmpty,
                let savedPosition = TimelinePositionManager.shared.getTimelinePosition(),
-               newPosts.contains(where: { $0.uri == savedPosition }) {
+               visibleNew.contains(where: { $0.uri == savedPosition }) {
                 
                 DevLogger.shared.log("TimelinePostList - onChange(posts) - Attempting restore, saved: \(savedPosition), found: true")
                 isRestoringPosition = true
@@ -111,15 +118,15 @@ struct TimelinePostList: View {
                     try? await Task.sleep(for: .milliseconds(100))
                     isRestoringPosition = false
                 }
-            } else if !newPosts.isEmpty && scrolledID == nil {
+            } else if !visibleNew.isEmpty && scrolledID == nil {
                 // If no saved position or post doesn't exist, go to the beginning
-                DevLogger.shared.log("TimelinePostList - Setting to FIRST post: \(newPosts.first?.uri ?? "nil"), scrolledID was: \(scrolledID ?? "nil")")
-                scrolledID = newPosts.first?.uri
+                DevLogger.shared.log("TimelinePostList - Setting to FIRST post: \(visibleNew.first?.uri ?? "nil"), scrolledID was: \(scrolledID ?? "nil")")
+                scrolledID = visibleNew.first?.uri
             }
             
             // Update new posts count
             if let currentID = scrolledID,
-               let index = newPosts.firstIndex(where: { $0.uri == currentID }) {
+               let index = visibleNew.firstIndex(where: { $0.uri == currentID }) {
                 newPostsAboveCount = index
             } else {
                 newPostsAboveCount = 0
@@ -127,7 +134,8 @@ struct TimelinePostList: View {
         }
         .task {
             // Restore saved position on initial load
-            restoreScrollPosition(posts: posts)
+            let initialVisible = posts.filter { isVisible($0) }
+            restoreScrollPosition(posts: initialVisible)
         }
         .onAppear {
             DevLogger.shared.log("TimeLinePostList.swift - Main timeline loaded with scrollPosition API")
@@ -136,19 +144,26 @@ struct TimelinePostList: View {
     
     @ViewBuilder
     func postView(for wrapper: TimelinePostWrapper) -> some View {
-        let currentIndex = posts.firstIndex { $0.id == wrapper.id }
-        let nextWrapper = currentIndex.flatMap { index in
-            index + 1 < posts.count ? posts[index + 1] : nil
-        }
+        if !isVisible(wrapper) {
+            Color.clear
+                .frame(height: 0)
+                .id(wrapper.uri)
+                .padding(.vertical, 0)
+        } else {
+            let currentIndex = posts.firstIndex { $0.id == wrapper.id }
+            let nextWrapper = currentIndex.flatMap { index in
+                return nextVisible(after: index)
+            }
 
-        PostItemWrappedView(
-            post: wrapper,
-            depth: 0,
-            nextPostID: nextWrapper?.uri,
-            nextPostThreadRootID: nextWrapper?.rootPost?.uri,
-        )
-        .id(wrapper.uri)
-        .padding(.vertical, 4)
+            PostItemWrappedView(
+                post: wrapper,
+                depth: 0,
+                nextPostID: nextWrapper?.uri,
+                nextPostThreadRootID: nextWrapper?.rootPost?.uri,
+            )
+            .id(wrapper.uri)
+            .padding(.vertical, 4)
+        }
     }
     
     private func restoreScrollPosition(posts: [TimelinePostWrapper]) {
@@ -168,6 +183,26 @@ struct TimelinePostList: View {
         }
     }
     
+    // MARK: - Visibility Helpers
+    private func isVisible(_ wrapper: TimelinePostWrapper) -> Bool {
+        if showRepliesToOthers { return true }
+        // Non-reply posts are always visible
+        guard let root = wrapper.rootPost else { return true }
+        // Show only replies where author == root author (self-thread)
+        return root.authorID == wrapper.authorID
+    }
+
+    private func nextVisible(after index: Int) -> TimelinePostWrapper? {
+        guard index < posts.count else { return nil }
+        var i = index + 1
+        while i < posts.count {
+            let candidate = posts[i]
+            if isVisible(candidate) { return candidate }
+            i += 1
+        }
+        return nil
+    }
+
     func loadOlderPostsIfNeeded() async {
         guard !client.isLoading else { return }
 

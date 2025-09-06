@@ -31,6 +31,8 @@ struct SettingsView: View {
     
     @AppStorage("debugMode") private var debugMode: Bool = false
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
+    @AppStorage("showRepliesToOthers") private var showRepliesToOthers: Bool = true
+    @AppStorage("showDirectReplyContext") private var showDirectReplyContext: Bool = true
     
     @State private var showAddAccountSheet = false
     @State private var isSwitchingAccount = false
@@ -51,6 +53,12 @@ struct SettingsView: View {
                             .first?
                             .overrideUserInterfaceStyle = isDarkMode ? .dark : .light
                     }
+            }
+            
+            // Timeline Section
+            Section(header: Text("Timeline")) {
+                Toggle("Show replies to others", isOn: $showRepliesToOthers)
+                Toggle("Show direct reply context", isOn: $showDirectReplyContext)
             }
             // Debug Section (only in DEBUG builds)
 #if DEBUG
