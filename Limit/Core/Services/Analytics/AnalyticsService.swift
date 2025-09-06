@@ -63,7 +63,7 @@ class AnalyticsService {
             return
         }
         
-        guard var analyticsOptions = FirebaseOptions(contentsOfFile: analyticsConfigPath) else {
+        guard let analyticsOptions = FirebaseOptions(contentsOfFile: analyticsConfigPath) else {
             DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Failed to load Analytics config from: \(configFileName)")
             return
         }
@@ -74,7 +74,7 @@ class AnalyticsService {
             DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Overriding bundle ID to: \(currentBundleID)")
         }
         
-        DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Using bundle ID: \(analyticsOptions.bundleID ?? "unknown")")
+        DevLogger.shared.log("AnalyticsService.swift - configureAnalytics - Using bundle ID: \(analyticsOptions.bundleID)")
         
         // Check if default Firebase app already exists
         if FirebaseApp.app() == nil {

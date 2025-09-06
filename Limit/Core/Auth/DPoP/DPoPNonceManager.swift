@@ -77,7 +77,7 @@ actor DPoPNonceManager {
             return
         }
         
-        await updateNonce(nonce, for: host)
+        updateNonce(nonce, for: host)
     }
     
     /// Check if response indicates nonce error

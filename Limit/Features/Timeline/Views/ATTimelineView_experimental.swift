@@ -558,7 +558,10 @@ struct ATTimelineView_experimental: View {
                     y: 1
                 )
         )
-        // With iOS 18 gestureMask on parent, no workaround gesture needed here
+        // Give the horizontal scroll bar priority over parent swipe
+        .highPriorityGesture(
+            DragGesture(minimumDistance: 10, coordinateSpace: .local)
+        )
     }
     
     // MARK: Secondary Bar Item Component
