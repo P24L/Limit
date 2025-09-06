@@ -1,0 +1,10 @@
+{
+  "workspace": "Limit.xcworkspace",
+  "scheme": "Limit",
+  "configuration": "Debug",
+  "buildArgs": [
+    "ARCHS=arm64",
+    "VALID_ARCHS=arm64",
+    "ONLY_ACTIVE_ARCH=NO"
+  ]
+}

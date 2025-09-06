@@ -10,6 +10,7 @@ import ATProtoKit
 import Foundation
 import SwiftData
 import SwiftUI
+import UIKit
 
 @MainActor
 struct ATTimelineView_experimental: View {
@@ -91,12 +92,11 @@ struct ATTimelineView_experimental: View {
     
     @State private var selectedTab: TopbarTab = .timeline
     @State private var isRefreshingAline = false
+    @State private var isRefreshingTimeline = false
     @State private var showBookmarkConfirmation = false
     @State private var lastBookmarkId: String?
     
-    // Swipe gesture states
-    @State private var dragOffset: CGSize = .zero
-    @State private var isDragging = false
+    // Swipe gesture state (UI preview removed; no offset tracking needed)
     
     private var shouldShowSecondaryBar: Bool {
         switch selectedTab {
@@ -129,11 +129,13 @@ struct ATTimelineView_experimental: View {
                 // Refresh timeline in background
                 Task {
                     DevLogger.shared.log("ATTimelineView - Initial refresh starting")
+                    isRefreshingTimeline = true
                     await feed.refreshTimeline()
                     DevLogger.shared.log("ATTimelineView - Initial refresh completed, updating viewState")
                     await MainActor.run {
                         viewState = .posts(feed.postTimeline)
                         // ScrollPosition API will handle position restoration automatically
+                        isRefreshingTimeline = false
                     }
                 }
             case .aline:
@@ -147,8 +149,10 @@ struct ATTimelineView_experimental: View {
         .refreshable {
             switch selectedTab {
             case .timeline:
+                isRefreshingTimeline = true
                 await feed.refreshTimeline()
                 viewState = .posts(feed.postTimeline)
+                isRefreshingTimeline = false
                 // ScrollPosition API will handle position restoration automatically
             case .aline:
                 // A-line uses its own refresh button
@@ -164,11 +168,13 @@ struct ATTimelineView_experimental: View {
                 if timeSinceRefresh > 60 {
                     DevLogger.shared.log("ATTimelineView - Triggering auto-refresh on scene activation")
                     Task {
+                        isRefreshingTimeline = true
                         await feed.refreshTimeline()
                         DevLogger.shared.log("ATTimelineView - Auto-refresh completed")
                         lastRefresh = .now
                         viewState = .posts(feed.postTimeline)
                         // ScrollPosition API will handle position restoration automatically
+                        isRefreshingTimeline = false
                     }
                 }
             } else if selectedTab == .aline && newPhase == .active {
@@ -331,7 +337,10 @@ struct ATTimelineView_experimental: View {
                     tab: .timeline,
                     isSelected: selectedTab == .timeline,
                     showText: selectedTab == .timeline,
-                    badge: selectedTab == .timeline && newPostsAboveCount > 0 ? "\(newPostsAboveCount.abbreviatedRounded)" : nil,
+                    badge: (selectedTab == .timeline && !isRefreshingTimeline && newPostsAboveCount > 0) ? "\(newPostsAboveCount.abbreviatedRounded)" : nil,
+                    showRefresh: isRefreshingTimeline,
+                    isRefreshing: isRefreshingTimeline,
+                    refreshAction: isRefreshingTimeline ? { } : nil,
                     action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .timeline } }
                 )
                 
@@ -549,10 +558,7 @@ struct ATTimelineView_experimental: View {
                     y: 1
                 )
         )
-        .simultaneousGesture(
-            DragGesture()
-                .onChanged { _ in }
-        )
+        // With iOS 18 gestureMask on parent, no workaround gesture needed here
     }
     
     // MARK: Secondary Bar Item Component
@@ -625,41 +631,32 @@ struct ATTimelineView_experimental: View {
                 ListTimelineView(source: source, isTopbarHidden: $isTopbarHidden)
             }
         }
-        .offset(x: dragOffset.width)
-        .opacity(isDragging ? 0.8 : 1.0)
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    // Only start dragging if horizontal movement is significant
-                    if abs(value.translation.width) > 10 && abs(value.translation.height) < 50 {
-                        isDragging = true
-                        // Limit drag offset to make it feel more controlled
-                        dragOffset = CGSize(
-                            width: min(max(value.translation.width, -150), 150),
-                            height: 0
-                        )
-                    }
-                }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                .onChanged { _ in }
                 .onEnded { value in
+                    let t = value.translation
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        // Swipe right - go to previous tab
-                        if value.translation.width > 100 {
-                            if let prevTab = previousTab() {
-                                selectedTab = prevTab
+                        // Commit only for clear horizontal swipe beyond threshold
+                        if abs(t.width) > abs(t.height) && abs(t.width) > 100 {
+                            if t.width > 0 {
+                                // Swipe right -> previous tab
+                                if let prevTab = previousTab() {
+                                    selectedTab = prevTab
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                }
+                            } else {
+                                // Swipe left -> next tab
+                                if let nextTab = nextTab() {
+                                    selectedTab = nextTab
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                }
                             }
                         }
-                        // Swipe left - go to next tab
-                        else if value.translation.width < -100 {
-                            if let nextTab = nextTab() {
-                                selectedTab = nextTab
-                            }
-                        }
-                        // Reset drag state
-                        dragOffset = .zero
-                        isDragging = false
                     }
                 }
         )
+        //.gestureMask(.subviews)
     }
 }
 
@@ -673,5 +670,3 @@ extension Collection {
         indices.contains(index) ? self[index] : nil
     }
 }
-
-

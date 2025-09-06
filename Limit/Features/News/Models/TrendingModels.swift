@@ -24,6 +24,21 @@ enum TrendingPeriod: String, CaseIterable {
     }
 }
 
+// MARK: - Period Navigation
+extension TrendingPeriod {
+    static var ordered: [TrendingPeriod] { [.oneHour, .twentyFourHours, .threeDays, .sevenDays] }
+    
+    var next: TrendingPeriod? {
+        guard let idx = Self.ordered.firstIndex(of: self), idx + 1 < Self.ordered.count else { return nil }
+        return Self.ordered[idx + 1]
+    }
+    
+    var previous: TrendingPeriod? {
+        guard let idx = Self.ordered.firstIndex(of: self), idx - 1 >= 0 else { return nil }
+        return Self.ordered[idx - 1]
+    }
+}
+
 // MARK: - API Response Models
 struct TrendingResponse: Decodable {
     let period: String

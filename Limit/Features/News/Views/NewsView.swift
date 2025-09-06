@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct NewsView: View {
     @State private var newsService = NewsService()
@@ -75,9 +76,39 @@ struct NewsView: View {
                     }
                     .padding(.vertical)
                 }
+                .id(newsService.selectedPeriod)
+                .overlay(alignment: .center) {
+                    if newsService.isLoading {
+                        ProgressView()
+                            .tint(.mintAccent)
+                            .scaleEffect(1.0)
+                    }
+                }
                 .refreshable {
                     await newsService.fetchTrending(forceRefresh: true)
                 }
+                // Horizontal swipe to change period (left = next, right = previous)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                        .onEnded { value in
+                            let t = value.translation
+                            // Detect primarily horizontal swipe with sufficient distance
+                            guard abs(t.width) > 40, abs(t.width) > abs(t.height) else { return }
+                            if t.width < 0 {
+                                // Swipe left -> next period
+                                if let next = newsService.selectedPeriod.next {
+                                    newsService.selectedPeriod = next
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                }
+                            } else {
+                                // Swipe right -> previous period
+                                if let prev = newsService.selectedPeriod.previous {
+                                    newsService.selectedPeriod = prev
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                }
+                            }
+                        }
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -89,6 +89,7 @@ enum Sheet: SheetType {
     case aiExplanation(type: AIExplanationType)
     case aiSummary(bookmark: BookmarkView)
     case repostOptions(post: TimelinePostWrapper)
+    case moreOptions(post: TimelinePostWrapper)
     case bookmarkEdit(id: String? = nil)
     
     var id: Int { hashValue }

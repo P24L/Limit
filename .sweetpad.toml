@@ -1,0 +1,12 @@
+[build]
+workspace = "Limit.xcworkspace"
+scheme = "Limit"
+configuration = "Debug"
+
+[build.args]
+extra = [
+    "ARCHS=arm64",
+    "VALID_ARCHS=arm64",
+    "ONLY_ACTIVE_ARCH=NO",
+    "-allowProvisioningUpdates"
+]

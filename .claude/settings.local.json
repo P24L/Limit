@@ -35,7 +35,8 @@
       "Bash(mv:*)",
       "Bash(mkdir:*)",
       "Bash(true)",
-      "Bash(firebase apps:sdkconfig:*)"
+      "Bash(firebase apps:sdkconfig:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }

@@ -172,6 +172,10 @@ struct AppRootView: View {
             RepostOptionsSheet(post: post)
                 .presentationDetents([.height(280)])
                 .presentationDragIndicator(.hidden)
+        case .moreOptions(let post):
+            MoreOptionsSheet(post: post)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         case .bookmarkEdit(let id):
             BookmarkEditSheet(bookmarkId: id)
                 .presentationDetents([.large])

@@ -86,8 +86,10 @@ struct SaveConfirmationOverlay: View {
     private func startDismissTimer() {
         dismissTimer?.invalidate()
         dismissTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isVisible = false
+            Task { @MainActor in
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isVisible = false
+                }
             }
         }
     }
@@ -200,8 +202,10 @@ struct CustomSaveConfirmationOverlay: View {
     private func startDismissTimer() {
         dismissTimer?.invalidate()
         dismissTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isVisible = false
+            Task { @MainActor in
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isVisible = false
+                }
             }
         }
     }

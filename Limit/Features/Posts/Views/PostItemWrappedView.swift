@@ -62,8 +62,8 @@ struct PostItemWrappedView: View {
     ) var posts: [TimelinePost]
 
     var body: some View {
-        let content = VStack(alignment: .leading, spacing: 4) {
-            // MARK: Avatar
+        let content = VStack(alignment: .leading, spacing: 8) {
+            // MARK: Top content (avatar + main body)
             HStack(alignment: .top) {
                 if postViewType == .timeline {
                     VStack(spacing: 0) {
@@ -192,21 +192,19 @@ struct PostItemWrappedView: View {
                             .cardShadow()
                     }
                     
-                    // MARK: Enhanced Link Presentation - Facet Links + Action bar + Divider
+                    // MARK: Enhanced Link Presentation - Facet Links (no actions here)
                     if depth == 0 {
-                        VStack(spacing: 4) {
-                            // FacetLinksView jen když existují odkazy
-                            if let facets = post.facets, !facets.uniqueLinks(excluding: post.linkExt?.uri).isEmpty {
-                                FacetLinksView(post: post)
-                            }
-                            
-                            // Action bar vždy
-                            PostItemActionsView(postWrapper: post)
-                            
-                            // Divider removed - cards provide visual separation
+                        // FacetLinksView jen když existují odkazy
+                        if let facets = post.facets, !facets.uniqueLinks(excluding: post.linkExt?.uri).isEmpty {
+                            FacetLinksView(post: post)
                         }
                     }
                 }
+            }
+
+            // MARK: Full-width action bar at the bottom of the card
+            if depth == 0 {
+                PostItemActionsView(postWrapper: post)
             }
         }
         .frame(maxWidth: .infinity)

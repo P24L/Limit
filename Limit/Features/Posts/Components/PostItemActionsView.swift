@@ -30,7 +30,7 @@ struct PostItemActionsView: View {
     }
     
     var body: some View {
-        HStack(alignment:.firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             
             
             Button {
@@ -38,11 +38,13 @@ struct PostItemActionsView: View {
             } label: {
                 Label("\(postWrapper.replyCount.abbreviatedRounded)", systemImage: "quote.bubble")
                     .lineLimit(1)
-                    .font(.footnote)
+                    .font(.callout)
                     .imageScale(.medium)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
             .monospacedDigit()
             
             Button {
@@ -52,19 +54,21 @@ struct PostItemActionsView: View {
                     Label("Reposted", systemImage: "arrow.2.squarepath")
                         .foregroundStyle(.orange)
                         .lineLimit(1)
-                        .font(.footnote)
+                        .font(.callout)
                         .imageScale(.medium)
                 } else {
                     Label("\(postWrapper.repostCount.abbreviatedRounded)", systemImage: postWrapper.isReposted ? "arrow.2.squarepath" : "arrow.2.squarepath")
                         .foregroundStyle(postWrapper.isReposted ? .mintAccent : .postAction)
                         .lineLimit(1)
-                        .font(.footnote)
+                        .font(.callout)
                         .imageScale(.medium)
                 }
             }
             .buttonStyle(.plain)
             .symbolVariant(postWrapper.isReposted || isRepostedByMe ? .fill : .none)
             .symbolEffect(.bounce, value: postWrapper.isReposted || isRepostedByMe)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
             .monospacedDigit()
             
             Button {
@@ -75,17 +79,19 @@ struct PostItemActionsView: View {
                 Label("\(postWrapper.likeCount.abbreviatedRounded)", systemImage: postWrapper.isLiked ? "heart.fill" : "heart")
                     .foregroundStyle(postWrapper.isLiked ? .red : .primary)
                     .lineLimit(1)
-                    .font(.footnote)
+                    .font(.callout)
                     .imageScale(.medium)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
             .monospacedDigit()
             
             Spacer()
             
-            // Right group with smaller spacing
-            HStack(spacing: 12) {
+            // Right group with a bit more spacing and trailing padding
+            HStack(spacing: 16) {
                 Button {
                     Task {
                         if favoritesPost.isFavorited(postWrapper.uri) {
@@ -96,48 +102,49 @@ struct PostItemActionsView: View {
                     }
                 } label: {
                     Image(systemName: "bookmark")
-                        .font(.callout)
-                        .imageScale(.medium)
+                        .font(.body)
+                        .imageScale(.large)
                 }
                 .buttonStyle(.plain)
                 .symbolVariant(favoritesPost.isFavorited(postWrapper.uri) ? .fill : .none)
                 .symbolEffect(.bounce, value: favoritesPost.isFavorited(postWrapper.uri))
                 .foregroundStyle(favoritesPost.isFavorited(postWrapper.uri) ? .mintAccent : .postAction)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
                 .monospacedDigit()
                 
                 Button {
                     router.presentedSheet = .aiExplanation(type: .singlePost(postWrapper))
                 } label: {
                     Image(systemName: "sparkles")
-                        .font(.callout)
-                        .imageScale(.medium)
+                        .font(.body)
+                        .imageScale(.large)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.postAction)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
                 
                 if !hideMoreActions {
                     Button {
-                        if isOwnPost {
-                            // Show post actions sheet for own posts
-                            router.presentedSheet = .repostOptions(post: postWrapper)
-                        } else {
-                            // Navigate to thread view for other posts
-                            router.navigateTo(.postThreadWrapped(postThread: postWrapper))
-                        }
+                        router.presentedSheet = .moreOptions(post: postWrapper)
                     } label: {
                         Image(systemName: "ellipsis")
-                            .font(.callout)
-                            .imageScale(.medium)
+                            .font(.body)
+                            .imageScale(.large)
                             .foregroundStyle(.postAction)
                     }
                     .buttonStyle(.plain)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
                 }
             }
+            .padding(.trailing, 10)
         }
+        .frame(maxWidth: .infinity)
         .buttonStyle(.plain)
         .font(.caption)
-        .padding(.top, 3)
-        .padding(.bottom, 3)
+        .padding(.vertical, 4)
         .controlSize(.regular)
         
     }
