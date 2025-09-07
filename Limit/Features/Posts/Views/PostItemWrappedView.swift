@@ -26,8 +26,8 @@ enum PostViewType {
 private struct PostHeightPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        // Use the non-zero height, or the new one if the existing one is zero.
-        value = value > 0 ? value : nextValue()
+        // Always take the latest reported height
+        value = nextValue()
     }
 }
 
@@ -278,7 +278,14 @@ struct PostItemWrappedView: View {
                 }
             )
             .onPreferenceChange(PostHeightPreferenceKey.self) { height in
-                if height > 0 {
+                guard height > 0 else { return }
+                // Shrink-only: allow reducing locked height, but never increase it
+                if let current = self.measuredHeight {
+                    // Use a tiny epsilon to avoid needless churn from sub-pixel jitter
+                    if height + 0.5 < current {
+                        self.measuredHeight = height
+                    }
+                } else {
                     self.measuredHeight = height
                 }
             }
