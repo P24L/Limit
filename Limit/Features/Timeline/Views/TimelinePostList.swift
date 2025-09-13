@@ -96,7 +96,7 @@ struct TimelinePostList: View {
                 }
             }
         }
-        .onChange(of: posts) { oldPosts, newPosts in                       
+        .onChange(of: posts) { oldPosts, newPosts in
             // Always try to restore position for current user
             // (TimelinePositionManager automatically uses the correct key for current user)
             let visibleNew = newPosts.filter { wrapper in
@@ -104,6 +104,22 @@ struct TimelinePostList: View {
                 if let root = wrapper.rootPost { return root.authorID == wrapper.authorID }
                 return true
             }
+            
+            // Always update new posts count first (even when scrolling)
+            if let currentID = scrolledID,
+               let index = visibleNew.firstIndex(where: { $0.uri == currentID }) {
+                newPostsAboveCount = index
+            } else {
+                newPostsAboveCount = 0
+            }
+            
+            // Skip ONLY position restore if user is actively scrolling
+            if isScrolling {
+                DevLogger.shared.log("TimelinePostList - Skipping position restore, user is scrolling")
+                return  // Exit here - after updating count but before restore
+            }
+            
+            // Position restore logic (only when not scrolling)
             if !isRestoringPosition,
                !visibleNew.isEmpty,
                let savedPosition = TimelinePositionManager.shared.getTimelinePosition(),
@@ -122,14 +138,6 @@ struct TimelinePostList: View {
                 // If no saved position or post doesn't exist, go to the beginning
                 DevLogger.shared.log("TimelinePostList - Setting to FIRST post: \(visibleNew.first?.uri ?? "nil"), scrolledID was: \(scrolledID ?? "nil")")
                 scrolledID = visibleNew.first?.uri
-            }
-            
-            // Update new posts count
-            if let currentID = scrolledID,
-               let index = visibleNew.firstIndex(where: { $0.uri == currentID }) {
-                newPostsAboveCount = index
-            } else {
-                newPostsAboveCount = 0
             }
         }
         .task {

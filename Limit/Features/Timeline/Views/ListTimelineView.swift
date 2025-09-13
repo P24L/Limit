@@ -91,6 +91,7 @@ enum TimelineContentSource: Hashable {
 struct ListTimelineView: View {
     let source: TimelineContentSource
     @Environment(MultiAccountClient.self) private var client
+    @Environment(\.scenePhase) private var scenePhase
     
     @Binding var isTopbarHidden: Bool
 
@@ -178,6 +179,13 @@ struct ListTimelineView: View {
             
             // Load data with prepend logic (handles position restoration internally)
             await loadContent()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // Flush pending position changes when going to background
+            if newPhase == .background {
+                TimelinePositionManager.shared.flushPendingChanges()
+                DevLogger.shared.log("ListTimelineView - Flushed position changes on background")
+            }
         }
     }
 

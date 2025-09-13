@@ -84,11 +84,14 @@ struct ATTimelineView_experimental: View {
     }
 
     @State private var viewState: ViewState = .loading
-    @State private var lastRefresh: Date = Date().addingTimeInterval(-60)
+    @State private var lastTimelineRefresh: Date = Date().addingTimeInterval(-120)
     @State private var hideDirectionIsUp: Bool = true
     @State private var isTopbarHidden = false
     @State private var isExpandedTopbar = false
     @State private var newPostsAboveCount: Int = 0
+    
+    // Auto-refresh interval (4 minutes)
+    private let autoRefreshInterval: TimeInterval = 240
     
     @State private var selectedTab: TopbarTab = .timeline
     @State private var isRefreshingAline = false
@@ -126,23 +129,32 @@ struct ATTimelineView_experimental: View {
                 }
                 viewState = .posts(feed.postTimeline)
                 
-                // Refresh timeline in background
-                Task {
-                    DevLogger.shared.log("ATTimelineView - Initial refresh starting")
-                    isRefreshingTimeline = true
-                    await feed.refreshTimeline()
-                    DevLogger.shared.log("ATTimelineView - Initial refresh completed, updating viewState")
-                    await MainActor.run {
-                        viewState = .posts(feed.postTimeline)
-                        // ScrollPosition API will handle position restoration automatically
-                        isRefreshingTimeline = false
+                // Refresh only if needed (more than autoRefreshInterval since last refresh)
+                let timeSinceRefresh = Date().timeIntervalSince(lastTimelineRefresh)
+                DevLogger.shared.log("ATTimelineView - Time since last refresh: \(timeSinceRefresh)s")
+                
+                if timeSinceRefresh > autoRefreshInterval {
+                    Task {
+                        DevLogger.shared.log("ATTimelineView - Initial refresh starting (>\(autoRefreshInterval)s since last)")
+                        isRefreshingTimeline = true
+                        await feed.refreshTimeline()
+                        lastTimelineRefresh = .now
+                        DevLogger.shared.log("ATTimelineView - Initial refresh completed, updating viewState")
+                        await MainActor.run {
+                            viewState = .posts(feed.postTimeline)
+                            // ScrollPosition API will handle position restoration automatically
+                            isRefreshingTimeline = false
+                        }
                     }
+                } else {
+                    DevLogger.shared.log("ATTimelineView - Skipping refresh (only \(timeSinceRefresh)s since last)")
                 }
             case .aline:
                 // For A-line, we'll show computed timeline posts
                 await computedFeed.loadPosts(client: client)
                 viewState = .posts(computedFeed.posts)
             case .list, .feed, .trendingPosts:
+                // These always load fresh data via ListTimelineView
                 viewState = getSelectedContent()
             }
         }
@@ -151,6 +163,7 @@ struct ATTimelineView_experimental: View {
             case .timeline:
                 isRefreshingTimeline = true
                 await feed.refreshTimeline()
+                lastTimelineRefresh = .now  // Update refresh timestamp
                 viewState = .posts(feed.postTimeline)
                 isRefreshingTimeline = false
                 // ScrollPosition API will handle position restoration automatically
@@ -162,16 +175,22 @@ struct ATTimelineView_experimental: View {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
+            // Flush pending position changes when going to background
+            if newPhase == .background {
+                TimelinePositionManager.shared.flushPendingChanges()
+                DevLogger.shared.log("ATTimelineView - Flushed position changes on background")
+            }
+            
             if selectedTab == .timeline && newPhase == .active {
-                let timeSinceRefresh = Date().timeIntervalSince(lastRefresh)
+                let timeSinceRefresh = Date().timeIntervalSince(lastTimelineRefresh)
                 DevLogger.shared.log("ATTimelineView - Scene became active, time since last refresh: \(timeSinceRefresh)s")
-                if timeSinceRefresh > 60 {
-                    DevLogger.shared.log("ATTimelineView - Triggering auto-refresh on scene activation")
+                if timeSinceRefresh > autoRefreshInterval {
+                    DevLogger.shared.log("ATTimelineView - Triggering auto-refresh on scene activation (>\(autoRefreshInterval)s)")
                     Task {
                         isRefreshingTimeline = true
                         await feed.refreshTimeline()
                         DevLogger.shared.log("ATTimelineView - Auto-refresh completed")
-                        lastRefresh = .now
+                        lastTimelineRefresh = .now
                         viewState = .posts(feed.postTimeline)
                         // ScrollPosition API will handle position restoration automatically
                         isRefreshingTimeline = false
