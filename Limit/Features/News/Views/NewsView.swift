@@ -12,6 +12,8 @@ struct NewsView: View {
     @State private var newsService = NewsService()
     @Environment(AppRouter.self) private var router
     @Environment(\.refresh) private var refresh
+    @State private var isTransitioning = false
+    @State private var contentOpacity: Double = 1.0
     
     var body: some View {
         VStack(spacing: 0) {
@@ -28,12 +30,18 @@ struct NewsView: View {
             .background(Color.warmBackground)
             
             // Content
-            if newsService.isLoading && newsService.trendingItems.isEmpty {
-                Spacer()
-                ProgressView()
-                    .tint(.mintAccent)
-                    .scaleEffect(1.2)
-                Spacer()
+            if isTransitioning || (newsService.isLoading && newsService.trendingItems.isEmpty) {
+                // Show skeleton loading for period transitions
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            TrendingCardSkeletonView()
+                                .padding(.horizontal)
+                        }
+                    }
+                    .padding(.vertical)
+                }
+                .transition(.opacity)
             } else if let error = newsService.errorMessage {
                 Spacer()
                 VStack(spacing: 16) {
@@ -76,14 +84,9 @@ struct NewsView: View {
                     }
                     .padding(.vertical)
                 }
+                .opacity(contentOpacity)
+                .animation(.easeInOut(duration: 0.3), value: contentOpacity)
                 .id(newsService.selectedPeriod)
-                .overlay(alignment: .center) {
-                    if newsService.isLoading {
-                        ProgressView()
-                            .tint(.mintAccent)
-                            .scaleEffect(1.0)
-                    }
-                }
                 .refreshable {
                     await newsService.fetchTrending(forceRefresh: true)
                 }
@@ -97,14 +100,12 @@ struct NewsView: View {
                             if t.width < 0 {
                                 // Swipe left -> next period
                                 if let next = newsService.selectedPeriod.next {
-                                    newsService.selectedPeriod = next
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    handlePeriodTransition(to: next)
                                 }
                             } else {
                                 // Swipe right -> previous period
                                 if let prev = newsService.selectedPeriod.previous {
-                                    newsService.selectedPeriod = prev
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    handlePeriodTransition(to: prev)
                                 }
                             }
                         }
@@ -120,8 +121,30 @@ struct NewsView: View {
         }
         .onChange(of: newsService.selectedPeriod) { oldValue, newValue in
             Task {
-                await newsService.fetchTrending(period: newValue, forceRefresh: true)
+                await handlePeriodChange(to: newValue)
             }
+        }
+    }
+    
+    private func handlePeriodTransition(to period: TrendingPeriod) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        newsService.selectedPeriod = period
+    }
+    
+    private func handlePeriodChange(to period: TrendingPeriod) async {
+        // Start transition
+        withAnimation(.easeOut(duration: 0.2)) {
+            isTransitioning = true
+            contentOpacity = 0.3
+        }
+        
+        // Fetch new data
+        await newsService.fetchTrending(period: period, forceRefresh: true)
+        
+        // End transition
+        withAnimation(.easeIn(duration: 0.3)) {
+            isTransitioning = false
+            contentOpacity = 1.0
         }
     }
 }
