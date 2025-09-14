@@ -40,6 +40,8 @@ struct PostItemWrappedView: View {
 
     var post: TimelinePostWrapper
     var depth: Int = 0 // kontrola hloubky - ukazuji pouze hloubku 0 a 1
+    var previousPostID: String? = nil
+    var previousPostThreadRootID: String? = nil
     var nextPostID: String? = nil
     var nextPostThreadRootID: String? = nil
     var isThreadView: Bool = false
@@ -70,10 +72,26 @@ struct PostItemWrappedView: View {
                 if postViewType == .timeline {
                     VStack(spacing: 0) {
                         AvatarView(url: post.authorAvatarURL, size: 50)
+                            .overlay(alignment: .top) {
+                                // ThreadLink upward to previous post (using overlay to avoid layout space)
+                                if let threadRootID = post.rootPost?.uri {
+                                    let connectsToPrevious = (threadRootID == previousPostThreadRootID) || 
+                                                            (threadRootID == previousPostID) ||
+                                                            (post.parentPost?.uri == previousPostID)
+                                    
+                                    if connectsToPrevious {
+                                        ThreadLinkView()
+                                            .frame(height: 40)
+                                            .offset(y: -40) // Position above avatar
+                                            .offset(x: 3)
+                                    }
+                                }
+                            }
                             .onTapGesture {
                                 router.navigateTo(.actor(userID: post.authorID))
                             }
 
+                        // ThreadLink downward to next post (existing logic)
                         if let threadRootID = post.rootPost?.uri  {
                             if threadRootID == nextPostThreadRootID || threadRootID == nextPostID {
                                 ThreadLinkView()

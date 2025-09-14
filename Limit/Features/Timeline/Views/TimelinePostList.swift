@@ -159,6 +159,9 @@ struct TimelinePostList: View {
                 .padding(.vertical, 0)
         } else {
             let currentIndex = posts.firstIndex { $0.id == wrapper.id }
+            let previousWrapper = currentIndex.flatMap { index in
+                return previousVisible(before: index)
+            }
             let nextWrapper = currentIndex.flatMap { index in
                 return nextVisible(after: index)
             }
@@ -166,8 +169,10 @@ struct TimelinePostList: View {
             PostItemWrappedView(
                 post: wrapper,
                 depth: 0,
+                previousPostID: previousWrapper?.uri,
+                previousPostThreadRootID: previousWrapper?.rootPost?.uri ?? previousWrapper?.uri,
                 nextPostID: nextWrapper?.uri,
-                nextPostThreadRootID: nextWrapper?.rootPost?.uri,
+                nextPostThreadRootID: nextWrapper?.rootPost?.uri
             )
             .id(wrapper.uri)
             .padding(.vertical, 4)
@@ -207,6 +212,17 @@ struct TimelinePostList: View {
             let candidate = posts[i]
             if isVisible(candidate) { return candidate }
             i += 1
+        }
+        return nil
+    }
+    
+    private func previousVisible(before index: Int) -> TimelinePostWrapper? {
+        guard index > 0 else { return nil }
+        var i = index - 1
+        while i >= 0 {
+            let candidate = posts[i]
+            if isVisible(candidate) { return candidate }
+            i -= 1
         }
         return nil
     }
