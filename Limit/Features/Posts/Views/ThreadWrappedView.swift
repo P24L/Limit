@@ -36,15 +36,18 @@ struct ThreadWrappedView: View {
             .contentMargins(.bottom, 500)
             .scrollPosition(id: $scrolledID, anchor: .top)
             .task {
-                // 1. Show the main post immediately
-                posts = [postThread]
-                scrolledID = postThread.uri  // Use URI for stable reference
-                
-                // 2. Fetch and replace with full thread
-                let threadPosts = await client.fetchThreadWrapped(for: postThread.uri)
-                if !threadPosts.isEmpty {
-                    posts = threadPosts
-                    // scrollPosition API will maintain position on postThread.uri automatically!
+                // Only load thread if not already loaded
+                if posts.isEmpty {
+                    // 1. Show the main post immediately
+                    posts = [postThread]
+                    scrolledID = postThread.uri  // Use URI for stable reference
+                    
+                    // 2. Fetch and replace with full thread
+                    let threadPosts = await client.fetchThreadWrapped(for: postThread.uri)
+                    if !threadPosts.isEmpty {
+                        posts = threadPosts
+                        // scrollPosition API will maintain position on postThread.uri automatically!
+                    }
                 }
             }
         }

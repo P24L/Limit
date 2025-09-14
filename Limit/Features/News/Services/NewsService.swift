@@ -14,12 +14,25 @@ final class NewsService {
     
     @MainActor var trendingItems: [TrendingURL] = []
     @MainActor var selectedPeriod: TrendingPeriod = .oneHour
+    @MainActor var selectedLanguage: String? = nil  // nil = all languages
+    @MainActor var availableLanguages: [Language] = []
     @MainActor var isLoading = false
+    @MainActor var isLoadingLanguages = false
     @MainActor var errorMessage: String?
     
     // Cache to prevent excessive API calls
     private var lastFetchTime: Date?
     private let cacheInterval: TimeInterval = 60 // 1 minute cache
+    private var lastLanguagesFetchTime: Date?
+    private let languagesCacheInterval: TimeInterval = 604800 // 7 days cache
+    
+    @MainActor
+    init() {
+        // Load saved language preference
+        if let savedLang = UserDefaults.standard.string(forKey: "selectedNewsLanguage") {
+            self.selectedLanguage = savedLang.isEmpty ? nil : savedLang
+        }
+    }
     
     func fetchTrending(period: TrendingPeriod? = nil, forceRefresh: Bool = false) async {
         if let period = period {
@@ -28,8 +41,9 @@ final class NewsService {
             }
         }
         
-        // Get current period for API call
+        // Get current period and language for API call
         let currentPeriod = await MainActor.run { selectedPeriod }
+        let currentLanguage = await MainActor.run { selectedLanguage }
         
         // Check cache unless force refresh
         if !forceRefresh, let lastFetch = lastFetchTime,
@@ -43,7 +57,12 @@ final class NewsService {
         }
         
         do {
-            let url = URL(string: "\(baseURL)/api/links/trending/\(currentPeriod.rawValue)?limit=50")!
+            // Build URL with optional language parameter
+            var urlString = "\(baseURL)/api/links/trending/\(currentPeriod.rawValue)?limit=50"
+            if let lang = currentLanguage {
+                urlString += "&lang=\(lang)"
+            }
+            let url = URL(string: urlString)!
             let (data, _) = try await URLSession.shared.data(from: url)
             
             // Check if task was cancelled
@@ -62,7 +81,8 @@ final class NewsService {
             }
             lastFetchTime = Date()
             
-            DevLogger.shared.log("NewsService.swift - fetchTrending: Loaded \(response.urls.count) items for period \(currentPeriod.rawValue)")
+            let langInfo = currentLanguage ?? "all"
+            DevLogger.shared.log("NewsService.swift - fetchTrending: Loaded \(response.urls.count) items for period \(currentPeriod.rawValue), language: \(langInfo)")
         } catch {
             // Don't show error for cancelled tasks
             if error is CancellationError || (error as NSError).code == NSURLErrorCancelled {
@@ -96,6 +116,55 @@ final class NewsService {
             DevLogger.shared.log("NewsService.swift - fetchURLDetail ERROR: \(error.localizedDescription)")
             return nil
         }
+    }
+    
+    func fetchLanguages() async {
+        // Check cache
+        if let lastFetch = lastLanguagesFetchTime,
+           Date().timeIntervalSince(lastFetch) < languagesCacheInterval {
+            let hasLanguages = await MainActor.run { !availableLanguages.isEmpty }
+            if hasLanguages {
+                return
+            }
+        }
+        
+        await MainActor.run {
+            isLoadingLanguages = true
+        }
+        
+        do {
+            let url = URL(string: "\(baseURL)/api/links/languages")!
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let response = try JSONDecoder().decode(LanguagesResponse.self, from: data)
+            
+            await MainActor.run {
+                availableLanguages = response.languages
+                isLoadingLanguages = false
+            }
+            lastLanguagesFetchTime = Date()
+            
+            DevLogger.shared.log("NewsService.swift - fetchLanguages: Loaded \(response.count) languages")
+        } catch {
+            await MainActor.run {
+                isLoadingLanguages = false
+            }
+            DevLogger.shared.log("NewsService.swift - fetchLanguages ERROR: \(error.localizedDescription)")
+        }
+    }
+    
+    func setLanguage(_ language: String?) async {
+        await MainActor.run {
+            selectedLanguage = language
+        }
+        
+        // Save preference
+        UserDefaults.standard.set(language ?? "", forKey: "selectedNewsLanguage")
+        
+        // Clear cache to force refresh with new language
+        lastFetchTime = nil
+        
+        // Fetch with new language
+        await fetchTrending(forceRefresh: true)
     }
     
     func clearCache() {

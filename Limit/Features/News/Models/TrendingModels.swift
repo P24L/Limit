@@ -39,11 +39,25 @@ extension TrendingPeriod {
     }
 }
 
+// MARK: - Language Models
+struct Language: Decodable, Identifiable {
+    let lang: String
+    let label: String
+    
+    var id: String { lang }
+}
+
+struct LanguagesResponse: Decodable {
+    let count: Int
+    let languages: [Language]
+}
+
 // MARK: - API Response Models
 struct TrendingResponse: Decodable {
     let period: String
     let limit: Int
     let count: Int
+    let lang: String?  // Optional language filter
     let urls: [TrendingURL]
 }
 
@@ -57,7 +71,7 @@ struct TrendingURL: Decodable, Identifiable {
     let replyCount: Int
     let likeCount: Int
     let firstSeen: String
-    let uniqueUsers: String  // API returns as string
+    let uniqueUsers: String  // Currently string, will be int after API migration
     let embedTitle: String?
     let embedDescription: String?
     let embedThumbUrl: String?
@@ -78,6 +92,37 @@ struct TrendingURL: Decodable, Identifiable {
         case embedTitle = "embed_title"
         case embedDescription = "embed_description"
         case embedThumbUrl = "embed_thumb_url"
+    }
+    
+    // Custom decoder to handle both string and int for uniqueUsers
+    // TODO: After API fully migrated to int types (target: v1.15+):
+    // 1. Change uniqueUsers from String to Int
+    // 2. Remove this custom decoder
+    // 3. Remove computed property uniqueUsersCount (use uniqueUsers directly)
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        url = try container.decode(String.self, forKey: .url)
+        normalizedUrl = try container.decode(String.self, forKey: .normalizedUrl)
+        domain = try container.decode(String.self, forKey: .domain)
+        postCount = try container.decode(Int.self, forKey: .postCount)
+        popularityScore = try container.decode(String.self, forKey: .popularityScore)
+        shareCount = try container.decode(Int.self, forKey: .shareCount)
+        replyCount = try container.decode(Int.self, forKey: .replyCount)
+        likeCount = try container.decode(Int.self, forKey: .likeCount)
+        firstSeen = try container.decode(String.self, forKey: .firstSeen)
+        
+        // TODO: After API migration to int (v1.15+), simplify to direct Int decoding
+        // Flexible decoding for uniqueUsers - handles both string and int
+        if let intValue = try? container.decode(Int.self, forKey: .uniqueUsers) {
+            uniqueUsers = String(intValue)  // Convert int to string for backward compatibility
+        } else {
+            uniqueUsers = try container.decode(String.self, forKey: .uniqueUsers)
+        }
+        
+        embedTitle = try container.decodeIfPresent(String.self, forKey: .embedTitle)
+        embedDescription = try container.decodeIfPresent(String.self, forKey: .embedDescription)
+        embedThumbUrl = try container.decodeIfPresent(String.self, forKey: .embedThumbUrl)
     }
     
     // Computed properties for numeric values

@@ -116,7 +116,13 @@ struct NewsView: View {
         .background(Color.warmBackground.opacity(0.3))
         .navigationTitle("🔥 Trending News")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                languageSelector
+            }
+        }
         .task {
+            await newsService.fetchLanguages()
             await newsService.fetchTrending()
         }
         .onChange(of: newsService.selectedPeriod) { oldValue, newValue in
@@ -145,6 +151,67 @@ struct NewsView: View {
         withAnimation(.easeIn(duration: 0.3)) {
             isTransitioning = false
             contentOpacity = 1.0
+        }
+    }
+    
+    @ViewBuilder
+    private var languageSelector: some View {
+        Menu {
+            // All languages option
+            Button {
+                Task {
+                    await newsService.setLanguage(nil)
+                }
+            } label: {
+                Label {
+                    Text("All Languages")
+                } icon: {
+                    if newsService.selectedLanguage == nil {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            }
+            
+            Divider()
+            
+            // Available languages
+            ForEach(newsService.availableLanguages) { language in
+                Button {
+                    Task {
+                        await newsService.setLanguage(language.lang)
+                    }
+                } label: {
+                    Label {
+                        Text(language.label)
+                    } icon: {
+                        if newsService.selectedLanguage == language.lang {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "globe")
+                    .font(.body)
+                
+                Text(languageDisplayText)
+                    .font(.footnote)
+                    .fontWeight(.medium)
+                
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+            }
+            .foregroundColor(.mintAccent)
+        }
+        .disabled(newsService.isLoadingLanguages)
+    }
+    
+    private var languageDisplayText: String {
+        if let lang = newsService.selectedLanguage {
+            return lang.uppercased()
+        } else {
+            return "All"
         }
     }
 }
