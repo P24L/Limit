@@ -84,7 +84,7 @@ struct ATTimelineView_experimental: View {
     }
 
     @State private var viewState: ViewState = .loading
-    @State private var lastTimelineRefresh: Date = Date().addingTimeInterval(-120)
+    @State private var lastTimelineRefresh: Date = Date().addingTimeInterval(-300) // Start with 5 minutes ago to ensure initial refresh
     @State private var hideDirectionIsUp: Bool = true
     @State private var isTopbarHidden = false
     @State private var isExpandedTopbar = false

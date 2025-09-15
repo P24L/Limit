@@ -16,17 +16,23 @@ struct ThreadWrappedView: View {
     
     let postThread: TimelinePostWrapper
     
-    // Simplified state - just one array for all posts
-    @State private var posts: [TimelinePostWrapper] = []
+    // Simplified state - array of posts with their depth in thread
+    @State private var posts: [(post: TimelinePostWrapper, depth: Int)] = []
     @State private var scrolledID: String? = nil
+    @State private var hasLoadedThread = false
     
     var body: some View {
         Group {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(posts, id: \.id) { post in
-                        PostItemWrappedView(post: post, isThreadView: true, showCard: true)
-                            .id(post.uri)  // Use URI instead of ID for stable anchoring
+                    ForEach(posts, id: \.post.id) { item in
+                        PostItemWrappedView(
+                            post: item.post, 
+                            isThreadView: true, 
+                            showCard: true,
+                            threadDepth: item.depth
+                        )
+                        .id(item.post.uri)  // Use URI instead of ID for stable anchoring
                     }
                 }
                 .padding(.horizontal, 6)
@@ -34,19 +40,25 @@ struct ThreadWrappedView: View {
                 .scrollTargetLayout()
             }
             .contentMargins(.bottom, 500)
-            .scrollPosition(id: $scrolledID, anchor: .top)
+            .scrollPosition(id: $scrolledID, anchor: .center)
             .task {
                 // Only load thread if not already loaded
-                if posts.isEmpty {
-                    // 1. Show the main post immediately
-                    posts = [postThread]
-                    scrolledID = postThread.uri  // Use URI for stable reference
+                if !hasLoadedThread {
+                    hasLoadedThread = true
                     
-                    // 2. Fetch and replace with full thread
+                    // 1. Show the main post immediately (without depth info initially)
+                    posts = [(post: postThread, depth: 0)]
+                    scrolledID = postThread.uri
+                    
+                    // 2. Fetch full thread with depth information
                     let threadPosts = await client.fetchThreadWrapped(for: postThread.uri)
                     if !threadPosts.isEmpty {
+                        // Replace with the full thread (now with correct depth values)
                         posts = threadPosts
-                        // scrollPosition API will maintain position on postThread.uri automatically!
+                        
+                        // Keep scroll position on the original post
+                        // The post will now have its correct depth assigned
+                        scrolledID = postThread.uri
                     }
                 }
             }
@@ -56,7 +68,9 @@ struct ThreadWrappedView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    router.presentedSheet = .aiExplanation(type: .thread(Array(posts.prefix(10))))
+                    // Extract just the posts for AI explanation
+                    let postsForAI = Array(posts.prefix(10).map { $0.post })
+                    router.presentedSheet = .aiExplanation(type: .thread(postsForAI))
                 } label: {
                     Image(systemName: "sparkles")
                 }

@@ -47,6 +47,7 @@ struct PostItemWrappedView: View {
     var isThreadView: Bool = false
     var postViewType: PostViewType = .timeline
     var showCard: Bool = true // Control card background visibility
+    var threadDepth: Int? = nil // Thread hierarchy depth for visualization
     
     @AppStorage("showDirectReplyContext") private var showDirectReplyContext: Bool = true
 
@@ -263,9 +264,33 @@ struct PostItemWrappedView: View {
         }
         .frame(maxWidth: .infinity)
 
+        // Add thread depth visualization if in thread view
+        let contentWithThreadDepth = Group {
+            if let threadDepth = threadDepth, threadDepth > 0 {
+                HStack(alignment: .top, spacing: 0) {
+                    // Draw vertical lines for thread depth
+                    HStack(spacing: 3) {
+                        ForEach(0..<threadDepth, id: \.self) { index in
+                            Rectangle()
+                                // Last line is mint accent, others are gray
+                                .fill(index == threadDepth - 1 ? Color.mintAccent : Color.gray.opacity(0.3))
+                                .frame(width: 2)
+                        }
+                    }
+                    .padding(.leading, 8)
+                    
+                    // Original content
+                    content
+                        .padding(.leading, 8)
+                }
+            } else {
+                content
+            }
+        }
+        
         let cardStyledContent = Group {
             if showCard {
-                content
+                contentWithThreadDepth
                     .padding(.vertical, 10)
                     .padding(.horizontal, 6)
                     .background(
@@ -274,7 +299,7 @@ struct PostItemWrappedView: View {
                             .subtleShadow()
                     )
             } else {
-                content
+                contentWithThreadDepth
             }
         }
 

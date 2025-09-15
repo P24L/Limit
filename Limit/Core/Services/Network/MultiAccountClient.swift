@@ -698,7 +698,7 @@ final class MultiAccountClient {
     // MARK: - Additional API Methods (from BlueskyClient)
     
     @MainActor
-    func fetchThreadWrapped(for postID: String) async -> [TimelinePostWrapper] {
+    func fetchThreadWrapped(for postID: String) async -> [(post: TimelinePostWrapper, depth: Int)] {
         guard let client = protoClient else {
             return []
         }
@@ -716,41 +716,64 @@ final class MultiAccountClient {
             return []
         }
         
-        var allNodes: [AppBskyLexicon.Feed.ThreadViewPostDefinition] = []
+        var allNodesWithDepth: [(node: AppBskyLexicon.Feed.ThreadViewPostDefinition, depth: Int)] = []
         
-        func collectParents(from node: AppBskyLexicon.Feed.ThreadViewPostDefinition, depth: Int = 0, maxDepth: Int = 20) {
-            guard depth < maxDepth else { return }
+        // Collect parents with their depth (root will be depth 0)
+        func collectParents(from node: AppBskyLexicon.Feed.ThreadViewPostDefinition, currentDepth: Int, maxRecursion: Int = 20) {
+            guard maxRecursion > 0 else { return }
             if let parent = node.parent {
                 switch parent {
                 case .threadViewPost(let parentNode):
-                    collectParents(from: parentNode, depth: depth + 1, maxDepth: maxDepth)
-                    allNodes.append(parentNode)
+                    // Parent has depth - 1 from current
+                    collectParents(from: parentNode, currentDepth: currentDepth - 1, maxRecursion: maxRecursion - 1)
+                    allNodesWithDepth.append((node: parentNode, depth: currentDepth - 1))
                 default:
                     break
                 }
             }
         }
         
-        func collectReplies(from node: AppBskyLexicon.Feed.ThreadViewPostDefinition, depth: Int = 0, maxDepth: Int = 40) {
-            guard depth < maxDepth else { return }
+        // Calculate the depth of the main post first
+        var mainPostDepth = 0
+        var currentNode = rootThread
+        
+        // Count how many parents are above the main post
+        while let parent = currentNode.parent {
+            if case .threadViewPost(let parentNode) = parent {
+                mainPostDepth += 1
+                currentNode = parentNode
+            } else {
+                break
+            }
+        }
+        
+        // Now collect all posts with correct depths
+        collectParents(from: rootThread, currentDepth: mainPostDepth, maxRecursion: 20)
+        allNodesWithDepth.append((node: rootThread, depth: mainPostDepth))
+        
+        // Collect replies with their depth
+        func collectReplies(from node: AppBskyLexicon.Feed.ThreadViewPostDefinition, parentDepth: Int, maxRecursion: Int = 40) {
+            guard maxRecursion > 0 else { return }
             guard let replies = node.replies else { return }
             
+            let childDepth = parentDepth + 1
             for reply in replies {
                 if case .threadViewPost(let replyNode) = reply {
-                    allNodes.append(replyNode)
-                    collectReplies(from: replyNode, depth: depth + 1, maxDepth: maxDepth)
+                    allNodesWithDepth.append((node: replyNode, depth: childDepth))
+                    collectReplies(from: replyNode, parentDepth: childDepth, maxRecursion: maxRecursion - 1)
                 }
             }
         }
         
-        collectParents(from: rootThread, depth: 0, maxDepth: 20)
-        allNodes.append(rootThread)
-        collectReplies(from: rootThread, depth: 0, maxDepth: 40)
+        collectReplies(from: rootThread, parentDepth: mainPostDepth, maxRecursion: 40)
         
-        let timelineWrappers: [TimelinePostWrapper] = allNodes.compactMap { node in
-            TimelinePostWrapper(from: node.post)
+        // Convert to TimelinePostWrapper with depth
+        let wrappersWithDepth: [(post: TimelinePostWrapper, depth: Int)] = allNodesWithDepth.compactMap { item in
+            let wrapper = TimelinePostWrapper(from: item.node.post)
+            return (post: wrapper, depth: item.depth)
         }
-        return timelineWrappers
+        
+        return wrappersWithDepth
     }
     
     @MainActor
