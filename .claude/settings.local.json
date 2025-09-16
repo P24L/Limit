@@ -36,7 +36,8 @@
       "Bash(mkdir:*)",
       "Bash(true)",
       "Bash(firebase apps:sdkconfig:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(zellij:*)"
     ],
     "deny": []
   }

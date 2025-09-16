@@ -33,6 +33,8 @@ struct TimelinePostList: View {
     @State private var scrolledID: String? = nil
     @State private var isRestoringPosition = false
     @State private var isScrolling: Bool = false
+    @State private var isLoadingMore: Bool = false
+    @State private var hasReachedEnd: Bool = false
 
     @Binding var newPostsAboveCount: Int
     @Binding var hideDirectionIsUp: Bool
@@ -44,30 +46,52 @@ struct TimelinePostList: View {
                 ForEach(posts) { wrapper in
                     postView(for: wrapper)
                 }
-                if client.isLoading {
+                // Loading indicator when fetching more posts
+                if isLoadingMore {
                     HStack {
                         Spacer()
                         ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .mintAccent))
                             .padding(.vertical, 20)
                         Spacer()
                     }
                 }
                 
-                // trigger načtení dalších postů
-                Color.clear
-                    .frame(height: 1)
-                    .onAppear {
-                        Task {
-                            await feed.loadOlderTimeline()
-                            NotificationCenter.default.post(name: .didLoadOlderPosts, object: nil)
-                        }
+                // trigger načtení dalších postů nebo konec timeline
+                if hasReachedEnd {
+                    // End of timeline indicator
+                    VStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 24))
+                            .foregroundColor(.mintAccent)
+                        Text("You've reached the end")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
+                    .padding(.vertical, 30)
+                    .frame(maxWidth: .infinity)
+                } else {
+                    LoadMoreTriggerView()
+                        .frame(height: 80)
+                        .frame(maxWidth: .infinity)
+                        .id("load-more-trigger")
+                        .onAppear {
+                            Task {
+                                await loadMoreIfNeeded()
+                            }
+                        }
+                }
+                
+                // Extra padding at bottom to ensure trigger is visible
+                Color.clear
+                    .frame(height: 50)
             }
             .padding(.horizontal, 6)
             .background(.warmBackground)
             .scrollTargetLayout()
         }
         .contentMargins(.top, 100)
+        .contentMargins(.bottom, 100)
         .scrollPosition(id: $scrolledID, anchor: .top)
         .onScrollPhaseChange { old, new in
             isScrolling = new != .idle
@@ -97,6 +121,11 @@ struct TimelinePostList: View {
             }
         }
         .onChange(of: posts) { oldPosts, newPosts in
+            // Reset end-of-timeline state when posts change (e.g., after refresh)
+            if newPosts.count > oldPosts.count {
+                hasReachedEnd = false
+            }
+            
             // Always try to restore position for current user
             // (TimelinePositionManager automatically uses the correct key for current user)
             let visibleNew = newPosts.filter { wrapper in
@@ -233,5 +262,39 @@ struct TimelinePostList: View {
         await feed.loadOlderTimeline()
         NotificationCenter.default.post(name: .didLoadOlderPosts, object: nil)
 
+    }
+    
+    private func loadMoreIfNeeded() async {
+        // Don't try to load if we've reached the end or already loading
+        guard !hasReachedEnd, !isLoadingMore, !client.isLoading else { return }
+        
+        // Mark as loading
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        
+        // Store count before loading
+        let countBefore = posts.count
+        
+        // Load older posts
+        await feed.loadOlderTimeline()
+        
+        // Check if we got new posts
+        let countAfter = posts.count
+        let newPostsAdded = countAfter > countBefore
+        
+        // If no new posts were added and feed has no cursor, we've reached the end
+        if !newPostsAdded && feed.oldestCursor == nil {
+            hasReachedEnd = true
+        }
+        
+        // Post notification
+        NotificationCenter.default.post(name: .didLoadOlderPosts, object: nil)
+    }
+}
+
+struct LoadMoreTriggerView: View {
+    var body: some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
     }
 }

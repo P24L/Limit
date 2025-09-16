@@ -1245,7 +1245,16 @@ final class TimelineFeed {
 
       let storedPosts = try context.fetch(descriptor)
       self.posts = storedPosts.map { TimelinePostWrapper(from: $0) }
-      self.oldestCursor = storedPosts.last?.fetchedWithCursor
+      
+      // Try to get cursor from stored posts
+      // Look through posts to find one with a cursor (not just the last one)
+      for post in storedPosts.reversed() {
+        if let cursor = post.fetchedWithCursor {
+          self.oldestCursor = cursor
+          break
+        }
+      }
+      
       print("Load from storage finished for account: \(accountDID)")
     } catch {
       print("Failed to load timeline from storage: \(error)")
@@ -1255,12 +1264,26 @@ final class TimelineFeed {
   @MainActor
   func appendPosts(from definitions: [AppBskyLexicon.Feed.FeedViewPostDefinition], cursor: String?)
   {
+    // Filter out posts we already have
+    let existingURIs = Set(posts.map { $0.uri })
+    var addedCount = 0
+    
     for def in definitions {
       guard let wrapper = TimelinePostWrapper(from: def) else { continue }
+      
+      // Skip if we already have this post
+      if existingURIs.contains(wrapper.uri) {
+        continue
+      }
+      
       wrapper.fetchedWithCursor = cursor
       posts.append(wrapper)
+      addedCount += 1
     }
-    if oldestCursor == nil, let cursor = cursor {
+    
+    // ALWAYS update oldestCursor when appending older posts
+    // This is critical for pagination to work correctly
+    if let cursor = cursor {
       oldestCursor = cursor
     }
     
@@ -1286,11 +1309,16 @@ final class TimelineFeed {
     let uniqueNewWrappers = newWrappers.filter { !existingPostURIs.contains($0.uri) }
 
     posts.insert(contentsOf: uniqueNewWrappers, at: 0)
-
+    
     // Apply memory management after adding posts
     trimMemoryIfNeeded()
     
-    // Pokud cursor přišel (většinou nil), tak jej neměníme — to se používá pro oldestCursor
+    // IMPORTANT: As a fallback, set oldestCursor if we don't have one and posts were added
+    // This can happen when loading from cache without cursor info
+    if oldestCursor == nil && !posts.isEmpty && cursor != nil {
+      oldestCursor = cursor
+    }
+    
     saveToStorage()
   }
 
@@ -1435,13 +1463,24 @@ final class TimelineFeed {
       let result = await client.fetchTimeline(since: knownURIs)
       let newPosts = result.posts
       let cursor = result.cursor
+      
+      // IMPORTANT: Set oldestCursor if we don't have one yet
+      // This ensures pagination works after refresh
+      if oldestCursor == nil, let cursor = cursor {
+        oldestCursor = cursor
+      }
+      
       await getFreshPosts(from: newPosts, cursor: cursor)
     } else {
       // Fallback pro prázdný timeline
       let result = await client.fetchTimeline()
       let newPosts = result.posts
       let cursor = result.cursor
-      oldestCursor = cursor
+      
+      if let cursor = cursor {
+        oldestCursor = cursor
+      }
+      
       await getFreshPosts(from: newPosts, cursor: cursor)
     }
   }
@@ -1449,19 +1488,22 @@ final class TimelineFeed {
   /// Načte starší příspěvky z klienta podle oldestCursor a přidá je do timeline.
   func loadOlderTimeline() async {
     guard let cursor = oldestCursor else {
-      print("No cursor available for loading older timeline.")
       return
     }
-
+    
     let result = await client.loadOlderPosts(from: cursor)
     let olderPosts = result.posts
     let newCursor = result.cursor
+    
+    // Check if we've reached the end of timeline
+    if olderPosts.isEmpty || newCursor == nil {
+      // Set oldestCursor to nil to prevent further attempts
+      oldestCursor = nil
+      return
+    }
 
     await appendPosts(from: olderPosts, cursor: newCursor)
-    // Explicitně nastavíme oldestCursor podle nového kurzoru
-    if let newCursor = result.cursor {
-      oldestCursor = newCursor
-    }
+    // Note: oldestCursor is now updated inside appendPosts
   }
 
 }
