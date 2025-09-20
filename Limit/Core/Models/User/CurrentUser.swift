@@ -9,6 +9,7 @@ import Foundation
 import Observation
 import ATProtoKit
 
+@MainActor
 @Observable
 class CurrentUser {
     var did: String = ""
@@ -18,6 +19,7 @@ class CurrentUser {
     var lists: [AppBskyLexicon.Graph.ListViewDefinition] = []
     var feeds: [AppBskyLexicon.Feed.GeneratorViewDefinition] = []
     private var listsLastCursor: String? = nil
+    private(set) var listViewModels: [String: ListTimelineViewModel] = [:]
     
     // Store pinned status and order for lists
     var listPreferences: [String: (isPinned: Bool, order: Int)] = [:] // URI -> (isPinned, order)
@@ -54,6 +56,7 @@ class CurrentUser {
         feeds = []
         listPreferences = [:]
         feedPreferences = [:]
+        listViewModels = [:]
         DevLogger.shared.log("CurrentUser - clear - clear!")
     }
     
@@ -81,9 +84,19 @@ class CurrentUser {
         // Sort lists based on preferences
         let sortedLists = sortListsByPreferences(listsOutput.lists)
         
-        await MainActor.run {
-            self.lists = sortedLists
+        let existingModels = listViewModels
+        var updatedModels: [String: ListTimelineViewModel] = [:]
+
+        for list in sortedLists {
+            let key = list.uri
+            if let model = existingModels[key] {
+                model.updateSource(.list(list))
+                updatedModels[key] = model
+            }
         }
+
+        self.lists = sortedLists
+        self.listViewModels = updatedModels
     }
     
     // Refresh list preferences from server
@@ -362,5 +375,17 @@ class CurrentUser {
         feeds = []
         feedPreferences = [:]
     }
-}
 
+    func listViewModel(for list: AppBskyLexicon.Graph.ListViewDefinition, client: MultiAccountClient) -> ListTimelineViewModel {
+        let key = list.uri
+        if let existing = listViewModels[key] {
+            existing.updateClient(client)
+            existing.updateSource(.list(list))
+            return existing
+        }
+
+        let model = ListTimelineViewModel(source: .list(list), client: client, accountDID: did.isEmpty ? nil : did)
+        listViewModels[key] = model
+        return model
+    }
+}

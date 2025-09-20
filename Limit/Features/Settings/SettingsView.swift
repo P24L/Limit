@@ -10,6 +10,7 @@ import Foundation
 import SwiftUI
 import SwiftData
 import KeychainSwift
+import StoreKit
 
 
 
@@ -23,16 +24,13 @@ struct SettingsView: View {
     @Environment(ComputedTimelineFeed.self) private var computedFeed
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(FavoritePostManager.self) private var favoritesPost
-    
+    @Environment(UserPreferences.self) private var preferences
+    @Environment(AppTheme.self) private var theme
+
     @Query(
         sort: \TimelinePost.createdAt,
         order: .reverse
     ) private var posts: [TimelinePost]
-    
-    @AppStorage("debugMode") private var debugMode: Bool = false
-    @AppStorage("isDarkMode") private var isDarkMode: Bool = false
-    @AppStorage("showRepliesToOthers") private var showRepliesToOthers: Bool = true
-    @AppStorage("showDirectReplyContext") private var showDirectReplyContext: Bool = true
     
     @State private var showAddAccountSheet = false
     @State private var isSwitchingAccount = false
@@ -44,27 +42,31 @@ struct SettingsView: View {
         Form {          
             // Options Section
             Section(header: Text("Options")) {
-                Toggle("Dark Mode", isOn: $isDarkMode)
-                    .onChange(of: isDarkMode) {
-                        UIApplication.shared.connectedScenes
-                            .compactMap { $0 as? UIWindowScene }
-                            .first?
-                            .windows
-                            .first?
-                            .overrideUserInterfaceStyle = isDarkMode ? .dark : .light
-                    }
+                Toggle("Dark Mode", isOn: Binding(
+                    get: { preferences.isDarkMode },
+                    set: { preferences.isDarkMode = $0 }
+                ))
             }
             
             // Timeline Section
             Section(header: Text("Timeline")) {
-                Toggle("Show replies to others", isOn: $showRepliesToOthers)
-                Toggle("Show direct reply context", isOn: $showDirectReplyContext)
+                Toggle("Show replies to others", isOn: Binding(
+                    get: { preferences.showRepliesToOthers },
+                    set: { preferences.showRepliesToOthers = $0 }
+                ))
+                Toggle("Show direct reply context", isOn: Binding(
+                    get: { preferences.showDirectReplyContext },
+                    set: { preferences.showDirectReplyContext = $0 }
+                ))
             }
             // Debug Section (only in DEBUG builds)
 #if DEBUG
             Section(header: Text("Debug")) {
-                Toggle("Debug Mode", isOn: $debugMode)
-                if debugMode {
+                Toggle("Debug Mode", isOn: Binding(
+                    get: { preferences.debugMode },
+                    set: { preferences.debugMode = $0 }
+                ))
+                if preferences.debugMode {
                     Button("Clear Old Data") {
                         Task {
                             do {
@@ -127,6 +129,126 @@ struct SettingsView: View {
                 }
             }
 #endif
+            // Links Section
+            Section(header: Text("Links")) {
+                Button {
+                    if #available(iOS 18.0, *) {
+                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                            AppStore.requestReview(in: windowScene)
+                        }
+                    } else {
+                        // Fallback for iOS 17 and earlier
+                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                            SKStoreReviewController.requestReview(in: windowScene)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Label("Rate Limit", systemImage: "star.fill")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                }
+
+                Button {
+                    if let url = URL(string: "https://p24l.github.io/Limit/PRIVACY_POLICY.html") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Privacy Policy", systemImage: "lock.fill")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                }
+
+                Button {
+                    if let url = URL(string: "https://github.com/P24L/Limit") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Source (GitHub)", systemImage: "chevron.left.forwardslash.chevron.right")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+
+            // Developer Profiles Section
+            Section(header: Text("Developer Profiles")) {
+                // Limit App Profile
+                Button {
+                    router.navigateTo(.actor(userID: "limitapp.bsky.social"))
+                } label: {
+                    HStack(spacing: 16) {
+                        // Avatar
+                        AvatarView(url: URL(string: "https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:bhjhmdlfpjyc3xk7ha3tptdi/bafkreie2v33n3mb2fc6o4yjahgo5bjuw7wc2nauq35qje2pmhns373buoi@jpeg"), size: 60)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Display name
+                            Text("Limit App")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+
+                            // Handle
+                            Text("@limitapp.bsky.social")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+
+                // P24L Profile
+                Button {
+                    router.navigateTo(.actor(userID: "p24l.bsky.social"))
+                } label: {
+                    HStack(spacing: 16) {
+                        // Avatar
+                        AvatarView(url: URL(string: "https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:5j2yklrr4pozy7yhrdq5xfn7/bafkreidko5gl66gmrj5jerwre5yvvjx45se5tq5htd2fmcgjrebgo6k22q@jpeg"), size: 60)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            // Display name
+                            Text("P24L")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+
+                            // Handle
+                            Text("@p24l.bsky.social")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+            }
+
             // About Section
             Section(header: Text("About")) {
                 Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "-"))")
@@ -138,7 +260,7 @@ struct SettingsView: View {
                 .first?
                 .windows
                 .first?
-                .overrideUserInterfaceStyle = isDarkMode ? .dark : .light
+                .overrideUserInterfaceStyle = preferences.isDarkMode ? .dark : .light
         }
     }
 }

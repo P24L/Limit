@@ -43,33 +43,36 @@ class TimelinePositionManager {
     }
     
     // MARK: - Account-aware keys
-    private func timelineKey(for accountDID: String? = nil) -> String {
-        let did = accountDID ?? AccountManager.shared.currentAccount?.did ?? "default"
+    private func timelineKey(for accountDID: String?) -> String? {
+        guard let did = accountDID, !did.isEmpty else { return nil }
         return "\(timelineKeyPrefix).\(did)"
     }
-    
-    private func listKey(for listURI: String, accountDID: String? = nil) -> String {
-        let did = accountDID ?? AccountManager.shared.currentAccount?.did ?? "default"
+
+    private func listKey(for listURI: String, accountDID: String?) -> String? {
+        guard let did = accountDID, !did.isEmpty else { return nil }
         return "LastTopVisiblePostID_\(listURI).\(did)"
     }
-    
+
     // MARK: - Timeline Position
-    func saveTimelinePosition(_ postID: String) {
-        let key = timelineKey()
-        
+    func saveTimelinePosition(_ postID: String, accountDID: String?) {
+        guard let key = timelineKey(for: accountDID) else {
+            DevLogger.shared.log("TimelinePositionManager - Skipping save, missing account DID")
+            return
+        }
+
         // Immediately save to memory cache
         positionCache[key] = postID
         pendingChanges.insert(key)
-        
+
         DevLogger.shared.log("TimelinePositionManager - Cached position: \(postID) for key: \(key)")
         
         // Schedule debounced save to UserDefaults
         scheduleDebouncedSave()
     }
     
-    func getTimelinePosition() -> String? {
-        let key = timelineKey()
-        
+    func getTimelinePosition(accountDID: String?) -> String? {
+        guard let key = timelineKey(for: accountDID) else { return nil }
+
         // Read from memory cache first
         if let cached = positionCache[key] {
             DevLogger.shared.log("TimelinePositionManager - Getting cached position: \(cached) for key: \(key)")
@@ -84,24 +87,37 @@ class TimelinePositionManager {
         }
         return position
     }
+
+    func scheduleDebouncedTimelineSave(_ postID: String, accountDID: String?) {
+        guard let key = timelineKey(for: accountDID) else {
+            DevLogger.shared.log("TimelinePositionManager - Skipping debounced save, missing account DID")
+            return
+        }
+        positionCache[key] = postID
+        pendingChanges.insert(key)
+        scheduleDebouncedSave()
+    }
     
     // MARK: - List Position
-    func saveListPosition(_ postID: String, for listURI: String) {
-        let key = listKey(for: listURI)
-        
+    func saveListPosition(_ postID: String, for listURI: String, accountDID: String?) {
+        guard let key = listKey(for: listURI, accountDID: accountDID) else {
+            DevLogger.shared.log("TimelinePositionManager - Skipping list save, missing account DID")
+            return
+        }
+
         // Immediately save to memory cache
         positionCache[key] = postID
         pendingChanges.insert(key)
-        
+
         DevLogger.shared.log("TimelinePositionManager - Cached list position: \(postID) for key: \(key)")
         
         // Schedule debounced save to UserDefaults
         scheduleDebouncedSave()
     }
     
-    func getListPosition(for listURI: String) -> String? {
-        let key = listKey(for: listURI)
-        
+    func getListPosition(for listURI: String, accountDID: String?) -> String? {
+        guard let key = listKey(for: listURI, accountDID: accountDID) else { return nil }
+
         // Read from memory cache first
         if let cached = positionCache[key] {
             return cached
@@ -116,22 +132,22 @@ class TimelinePositionManager {
     }
     
     // MARK: - Generic Position (pro budoucí rozšíření)
-    func savePosition(_ postID: String, for identifier: String) {
-        let did = AccountManager.shared.currentAccount?.did ?? "default"
+    func savePosition(_ postID: String, for identifier: String, accountDID: String?) {
+        guard let did = accountDID, !did.isEmpty else { return }
         let key = "LastTopVisiblePostID_\(identifier).\(did)"
-        
+
         // Immediately save to memory cache
         positionCache[key] = postID
         pendingChanges.insert(key)
-        
+
         // Schedule debounced save to UserDefaults
         scheduleDebouncedSave()
     }
-    
-    func getPosition(for identifier: String) -> String? {
-        let did = AccountManager.shared.currentAccount?.did ?? "default"
+
+    func getPosition(for identifier: String, accountDID: String?) -> String? {
+        guard let did = accountDID, !did.isEmpty else { return nil }
         let key = "LastTopVisiblePostID_\(identifier).\(did)"
-        
+
         // Read from memory cache first
         if let cached = positionCache[key] {
             return cached
@@ -147,39 +163,31 @@ class TimelinePositionManager {
     
     // MARK: - Debounced Save
     private func scheduleDebouncedSave() {
-        // Cancel existing task
         debounceTask?.cancel()
-        
-        // Create new debounced task
-        debounceTask = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: UInt64(self?.debounceInterval ?? 2.0) * 1_000_000_000)
-                
-                // Check if task wasn't cancelled
-                if !Task.isCancelled {
-                    self?.flushPendingChanges()
-                }
-            } catch {
-                // Task was cancelled, ignore
+        let interval = debounceInterval
+        debounceTask = Task.detached { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            if Task.isCancelled { return }
+            await MainActor.run {
+                self?.flushPendingChanges()
             }
         }
     }
-    
+
     // MARK: - Flush Changes
     func flushPendingChanges() {
         guard !pendingChanges.isEmpty else { return }
-        
+
         DevLogger.shared.log("TimelinePositionManager - Flushing \(pendingChanges.count) pending changes to UserDefaults")
-        
+
         for key in pendingChanges {
             if let value = positionCache[key] {
                 userDefaults.set(value, forKey: key)
             }
         }
-        
+
         pendingChanges.removeAll()
-        
-        // Cancel any pending debounce task
+
         debounceTask?.cancel()
         debounceTask = nil
     }

@@ -37,7 +37,11 @@
       "Bash(true)",
       "Bash(firebase apps:sdkconfig:*)",
       "Bash(git checkout:*)",
-      "Bash(zellij:*)"
+      "Bash(zellij:*)",
+      "Read(//private/tmp/**)",
+      "Read(//Users/zdenekindra/.config/wezterm/**)",
+      "Read(//tmp/**)",
+      "Read(//Users/zdenekindra/**)"
     ],
     "deny": []
   }

@@ -1181,6 +1181,7 @@ protocol TimelinePostRepresentable: Identifiable {
 extension TimelinePostWrapper: TimelinePostRepresentable {}
 
 @Observable
+@MainActor
 final class TimelineFeed {
   private(set) var posts: [TimelinePostWrapper] = []
   var postTimeline: [TimelinePostWrapper] {
@@ -1194,7 +1195,18 @@ final class TimelineFeed {
 
   private var client: MultiAccountClient
   private var currentAccountDID: String?
-  
+  var accountDID: String? { currentAccountDID }
+
+  // Scroll restoration state
+  var pendingRestoreID: String?
+  var scrollToId: String?
+  var isRestoringPosition: Bool = false
+  var currentScrollPosition: String?
+  private(set) var hasLoadedInitialCache = false
+
+  // Trigger property for initial position restore - using counter
+  private(set) var loadCounter = 0
+
   // Memory management constants
   private let maxPostsInMemory = 500           // Maximum posts to keep in memory
   private let maxPostsInDatabase = 1500        // Maximum posts to keep in database (3x memory)
@@ -1216,16 +1228,46 @@ final class TimelineFeed {
     Task { @MainActor in
       self.currentAccountDID = newClient.currentDID
     }
+    hasLoadedInitialCache = false
   }
 
-  func loadFromStorage() {
+  func beginRestoreFromSavedPositionIfAvailable() {
+    guard !posts.isEmpty else { return }
+    guard !isRestoringPosition else { return }
+    guard let accountDID = currentAccountDID,
+          let savedID = TimelinePositionManager.shared.getTimelinePosition(accountDID: accountDID) else { return }
+
+    if currentScrollPosition == savedID {
+      DevLogger.shared.log("TimelineFeed - Saved position already current, skipping reapply")
+      return
+    }
+
+    if posts.contains(where: { $0.uri == savedID }) {
+      pendingRestoreID = savedID
+      scrollToId = savedID
+      isRestoringPosition = true
+      DevLogger.shared.log("TimelineFeed - Reapplying saved position \(savedID) on re-entry")
+    }
+  }
+
+  func loadFromStorage(force: Bool = false) {
+    if hasLoadedInitialCache && !force {
+      DevLogger.shared.log("TimelineFeed - Skipping loadFromStorage, cache already in memory")
+      return
+    }
     guard let accountDID = currentAccountDID else {
       print("No current account DID available for loading posts")
       posts = []
       oldestCursor = nil
+      loadCounter += 1  // Trigger position restore even if empty
+      pendingRestoreID = nil
+      scrollToId = nil
+      isRestoringPosition = false
+      currentScrollPosition = nil
+      hasLoadedInitialCache = false
       return
     }
-    
+
     do {
       var descriptor = FetchDescriptor<TimelinePost>(
         predicate: #Predicate<TimelinePost> { post in
@@ -1245,7 +1287,9 @@ final class TimelineFeed {
 
       let storedPosts = try context.fetch(descriptor)
       self.posts = storedPosts.map { TimelinePostWrapper(from: $0) }
-      
+
+      preparePositionRestoreIfNeeded()
+
       // Try to get cursor from stored posts
       // Look through posts to find one with a cursor (not just the last one)
       for post in storedPosts.reversed() {
@@ -1254,11 +1298,63 @@ final class TimelineFeed {
           break
         }
       }
-      
+
+      // Trigger position restore by incrementing counter
+      loadCounter += 1
+
       print("Load from storage finished for account: \(accountDID)")
+      DevLogger.shared.log("TimelineFeed - Posts loaded from storage, triggering position restore (counter: \(loadCounter))")
+      hasLoadedInitialCache = true
     } catch {
       print("Failed to load timeline from storage: \(error)")
+      loadCounter += 1  // Even on error, trigger the load event
+      hasLoadedInitialCache = false
     }
+  }
+
+  private func preparePositionRestoreIfNeeded() {
+    guard let savedID = TimelinePositionManager.shared.getTimelinePosition(accountDID: accountDID) else {
+      pendingRestoreID = nil
+      scrollToId = nil
+      isRestoringPosition = false
+      currentScrollPosition = nil
+      return
+    }
+
+    guard posts.contains(where: { $0.uri == savedID }) else {
+      pendingRestoreID = nil
+      scrollToId = nil
+      isRestoringPosition = false
+      currentScrollPosition = nil
+      DevLogger.shared.log("TimelineFeed - Saved position \(savedID) not found in cached posts, skipping restore")
+      return
+    }
+
+    pendingRestoreID = savedID
+    scrollToId = savedID
+    isRestoringPosition = true
+    currentScrollPosition = savedID
+  }
+
+  func retryRestoreIfNeeded() {
+    guard isRestoringPosition, let pendingRestoreID else { return }
+    if posts.contains(where: { $0.uri == pendingRestoreID }) {
+      scrollToId = pendingRestoreID
+    }
+  }
+
+  func completePositionRestore(for id: String) {
+    guard let pendingRestoreID, pendingRestoreID == id else { return }
+    isRestoringPosition = false
+    self.pendingRestoreID = nil
+    scrollToId = nil
+    currentScrollPosition = id
+  }
+
+  func reapplyCurrentScrollPosition() {
+    guard let currentScrollPosition else { return }
+    scrollToId = currentScrollPosition
+    DevLogger.shared.log("TimelineFeed - Reapplying current position \(currentScrollPosition) without full restore")
   }
 
   @MainActor
@@ -1280,16 +1376,17 @@ final class TimelineFeed {
       posts.append(wrapper)
       addedCount += 1
     }
-    
+
     // ALWAYS update oldestCursor when appending older posts
     // This is critical for pagination to work correctly
     if let cursor = cursor {
       oldestCursor = cursor
     }
-    
+
     // Apply memory management after adding posts
     trimMemoryIfNeeded()
     saveToStorage()
+    retryRestoreIfNeeded()
   }
 
   /// Přidá nové příspěvky na začátek timeline, odstraní duplicity podle URI.
@@ -1309,17 +1406,18 @@ final class TimelineFeed {
     let uniqueNewWrappers = newWrappers.filter { !existingPostURIs.contains($0.uri) }
 
     posts.insert(contentsOf: uniqueNewWrappers, at: 0)
-    
+
     // Apply memory management after adding posts
     trimMemoryIfNeeded()
-    
+
     // IMPORTANT: As a fallback, set oldestCursor if we don't have one and posts were added
     // This can happen when loading from cache without cursor info
     if oldestCursor == nil && !posts.isEmpty && cursor != nil {
       oldestCursor = cursor
     }
-    
+
     saveToStorage()
+    retryRestoreIfNeeded()
   }
 
   @MainActor
@@ -1387,7 +1485,7 @@ final class TimelineFeed {
       
     } else if postTypePosts.count > softCleanupThreshold {
       // SOFT TRIM - preserve context around visible post
-      let visiblePostID = TimelinePositionManager.shared.getTimelinePosition()
+      let visiblePostID = TimelinePositionManager.shared.getTimelinePosition(accountDID: currentAccountDID)
       let sortedPosts = posts.sorted { $0.createdAt > $1.createdAt }
       
       if let visibleID = visiblePostID,
@@ -1445,6 +1543,7 @@ final class TimelineFeed {
       try context.save()
       posts.removeAll()
       oldestCursor = nil
+      hasLoadedInitialCache = false
     } catch {
       print("Failed to clear timeline: \(error)")
     }

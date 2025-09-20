@@ -12,8 +12,10 @@ struct AppRootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(MultiAccountClient.self) private var client
     @Environment(NotificationManager.self) private var notificationManager
+    @Environment(CurrentUser.self) private var currentUser
     
     @State private var isTopbarHidden = false
+    @State private var listTimelineViewModels: [String: ListTimelineViewModel] = [:]
     
     var body: some View {
         @Bindable var router = router
@@ -116,7 +118,10 @@ struct AppRootView: View {
         case .actor(let actorDID):
             ActorView(actorDID: actorDID)
         case .listTimeline(let source):
-            ListTimelineView(source: source, isTopbarHidden: $isTopbarHidden)
+            ListTimelineView(
+                viewModel: listViewModel(for: source),
+                isTopbarHidden: $isTopbarHidden
+            )
         case .listManagement:
             ListManagementView()
         case .listMembers(let list):
@@ -141,7 +146,7 @@ struct AppRootView: View {
             NewsDetailView(urlString: url)
         }
     }
-    
+
     @ViewBuilder
     private func sheetView(for sheet: Sheet) -> some View {
         switch sheet {
@@ -180,6 +185,24 @@ struct AppRootView: View {
             BookmarkEditSheet(bookmarkId: id)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func listViewModel(for source: TimelineContentSource) -> ListTimelineViewModel {
+        let key = source.identifier
+        switch source {
+        case .list(let list):
+            return currentUser.listViewModel(for: list, client: client)
+        default:
+            if let existing = listTimelineViewModels[key] {
+                existing.updateClient(client)
+                existing.updateSource(source)
+                return existing
+            }
+
+            let viewModel = ListTimelineViewModel(source: source, client: client, accountDID: currentUser.did.isEmpty ? nil : currentUser.did)
+            listTimelineViewModels[key] = viewModel
+            return viewModel
         }
     }
 }

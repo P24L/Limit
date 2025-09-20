@@ -35,7 +35,7 @@ struct PostItemWrappedView: View {
     @Environment(\.modelContext) var context
     @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
-    
+
     @Namespace var namespace
 
     var post: TimelinePostWrapper
@@ -46,16 +46,17 @@ struct PostItemWrappedView: View {
     var nextPostThreadRootID: String? = nil
     var isThreadView: Bool = false
     var postViewType: PostViewType = .timeline
-    var showCard: Bool = true // Control card background visibility
+    var showCard: Bool = true // Control card background visibility (deprecated, use useListStyle instead)
     var threadDepth: Int? = nil // Thread hierarchy depth for visualization
-    
+    var useListStyle: Bool = false // New parameter for List-based rendering
+
     @AppStorage("showDirectReplyContext") private var showDirectReplyContext: Bool = true
 
     @State private var selectedImageIndex: Int = 0
     @State private var fullScreenImages: [PostImage] = []
     @State private var showSaveConfirmation: Bool = false
     @State private var savedBookmarkId: String? = nil
-    
+
     // Stores the calculated height of the view's content.
     // When nil, the view renders with a flexible height. Once a height is measured
     // and set, it's used to fix the frame size, providing stability for LazyVStack.
@@ -65,6 +66,13 @@ struct PostItemWrappedView: View {
         sort: \TimelinePost.createdAt,
         order: .reverse
     ) var posts: [TimelinePost]
+
+    // Helper function to detect GIF URLs (ignoring query parameters)
+    private func isGIFURL(_ urlString: String) -> Bool {
+        // Remove query parameters and fragment
+        let cleanURL = urlString.split(separator: "?").first ?? ""
+        return cleanURL.lowercased().hasSuffix(".gif")
+    }
 
     var body: some View {
         let content = VStack(alignment: .leading, spacing: 8) {
@@ -194,7 +202,29 @@ struct PostItemWrappedView: View {
 
                     // MARK: Weblink
                     if let linkExt = post.linkExt, depth < 2 {
-                        WrappedPostLinkView(linkExt: linkExt)
+                        // Check if this is a GIF link that should be displayed as an image
+                        if isGIFURL(linkExt.uri) {
+                            // Display as animated image
+                            if let gifURL = URL(string: linkExt.uri) {
+                                AnimatedImage(url: gifURL)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxHeight: 400)
+                                    .frame(maxWidth: .infinity)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
+                                    )
+                                    .cardShadow()
+                                    .onTapGesture {
+                                        router.navigateTo(.safari(url: gifURL))
+                                    }
+                            }
+                        } else {
+                            // Display as regular link card
+                            WrappedPostLinkView(linkExt: linkExt)
+                        }
                     }
 
 
@@ -285,9 +315,16 @@ struct PostItemWrappedView: View {
                 content
             }
         }
-        
+
         let cardStyledContent = Group {
-            if showCard {
+            if useListStyle {
+                // For List style - no card, just content
+                contentWithThreadDepth
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 6)
+            } else if showCard {
+                // For ScrollView with cards
                 contentWithThreadDepth
                     .padding(.vertical, 10)
                     .padding(.horizontal, 6)
@@ -301,37 +338,34 @@ struct PostItemWrappedView: View {
             }
         }
 
-        // This block of modifiers is the core of the height stabilization hack.
-        // 1. .background(GeometryReader...): A GeometryReader is placed in the background
-        //    to measure the actual rendered size of the `cardStyledContent`.
-        // 2. .preference(...): The measured height is reported upwards using our PreferenceKey.
-        // 3. .onPreferenceChange(...): We listen for the reported height. Once we get a
-        //    valid (non-zero) height, we store it in the `measuredHeight` state variable.
-        //    We only store it once to avoid layout loops.
-        // 4. .frame(height: measuredHeight): This is the crucial step. If `measuredHeight` is set,
-        //    it locks the view's frame to that specific height. This prevents the view from
-        //    resizing after its initial render, which is what confuses LazyVStack.
-        return cardStyledContent
-            .background(
-                GeometryReader { geometry in
-                    Color.clear
-                        .preference(key: PostHeightPreferenceKey.self, value: geometry.size.height)
-                }
-            )
-            .onPreferenceChange(PostHeightPreferenceKey.self) { height in
-                guard height > 0 else { return }
-                // Shrink-only: allow reducing locked height, but never increase it
-                if let current = self.measuredHeight {
-                    // Use a tiny epsilon to avoid needless churn from sub-pixel jitter
-                    if height + 0.5 < current {
-                        self.measuredHeight = height
+        // Apply height measurement hack only for non-List styles
+        return Group {
+            if useListStyle {
+                cardStyledContent
+            } else {
+                cardStyledContent
+                    .background(
+                        GeometryReader { geometry in
+                            Color.clear
+                                .preference(key: PostHeightPreferenceKey.self, value: geometry.size.height)
+                        }
+                    )
+                    .onPreferenceChange(PostHeightPreferenceKey.self) { height in
+                        guard height > 0 else { return }
+                        // Shrink-only: allow reducing locked height, but never increase it
+                        if let current = self.measuredHeight {
+                            // Use a tiny epsilon to avoid needless churn from sub-pixel jitter
+                            if height + 0.5 < current {
+                                self.measuredHeight = height
+                            }
+                        } else {
+                            self.measuredHeight = height
+                        }
                     }
-                } else {
-                    self.measuredHeight = height
-                }
+                    .frame(height: measuredHeight)
             }
-            .frame(height: measuredHeight)
-            .padding(.bottom, 0)
+        }
+        .padding(.bottom, 0)
     }
 
     // MARK: - Optimized Image Gallery Helper
@@ -484,25 +518,43 @@ struct Triangle: Shape {
 struct EmbeddedImageView: View {
     let url: URL?
 
+    private var isGIF: Bool {
+        guard let url = url else { return false }
+        return url.absoluteString.lowercased().hasSuffix(".gif")
+    }
+
     var body: some View {
         if let url = url {
-            WebImage(url: url) { phase in
-                switch phase {
-                case .empty:
-                    placeholderView
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 300)
-                case .failure(_):
-                    placeholderView
+            if isGIF {
+                // Use AnimatedImage for GIFs
+                AnimatedImage(url: url)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 300)
+                    .frame(maxWidth: .infinity)
+                    .background(backgroundView)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.trailing, 8)
+            } else {
+                // Use WebImage for static images
+                WebImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        placeholderView
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxHeight: 300)
+                    case .failure(_):
+                        placeholderView
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .background(backgroundView)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(.trailing, 8)
             }
-            .frame(maxWidth: .infinity)
-            .background(backgroundView)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .padding(.trailing, 8)
         } else {
             EmptyView()
         }

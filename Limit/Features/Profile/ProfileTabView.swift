@@ -340,7 +340,7 @@ struct ProfileTabView: View {
             
             // Refresh user data and reload timeline
             feed.updateClient(client)
-            feed.loadFromStorage()
+            feed.loadFromStorage(force: true)
             await currentUser.refreshProfile(client: client)
             
             // Update profile info

@@ -125,25 +125,36 @@ struct ImageGalleryView: View {
                     VStack {
                         ZStack(alignment: .bottom) {
                             ZoomableScrollView(zoomResetTrigger: $zoomResetCounter) {
-                                WebImage(url: image.url) { phase in
-                                    switch phase {
-                                    case .empty:
-                                        ProgressView()
-                                            .scaledToFit()
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            .background(Color.black)
-                                    case .success(let image):
-                                        image
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            .background(Color.black)
-                                    case .failure(_):
-                                        Rectangle()
-                                            .foregroundStyle(.gray)
-                                            .scaledToFit()
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            .background(Color.black)
+                                // Check if the image is a GIF
+                                if image.url.absoluteString.lowercased().hasSuffix(".gif") {
+                                    // Use AnimatedImage for GIFs
+                                    AnimatedImage(url: image.url)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .background(Color.black)
+                                } else {
+                                    // Use WebImage for static images
+                                    WebImage(url: image.url) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView()
+                                                .scaledToFit()
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                .background(Color.black)
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                .background(Color.black)
+                                        case .failure(_):
+                                            Rectangle()
+                                                .foregroundStyle(.gray)
+                                                .scaledToFit()
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                .background(Color.black)
+                                        }
                                     }
                                 }
                             }

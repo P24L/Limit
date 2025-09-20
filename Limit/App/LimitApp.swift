@@ -57,6 +57,8 @@ struct LimitApp: App {
     @State private var pendingDeepLink: URL? = nil
     @State private var pendingShareData: (url: String, action: String)? = nil
     @State private var analyticsService = AnalyticsService.shared
+    @State private var userPreferences = UserPreferences.shared
+    @State private var appTheme = AppTheme.shared
     
     let container: ModelContainer = {
         let config = ModelConfiguration(
@@ -178,6 +180,8 @@ struct LimitApp: App {
                         .environment(appState)
                         .environment(aiService)
                         .environment(notificationManager)
+                        .environment(userPreferences)
+                        .environment(appTheme)
                 }
             }
             .task {

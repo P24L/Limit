@@ -46,41 +46,62 @@ struct ComputedTimelineView: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        ScrollView {
-                            LazyVStack(spacing: 8) {
-                                Color.clear
-                                    .frame(height: 60)
-                                    .id("top")
-                                ForEach(feed.posts, id: \.id) { post in
-                                    PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline, showCard: true)
-                                        .id(post.id)
-                                }
-                                
-                                // Infinity scroll trigger and loading indicator
-                                if feed.isPreparingNextBatch {
-                                    VStack {
-                                        ProgressView("Loading more posts...")
-                                            .foregroundColor(.secondary)
-                                            .padding()
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                } else {
-                                    // Invisible trigger that loads more when it appears
-                                    Color.clear
-                                        .frame(height: 20)
-                                        .onAppear {
-                                            Task {
-                                                await feed.loadMorePosts(client: client)
-                                            }
-                                        }
-                                }
+                        List {
+                            // Top spacer for topbar
+                            Color.clear
+                                .frame(height: 60)
+                                .id("top")
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets())
+
+                            ForEach(feed.posts, id: \.id) { post in
+                                PostItemWrappedView(
+                                    post: post,
+                                    isThreadView: true,
+                                    postViewType: .timeline,
+                                    useListStyle: true  // Use List style
+                                )
+                                .id(post.id)
+                                .listRowInsets(EdgeInsets(
+                                    top: 4,
+                                    leading: 8,
+                                    bottom: 4,
+                                    trailing: 8
+                                ))
+                                .listRowBackground(Color.warmBackground)
+                                .listRowSeparator(.visible, edges: .bottom)
                             }
-                            .padding(.top, 0)
-                            .animation(.smooth, value: isTopbarHidden)
-                            .padding(.horizontal, 8)
-                            .background(.warmBackground)
-                            .scrollTargetLayout()
+
+                            // Infinity scroll trigger and loading indicator
+                            if feed.isPreparingNextBatch {
+                                VStack {
+                                    ProgressView("Loading more posts...")
+                                        .foregroundColor(.secondary)
+                                        .padding()
+                                }
+                                .frame(maxWidth: .infinity)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets())
+                            } else {
+                                // Invisible trigger that loads more when it appears
+                                Color.clear
+                                    .frame(height: 20)
+                                    .onAppear {
+                                        Task {
+                                            await feed.loadMorePosts(client: client)
+                                        }
+                                    }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(EdgeInsets())
+                            }
                         }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.warmBackground)
+                        .animation(.smooth, value: isTopbarHidden)
                         .onScrollPhaseChange { old, new in
                             isTopbarHidden = (new == .tracking || new == .interacting)
                         }

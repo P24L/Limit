@@ -26,39 +26,60 @@ struct ComputedTimelineContainer: View {
     
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    Color.clear
-                        .frame(height: 100)
-                        .id("top")
-                    
-                    ForEach(posts, id: \.id) { post in
-                        PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline, showCard: true)
-                            .id(post.id)
-                    }
-                    
-                    // Infinity scroll trigger for A-line
-                    if computedFeed.isPreparingNextBatch {
-                        VStack {
-                            ProgressView("Loading more posts...")
-                                .foregroundColor(.secondary)
-                                .padding()
-                        }
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        Color.clear
-                            .frame(height: 20)
-                            .onAppear {
-                                Task {
-                                    await computedFeed.loadMorePosts(client: client)
-                                    viewState = .posts(computedFeed.posts)
-                                }
-                            }
-                    }
+            List {
+                Color.clear
+                    .frame(height: 100)
+                    .id("top")
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+
+                ForEach(posts, id: \.id) { post in
+                    PostItemWrappedView(
+                        post: post,
+                        isThreadView: true,
+                        postViewType: .timeline,
+                        useListStyle: true  // Use List style
+                    )
+                    .id(post.id)
+                    .listRowInsets(EdgeInsets(
+                        top: 4,
+                        leading: 8,
+                        bottom: 4,
+                        trailing: 8
+                    ))
+                    .listRowBackground(Color.warmBackground)
+                    .listRowSeparator(.visible, edges: .bottom)
                 }
-                .padding(.horizontal, 8)
-                .background(.warmBackground)
+
+                // Infinity scroll trigger for A-line
+                if computedFeed.isPreparingNextBatch {
+                    VStack {
+                        ProgressView("Loading more posts...")
+                            .foregroundColor(.secondary)
+                            .padding()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+                } else {
+                    Color.clear
+                        .frame(height: 20)
+                        .onAppear {
+                            Task {
+                                await computedFeed.loadMorePosts(client: client)
+                                viewState = .posts(computedFeed.posts)
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color.warmBackground)
             .onScrollPhaseChange { old, new in
                 if new == .tracking || new == .interacting {
                     isTopbarHidden = true

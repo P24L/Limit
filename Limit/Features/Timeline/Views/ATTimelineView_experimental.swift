@@ -26,6 +26,7 @@ struct ATTimelineView_experimental: View {
     enum ViewState {
         case loading
         case error(Error)
+        case home
         case posts([TimelinePostWrapper])
         case content(TimelineContentSource)
     }
@@ -98,6 +99,9 @@ struct ATTimelineView_experimental: View {
     @State private var isRefreshingTimeline = false
     @State private var showBookmarkConfirmation = false
     @State private var lastBookmarkId: String?
+    @State private var shouldRunDeferredTimelineRefresh = false
+    @State private var homeTimelineViewModel: HomeTimelineViewModel?
+    @State private var listTimelineViewModels: [String: ListTimelineViewModel] = [:]
     
     // Swipe gesture state (UI preview removed; no offset tracking needed)
     
@@ -121,29 +125,25 @@ struct ATTimelineView_experimental: View {
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: shouldShowSecondaryBar)
         .task {
+            if homeTimelineViewModel == nil {
+                homeTimelineViewModel = HomeTimelineViewModel(feed: feed)
+            }
             switch selectedTab {
             case .timeline:
-                // Show cached posts immediately
-                if feed.posts.isEmpty {
-                    feed.loadFromStorage()
-                }
-                viewState = .posts(feed.postTimeline)
+                homeTimelineViewModel?.loadFromStorage()
+                viewState = .home
                 
                 // Refresh only if needed (more than autoRefreshInterval since last refresh)
                 let timeSinceRefresh = Date().timeIntervalSince(lastTimelineRefresh)
                 DevLogger.shared.log("ATTimelineView - Time since last refresh: \(timeSinceRefresh)s")
                 
-                if timeSinceRefresh > autoRefreshInterval {
-                    Task {
-                        DevLogger.shared.log("ATTimelineView - Initial refresh starting (>\(autoRefreshInterval)s since last)")
-                        isRefreshingTimeline = true
-                        await feed.refreshTimeline()
-                        lastTimelineRefresh = .now
-                        DevLogger.shared.log("ATTimelineView - Initial refresh completed, updating viewState")
-                        await MainActor.run {
-                            viewState = .posts(feed.postTimeline)
-                            // ScrollPosition API will handle position restoration automatically
-                            isRefreshingTimeline = false
+                if timeSinceRefresh > autoRefreshInterval && !isRefreshingTimeline {
+                    if homeTimelineViewModel?.isRestoringPosition == true {
+                        DevLogger.shared.log("ATTimelineView - Deferring refresh until position restore completes")
+                        shouldRunDeferredTimelineRefresh = true
+                    } else {
+                        Task {
+                            await performTimelineRefresh(reason: "initial load")
                         }
                     }
                 } else {
@@ -161,12 +161,11 @@ struct ATTimelineView_experimental: View {
         .refreshable {
             switch selectedTab {
             case .timeline:
-                isRefreshingTimeline = true
-                await feed.refreshTimeline()
-                lastTimelineRefresh = .now  // Update refresh timestamp
-                viewState = .posts(feed.postTimeline)
-                isRefreshingTimeline = false
-                // ScrollPosition API will handle position restoration automatically
+                guard homeTimelineViewModel?.isRestoringPosition != true else {
+                    DevLogger.shared.log("ATTimelineView - Pull-to-refresh ignored, position restore in progress")
+                    return
+                }
+                await performTimelineRefresh(reason: "pull-to-refresh")
             case .aline:
                 // A-line uses its own refresh button
                 break
@@ -184,17 +183,18 @@ struct ATTimelineView_experimental: View {
             if selectedTab == .timeline && newPhase == .active {
                 let timeSinceRefresh = Date().timeIntervalSince(lastTimelineRefresh)
                 DevLogger.shared.log("ATTimelineView - Scene became active, time since last refresh: \(timeSinceRefresh)s")
-                if timeSinceRefresh > autoRefreshInterval {
-                    DevLogger.shared.log("ATTimelineView - Triggering auto-refresh on scene activation (>\(autoRefreshInterval)s)")
-                    Task {
-                        isRefreshingTimeline = true
-                        await feed.refreshTimeline()
-                        DevLogger.shared.log("ATTimelineView - Auto-refresh completed")
-                        lastTimelineRefresh = .now
-                        viewState = .posts(feed.postTimeline)
-                        // ScrollPosition API will handle position restoration automatically
-                        isRefreshingTimeline = false
+                if timeSinceRefresh > autoRefreshInterval && !isRefreshingTimeline {
+                    if homeTimelineViewModel?.isRestoringPosition == true {
+                        DevLogger.shared.log("ATTimelineView - Deferring auto-refresh until restoration completes")
+                        shouldRunDeferredTimelineRefresh = true
+                    } else {
+                        DevLogger.shared.log("ATTimelineView - Triggering auto-refresh on scene activation (>\(autoRefreshInterval)s)")
+                        Task {
+                            await performTimelineRefresh(reason: "scene activation")
+                        }
                     }
+                } else if isRefreshingTimeline {
+                    DevLogger.shared.log("ATTimelineView - Skipping auto-refresh, already refreshing")
                 }
             } else if selectedTab == .aline && newPhase == .active {
                 // Don't auto-refresh A-line on scene activation
@@ -206,7 +206,7 @@ struct ATTimelineView_experimental: View {
             Task {
                 switch newValue {
                 case .timeline:
-                    viewState = .posts(feed.postTimeline)
+                    viewState = .home
                 case .aline:
                     // For A-line, we'll show computed timeline posts
                     if computedFeed.posts.isEmpty {
@@ -215,6 +215,21 @@ struct ATTimelineView_experimental: View {
                     viewState = .posts(computedFeed.posts)
                 case .list, .feed, .trendingPosts:
                     viewState = getSelectedContent()
+                }
+            }
+            if newValue != .timeline {
+                shouldRunDeferredTimelineRefresh = false
+                homeTimelineViewModel?.prepareForTemporaryRemoval()
+            }
+        }
+        .onChange(of: homeTimelineViewModel?.isRestoringPosition ?? false) { _, isRestoring in
+            guard selectedTab == .timeline else { return }
+            if !isRestoring,
+               shouldRunDeferredTimelineRefresh,
+               !isRefreshingTimeline {
+                shouldRunDeferredTimelineRefresh = false
+                Task {
+                    await performTimelineRefresh(reason: "post-restore")
                 }
             }
         }
@@ -292,6 +307,44 @@ struct ATTimelineView_experimental: View {
         default:
             return .loading
         }
+    }
+
+    private func listTimelineViewModel(for source: TimelineContentSource) -> ListTimelineViewModel {
+        let key = source.identifier
+        switch source {
+        case .list(let list):
+            return currentUser.listViewModel(for: list, client: client)
+        default:
+            if let existing = listTimelineViewModels[key] {
+                existing.updateClient(client)
+                existing.updateSource(source)
+                return existing
+            }
+            let viewModel = ListTimelineViewModel(source: source, client: client, accountDID: currentUser.did.isEmpty ? nil : currentUser.did)
+            listTimelineViewModels[key] = viewModel
+            return viewModel
+        }
+    }
+
+    @MainActor
+    private func performTimelineRefresh(reason: String) async {
+        guard !isRefreshingTimeline else {
+            DevLogger.shared.log("ATTimelineView - Skipping \(reason) refresh, already in progress")
+            return
+        }
+
+        DevLogger.shared.log("ATTimelineView - Starting \(reason) refresh")
+        shouldRunDeferredTimelineRefresh = false
+        isRefreshingTimeline = true
+        if selectedTab == .timeline {
+            await homeTimelineViewModel?.refreshTimeline()
+        } else {
+            await feed.refreshTimeline()
+        }
+        lastTimelineRefresh = .now
+        viewState = selectedTab == .timeline ? .home : .posts(feed.postTimeline)
+        isRefreshingTimeline = false
+        DevLogger.shared.log("ATTimelineView - Finished \(reason) refresh")
     }
 
     @ViewBuilder
@@ -620,8 +673,26 @@ struct ATTimelineView_experimental: View {
                           message: error.localizedDescription,
                           buttonTitle: "Zkusit znovu") {
                     Task {
-                        await feed.refreshTimeline()
+                        guard selectedTab == .timeline else { return }
+                        await performTimelineRefresh(reason: "error retry")
                     }
+                }
+            case .home:
+                if let viewModel = homeTimelineViewModel {
+                    if viewModel.isInitialLoadComplete {
+                        TimelinePostList(
+                            viewModel: viewModel,
+                            newPostsAboveCount: $newPostsAboveCount,
+                            hideDirectionIsUp: $hideDirectionIsUp,
+                            isTopbarHidden: $isTopbarHidden
+                        )
+                    } else {
+                        ProgressPostsRedacted()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                } else {
+                    ProgressPostsRedacted()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             case .posts(let wrappers):
                 if selectedTab == .aline {
@@ -636,21 +707,11 @@ struct ATTimelineView_experimental: View {
                         }
                     }
                 } else {
-                    // Regular timeline
-                    TimelinePostList(
-                        posts: wrappers,
-                        newPostsAboveCount: $newPostsAboveCount,
-                        hideDirectionIsUp: $hideDirectionIsUp,
-                        isTopbarHidden: $isTopbarHidden
-                    )
-                    .onReceive(NotificationCenter.default.publisher(for: .didLoadOlderPosts)) { _ in
-                        Task {
-                            viewState = .posts(feed.postTimeline)
-                        }
-                    }
+                    EmptyView()
                 }
             case .content(let source):
-                ListTimelineView(source: source, isTopbarHidden: $isTopbarHidden)
+                let viewModel = listTimelineViewModel(for: source)
+                ListTimelineView(viewModel: viewModel, isTopbarHidden: $isTopbarHidden)
             }
         }
         .simultaneousGesture(
