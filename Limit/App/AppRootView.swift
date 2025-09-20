@@ -14,8 +14,7 @@ struct AppRootView: View {
     @Environment(NotificationManager.self) private var notificationManager
     @Environment(CurrentUser.self) private var currentUser
     
-    @State private var isTopbarHidden = false
-    @State private var listTimelineViewModels: [String: ListTimelineViewModel] = [:]
+    @StateObject private var listTimelineCache = ListTimelineViewModelCache()
     
     var body: some View {
         @Bindable var router = router
@@ -50,6 +49,9 @@ struct AppRootView: View {
             }
             .sheet(item: $router.presentedSheet) { sheet in
               sheetView(for: sheet)
+            }
+            .onChange(of: currentUser.did) { _, _ in
+                listTimelineCache.removeAll()
             }
         }
     }
@@ -119,8 +121,7 @@ struct AppRootView: View {
             ActorView(actorDID: actorDID)
         case .listTimeline(let source):
             ListTimelineView(
-                viewModel: listViewModel(for: source),
-                isTopbarHidden: $isTopbarHidden
+                viewModel: listViewModel(for: source)
             )
         case .listManagement:
             ListManagementView()
@@ -189,20 +190,12 @@ struct AppRootView: View {
     }
 
     private func listViewModel(for source: TimelineContentSource) -> ListTimelineViewModel {
-        let key = source.identifier
         switch source {
         case .list(let list):
             return currentUser.listViewModel(for: list, client: client)
         default:
-            if let existing = listTimelineViewModels[key] {
-                existing.updateClient(client)
-                existing.updateSource(source)
-                return existing
-            }
-
-            let viewModel = ListTimelineViewModel(source: source, client: client, accountDID: currentUser.did.isEmpty ? nil : currentUser.did)
-            listTimelineViewModels[key] = viewModel
-            return viewModel
+            let accountDID = currentUser.did.isEmpty ? nil : currentUser.did
+            return listTimelineCache.viewModel(for: source, client: client, accountDID: accountDID)
         }
     }
 }

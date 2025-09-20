@@ -32,8 +32,6 @@ struct TimelinePostList: View {
     @State private var hasReachedEnd: Bool = false
 
     @Binding var newPostsAboveCount: Int
-    @Binding var hideDirectionIsUp: Bool
-    @Binding var isTopbarHidden: Bool
 
     private var posts: [TimelinePostWrapper] { viewModel.posts }
     private let positionTrackingEnabled = true
@@ -141,17 +139,14 @@ struct TimelinePostList: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Color.warmBackground)
-            .contentMargins(.top, 100)
+            .contentMargins(.top, 12)
             .contentMargins(.bottom, 100)
-            .onScrollPhaseChange { old, new in
+            .onScrollPhaseChange { _, new in
                 if new == .tracking || new == .interacting {
                     if positionTrackingEnabled {
                         hasUserInteracted = true
                         viewModel.userDidInteract()
                     }
-                    isTopbarHidden = true
-                } else if new == .idle {
-                    isTopbarHidden = false
                 }
             }
             .onChange(of: viewModel.scrollTargetID) { _, newValue in

@@ -86,9 +86,8 @@ struct ATTimelineView_experimental: View {
 
     @State private var viewState: ViewState = .loading
     @State private var lastTimelineRefresh: Date = Date().addingTimeInterval(-300) // Start with 5 minutes ago to ensure initial refresh
-    @State private var hideDirectionIsUp: Bool = true
-    @State private var isTopbarHidden = false
-    @State private var isExpandedTopbar = false
+    @State private var isListsExpanded = false
+    @State private var isFeedsExpanded = false
     @State private var newPostsAboveCount: Int = 0
     
     // Auto-refresh interval (4 minutes)
@@ -99,65 +98,52 @@ struct ATTimelineView_experimental: View {
     @State private var isRefreshingTimeline = false
     @State private var showBookmarkConfirmation = false
     @State private var lastBookmarkId: String?
+    @GestureState private var isVerticalTopBarDrag = false
     @State private var shouldRunDeferredTimelineRefresh = false
     @State private var homeTimelineViewModel: HomeTimelineViewModel?
-    @State private var listTimelineViewModels: [String: ListTimelineViewModel] = [:]
+    @StateObject private var listTimelineCache = ListTimelineViewModelCache()
     
     // Swipe gesture state (UI preview removed; no offset tracking needed)
     
-    private var shouldShowSecondaryBar: Bool {
-        switch selectedTab {
-        case .list, .feed:
-            return true
-        default:
-            return false
-        }
-    }
-
     var body: some View {
-        ZStack(alignment: .top) {
-            // Timeline content fills entire screen
-            timelineContent
-                .ignoresSafeArea(.container, edges: .top)
-            
-            // Floating topbar container
-            topbarContainer
-        }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: shouldShowSecondaryBar)
-        .task {
-            if homeTimelineViewModel == nil {
-                homeTimelineViewModel = HomeTimelineViewModel(feed: feed)
+        timelineContent
+            .safeAreaBar(edge: .top) {
+                topBar
             }
-            switch selectedTab {
-            case .timeline:
-                homeTimelineViewModel?.loadFromStorage()
-                viewState = .home
-                
-                // Refresh only if needed (more than autoRefreshInterval since last refresh)
-                let timeSinceRefresh = Date().timeIntervalSince(lastTimelineRefresh)
-                DevLogger.shared.log("ATTimelineView - Time since last refresh: \(timeSinceRefresh)s")
-                
-                if timeSinceRefresh > autoRefreshInterval && !isRefreshingTimeline {
-                    if homeTimelineViewModel?.isRestoringPosition == true {
-                        DevLogger.shared.log("ATTimelineView - Deferring refresh until position restore completes")
-                        shouldRunDeferredTimelineRefresh = true
-                    } else {
-                        Task {
-                            await performTimelineRefresh(reason: "initial load")
-                        }
-                    }
-                } else {
-                    DevLogger.shared.log("ATTimelineView - Skipping refresh (only \(timeSinceRefresh)s since last)")
+            .task {
+                if homeTimelineViewModel == nil {
+                    homeTimelineViewModel = HomeTimelineViewModel(feed: feed)
                 }
-            case .aline:
-                // For A-line, we'll show computed timeline posts
-                await computedFeed.loadPosts(client: client)
-                viewState = .posts(computedFeed.posts)
-            case .list, .feed, .trendingPosts:
-                // These always load fresh data via ListTimelineView
-                viewState = getSelectedContent()
+                switch selectedTab {
+                case .timeline:
+                    homeTimelineViewModel?.loadFromStorage()
+                    viewState = .home
+                    
+                    // Refresh only if needed (more than autoRefreshInterval since last refresh)
+                    let timeSinceRefresh = Date().timeIntervalSince(lastTimelineRefresh)
+                    DevLogger.shared.log("ATTimelineView - Time since last refresh: \(timeSinceRefresh)s")
+                    
+                    if timeSinceRefresh > autoRefreshInterval && !isRefreshingTimeline {
+                        if homeTimelineViewModel?.isRestoringPosition == true {
+                            DevLogger.shared.log("ATTimelineView - Deferring refresh until position restore completes")
+                            shouldRunDeferredTimelineRefresh = true
+                        } else {
+                            Task {
+                                await performTimelineRefresh(reason: "initial load")
+                            }
+                        }
+                    } else {
+                        DevLogger.shared.log("ATTimelineView - Skipping refresh (only \(timeSinceRefresh)s since last)")
+                    }
+                case .aline:
+                    // For A-line, we'll show computed timeline posts
+                    await computedFeed.loadPosts(client: client)
+                    viewState = .posts(computedFeed.posts)
+                case .list, .feed, .trendingPosts:
+                    // These always load fresh data via ListTimelineView
+                    viewState = getSelectedContent()
+                }
             }
-        }
         .refreshable {
             switch selectedTab {
             case .timeline:
@@ -217,6 +203,17 @@ struct ATTimelineView_experimental: View {
                     viewState = getSelectedContent()
                 }
             }
+            switch newValue {
+            case .list:
+                isListsExpanded = true
+                isFeedsExpanded = false
+            case .feed:
+                isFeedsExpanded = true
+                isListsExpanded = false
+            default:
+                isListsExpanded = false
+                isFeedsExpanded = false
+            }
             if newValue != .timeline {
                 shouldRunDeferredTimelineRefresh = false
                 homeTimelineViewModel?.prepareForTemporaryRemoval()
@@ -233,6 +230,19 @@ struct ATTimelineView_experimental: View {
                 }
             }
         }
+        .onChange(of: currentUser.lists.count) { _, newValue in
+            if newValue == 0 {
+                isListsExpanded = false
+            }
+        }
+        .onChange(of: currentUser.feeds.count) { _, newValue in
+            if newValue == 0 {
+                isFeedsExpanded = false
+            }
+        }
+        .onChange(of: currentUser.did) { _, _ in
+            listTimelineCache.removeAll()
+        }
         .saveConfirmationOverlay(show: $showBookmarkConfirmation, bookmarkId: lastBookmarkId)
         .onReceive(NotificationCenter.default.publisher(for: .bookmarkSaved)) { notification in
             if let bookmarkId = notification.object as? String {
@@ -245,51 +255,6 @@ struct ATTimelineView_experimental: View {
     // MARK: Helper Functions
     
     // Computed property for available tabs
-    private var availableTabs: [TopbarTab] {
-        var tabs: [TopbarTab] = [.timeline, .aline, .trendingPosts]
-        if !currentUser.lists.isEmpty {
-            tabs.append(.list(0))
-        }
-        if !currentUser.feeds.isEmpty {
-            tabs.append(.feed(0))
-        }
-        return tabs
-    }
-    
-    // Helper function to get current tab index
-    private func currentTabIndex() -> Int? {
-        availableTabs.firstIndex { tab in
-            switch (tab, selectedTab) {
-            case (.timeline, .timeline), (.aline, .aline), (.trendingPosts, .trendingPosts):
-                return true
-            case (.list, .list), (.feed, .feed):
-                return true
-            default:
-                return false
-            }
-        }
-    }
-    
-    // Get next tab
-    private func nextTab() -> TopbarTab? {
-        guard let currentIndex = currentTabIndex() else { return nil }
-        let nextIndex = currentIndex + 1
-        if nextIndex < availableTabs.count {
-            return availableTabs[nextIndex]
-        }
-        return nil
-    }
-    
-    // Get previous tab
-    private func previousTab() -> TopbarTab? {
-        guard let currentIndex = currentTabIndex() else { return nil }
-        let previousIndex = currentIndex - 1
-        if previousIndex >= 0 {
-            return availableTabs[previousIndex]
-        }
-        return nil
-    }
-    
     private func getSelectedContent() -> ViewState {
         switch selectedTab {
         case .list(let index):
@@ -310,19 +275,12 @@ struct ATTimelineView_experimental: View {
     }
 
     private func listTimelineViewModel(for source: TimelineContentSource) -> ListTimelineViewModel {
-        let key = source.identifier
         switch source {
         case .list(let list):
             return currentUser.listViewModel(for: list, client: client)
         default:
-            if let existing = listTimelineViewModels[key] {
-                existing.updateClient(client)
-                existing.updateSource(source)
-                return existing
-            }
-            let viewModel = ListTimelineViewModel(source: source, client: client, accountDID: currentUser.did.isEmpty ? nil : currentUser.did)
-            listTimelineViewModels[key] = viewModel
-            return viewModel
+            let accountDID = currentUser.did.isEmpty ? nil : currentUser.did
+            return listTimelineCache.viewModel(for: source, client: client, accountDID: accountDID)
         }
     }
 
@@ -348,317 +306,345 @@ struct ATTimelineView_experimental: View {
     }
 
     @ViewBuilder
-    private var topbarContainer: some View {
-        let safeAreaTopInset = UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.windows.first?.safeAreaInsets.top }
-            .first ?? 0
-        let topbarHeight: CGFloat = 60
-        let secondaryBarHeight: CGFloat = shouldShowSecondaryBar ? 44 : 0
-
+    private var topBar: some View {
         VStack(spacing: 0) {
-            // Safe area spacer
-            Color.clear
-                .frame(height: (safeAreaTopInset - 10) > 0 ? safeAreaTopInset - 10 : safeAreaTopInset)
-                .frame(maxWidth: .infinity)
-            
-            // Main topbar
-            topbarView
-            
-            // Secondary bar (conditionally shown)
-            if shouldShowSecondaryBar {
-                secondaryBarView
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .top).combined(with: .opacity),
-                        removal: .move(edge: .top).combined(with: .opacity)
-                    ))
-            }
-        }
-        .background(.warmBackground)
-        .ignoresSafeArea(.container, edges: .top)
-        .offset(y: isTopbarHidden ? -(safeAreaTopInset+topbarHeight + secondaryBarHeight+50) : 0)
-        .animation(.easeInOut(duration: 0.5), value: isTopbarHidden)
-        .zIndex(10)
-    }
-    
-    // MARK: Topbar View
-    @ViewBuilder
-    private var topbarView: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                // Compose button
-                Button {
-                    router.presentedSheet = .composePost()
-                } label: {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 20, weight: .ultraLight))
-                        .foregroundColor(.mintAccent)
-                        .frame(width: 36, height: 36)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(.mintAccent.opacity(0.1))
-                        )
-                }
-                .buttonStyle(.plain)
-                
-                Divider()
-                    .frame(height: 20)
-                    .padding(.horizontal, 4)
-                
-                // Timeline tab
-                TabButton(
-                    tab: .timeline,
-                    isSelected: selectedTab == .timeline,
-                    showText: selectedTab == .timeline,
-                    badge: (selectedTab == .timeline && !isRefreshingTimeline && newPostsAboveCount > 0) ? "\(newPostsAboveCount.abbreviatedRounded)" : nil,
-                    showRefresh: isRefreshingTimeline,
-                    isRefreshing: isRefreshingTimeline,
-                    refreshAction: isRefreshingTimeline ? { } : nil,
-                    action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .timeline } }
-                )
-                
-                // A-line tab
-                TabButton(
-                    tab: .aline,
-                    isSelected: selectedTab == .aline,
-                    showText: selectedTab == .aline,
-                    showRefresh: selectedTab == .aline,
-                    isRefreshing: isRefreshingAline,
-                    refreshAction: {
-                        Task {
-                            isRefreshingAline = true
-                            await computedFeed.fastRefresh(client: client)
-                            isRefreshingAline = false
-                        }
-                    },
-                    action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .aline } }
-                )
+            mainTopBar
 
-                // Trending tab
-                TabButton(
-                    tab: .trendingPosts,
-                    isSelected: selectedTab == .trendingPosts,
-                    showText: selectedTab == .trendingPosts,
-                    showRefresh: selectedTab == .trendingPosts,
-                    action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = .trendingPosts } }
-                )
-                
-                // Lists tab (if available)
-                if !currentUser.lists.isEmpty {
-                    TabButton(
-                        tab: .list(0),
-                        isSelected: isListOrFeedSelected(.list),
-                        showText: isListOrFeedSelected(.list),
-                        action: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                if case .list = selectedTab {
-                                    // Already in lists
-                                } else {
-                                    selectedTab = .list(0)
-                                }
-                            }
-                        }
-                    )
-                }
-                
-                // Feeds tab (if available)
-                if !currentUser.feeds.isEmpty {
-                    TabButton(
-                        tab: .feed(0),
-                        isSelected: isListOrFeedSelected(.feed),
-                        showText: isListOrFeedSelected(.feed),
-                        action: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                if case .feed = selectedTab {
-                                    // Already in feeds
-                                } else {
-                                    selectedTab = .feed(0)
-                                }
-                            }
-                        }
-                    )
-                }
+            if isListsExpanded, !currentUser.lists.isEmpty {
+                Divider()
+                    .overlay(Color.black.opacity(0.06))
+                listsSecondaryBar
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
-            .padding(.horizontal, 16)
+
+            if isFeedsExpanded, !currentUser.feeds.isEmpty {
+                Divider()
+                    .overlay(Color.black.opacity(0.06))
+                    .transition(.opacity)
+                feedsSecondaryBar
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
-        .frame(height: 44)
         .background(
             Rectangle()
                 .fill(.warmBackground)
+                .shadow(color: .black.opacity(0.06), radius: 12, y: 6)
         )
-        .shadow(
-            color: .subtleGray.opacity(0.3),
-            radius: 1,
-            x: 0,
-            y: 1
-        )
-
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isListsExpanded)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isFeedsExpanded)
     }
-    
-    // MARK: Tab Button Component
-    @ViewBuilder
-    private func TabButton(
-        tab: TopbarTab,
-        isSelected: Bool,
-        showText: Bool,
-        badge: String? = nil,
-        showRefresh: Bool = false,
-        isRefreshing: Bool = false,
-        refreshAction: (() -> Void)? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: tab.icon)
-                    .font(.system(size: isSelected ? 16 : 18, weight: .medium))
-                    .foregroundColor(isSelected ? .white : .secondary)
-                    .symbolEffect(.bounce, value: isSelected)
-                
-                if showText {
-                    Text(tab.title)
-                        .font(.callout.weight(.semibold))
-                        .foregroundColor(.white)
-                        .transition(.asymmetric(
-                            insertion: .scale.combined(with: .opacity),
-                            removal: .scale.combined(with: .opacity)
-                        ))
-                    
-                    if let badge = badge {
-                        Text(badge)
-                            .font(.caption2.weight(.bold))
-                            .foregroundColor(tab.color)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(.white)
-                            )
-                            .transition(.scale.combined(with: .opacity))
-                    }
-                    
-                    if showRefresh, let refreshAction = refreshAction {
-                        Button(action: refreshAction) {
-                            if isRefreshing {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.7)
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.caption)
-                                    .foregroundStyle(.white)
-                            }
-                        }
-                        .disabled(isRefreshing)
-                        .transition(.scale.combined(with: .opacity))
-                    }
+
+    private var mainTopBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                composeChip
+                timelineChip
+                alineChip
+                trendingChip
+
+                if !currentUser.lists.isEmpty {
+                    listsToggleChip
+                }
+
+                if !currentUser.feeds.isEmpty {
+                    feedsToggleChip
                 }
             }
-            .padding(.horizontal, showText ? 16 : 12)
+            .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? tab.color : Color.clear)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-            )
+        }
+        .scrollBounceBehavior(.basedOnSize, axes: [.horizontal])
+        .scrollDisabled(isVerticalTopBarDrag)
+        .allowsHitTesting(!isVerticalTopBarDrag)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 2)
+                .updating($isVerticalTopBarDrag) { value, state, _ in
+                    let verticalMagnitude = abs(value.translation.height)
+                    let horizontalMagnitude = abs(value.translation.width)
+                    state = verticalMagnitude > horizontalMagnitude
+                }
+        )
+    }
+
+    private var composeChip: some View {
+        Button {
+            router.presentedSheet = .composePost()
+        } label: {
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.mintAccent)
+                .frame(width: 36, height: 36)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.mintAccent.opacity(0.12))
+                )
         }
         .buttonStyle(.plain)
     }
-    
-    // Helper function to check if list or feed is selected
-    private func isListOrFeedSelected(_ type: ListOrFeedType) -> Bool {
-        switch (type, selectedTab) {
-        case (.list, .list):
-            return true
-        case (.feed, .feed):
-            return true
-        default:
-            return false
+
+    private var timelineChip: some View {
+        chip(
+            icon: TopbarTab.timeline.icon,
+            title: TopbarTab.timeline.title,
+            tint: TopbarTab.timeline.color,
+            isSelected: selectedTab == .timeline,
+            showTitleWhenUnselected: false,
+            badge: (selectedTab == .timeline && !isRefreshingTimeline && newPostsAboveCount > 0) ? "\(newPostsAboveCount.abbreviatedRounded)" : nil
+        ) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedTab = .timeline
+            }
         }
     }
-    
-    private enum ListOrFeedType {
-        case list
-        case feed
+
+    private var alineChip: some View {
+        let isSelected = selectedTab == .aline
+        return chip(
+            icon: TopbarTab.aline.icon,
+            title: "A-line",
+            tint: TopbarTab.aline.color,
+            isSelected: selectedTab == .aline,
+            showTitleWhenUnselected: false,
+            trailing: {
+                if isSelected {
+                    if isRefreshingAline {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption)
+                            .foregroundStyle(Color.white)
+                    }
+                }
+            }
+        ) {
+            if isSelected {
+                guard !isRefreshingAline else { return }
+                Task {
+                    isRefreshingAline = true
+                    await computedFeed.fastRefresh(client: client)
+                    isRefreshingAline = false
+                }
+            } else {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    selectedTab = .aline
+                }
+            }
+        }
     }
-    
-    // MARK: Secondary Bar View
-    @ViewBuilder
-    private var secondaryBarView: some View {
+
+    private var trendingChip: some View {
+        chip(
+            icon: TopbarTab.trendingPosts.icon,
+            title: TopbarTab.trendingPosts.title,
+            tint: TopbarTab.trendingPosts.color,
+            isSelected: selectedTab == .trendingPosts,
+            showTitleWhenUnselected: false
+        ) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedTab = .trendingPosts
+            }
+        }
+    }
+
+    private var listsToggleChip: some View {
+        let isSelected: Bool
+        if case .list = selectedTab {
+            isSelected = true
+        } else {
+            isSelected = isListsExpanded
+        }
+
+        return chip(
+            icon: TopbarTab.list(0).icon,
+            title: nil,
+            tint: TopbarTab.list(0).color,
+            isSelected: isSelected,
+            showTitleWhenUnselected: false
+        ) {
+            guard !currentUser.lists.isEmpty else { return }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                if isListsExpanded {
+                    isListsExpanded = false
+                    if case .list = selectedTab {
+                        selectedTab = .timeline
+                    }
+                } else {
+                    isListsExpanded = true
+                    isFeedsExpanded = false
+                    if case .list = selectedTab {
+                        // keep current selection
+                    } else {
+                        selectedTab = .list(0)
+                    }
+                }
+            }
+        }
+    }
+
+    private var feedsToggleChip: some View {
+        let isSelected: Bool
+        if case .feed = selectedTab {
+            isSelected = true
+        } else {
+            isSelected = isFeedsExpanded
+        }
+
+        return chip(
+            icon: TopbarTab.feed(0).icon,
+            title: nil,
+            tint: TopbarTab.feed(0).color,
+            isSelected: isSelected,
+            showTitleWhenUnselected: false
+        ) {
+            guard !currentUser.feeds.isEmpty else { return }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                if isFeedsExpanded {
+                    isFeedsExpanded = false
+                    if case .feed = selectedTab {
+                        selectedTab = .timeline
+                    }
+                } else {
+                    isFeedsExpanded = true
+                    isListsExpanded = false
+                    if case .feed = selectedTab {
+                        // keep current selection
+                    } else {
+                        selectedTab = .feed(0)
+                    }
+                }
+            }
+        }
+    }
+
+    private var listsSecondaryBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                switch selectedTab {
-                case .list:
-                    ForEach(Array(currentUser.lists.enumerated()), id: \.offset) { index, list in
-                        SecondaryBarItem(
-                            title: list.name,
-                            isSelected: selectedTab == .list(index),
-                            action: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    selectedTab = .list(index)
-                                }
-                            }
-                        )
+                ForEach(Array(currentUser.lists.enumerated()), id: \.offset) { index, list in
+                    let tint = TopbarTab.list(index).color
+                    secondaryChip(
+                        title: truncatedTitle(list.name),
+                        tint: tint,
+                        isSelected: selectedTab == .list(index)
+                    ) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedTab = .list(index)
+                        }
                     }
-                case .feed:
-                    ForEach(Array(currentUser.feeds.enumerated()), id: \.offset) { index, feed in
-                        SecondaryBarItem(
-                            title: feed.displayName,
-                            isSelected: selectedTab == .feed(index),
-                            action: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    selectedTab = .feed(index)
-                                }
-                            }
-                        )
-                    }
-                default:
-                    EmptyView()
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
         .scrollBounceBehavior(.basedOnSize, axes: [.horizontal])
-        .frame(height: 44)
-        .clipped()
-        .background(
-            Rectangle()
-                .fill(.subtleGray)
-                .shadow(
-                    color: .subtleGray.opacity(0.8),
-                    radius: 1,
-                    x: 0,
-                    y: 1
-                )
-        )
-        // Give the horizontal scroll bar priority over parent swipe
-        .highPriorityGesture(
-            DragGesture(minimumDistance: 10, coordinateSpace: .local)
-        )
     }
-    
-    // MARK: Secondary Bar Item Component
-    @ViewBuilder
-    private func SecondaryBarItem(
-        title: String,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
+
+    private var feedsSecondaryBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(Array(currentUser.feeds.enumerated()), id: \.offset) { index, feed in
+                    let tint = TopbarTab.feed(index).color
+                    secondaryChip(
+                        title: truncatedTitle(feed.displayName),
+                        tint: tint,
+                        isSelected: selectedTab == .feed(index)
+                    ) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedTab = .feed(index)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .scrollBounceBehavior(.basedOnSize, axes: [.horizontal])
+    }
+
+    private func secondaryChip(title: String, tint: Color, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.callout.weight(isSelected ? .semibold : .regular))
-                .foregroundColor(isSelected ? selectedTab.color : .secondary)
+                .foregroundStyle(isSelected ? tint : .secondary)
+                .lineLimit(1)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
                 .background(
                     Capsule()
-                        .fill(isSelected ? selectedTab.color.opacity(0.15) : Color.clear)
+                        .fill(isSelected ? tint.opacity(0.15) : Color.clear)
                         .overlay(
                             Capsule()
-                                .stroke(isSelected ? selectedTab.color : Color.clear, lineWidth: 1.5)
+                                .stroke(isSelected ? tint : Color.gray.opacity(0.2), lineWidth: 1.5)
                         )
                 )
         }
         .buttonStyle(.plain)
+    }
+
+    private func chip(
+        icon: String,
+        title: String?,
+        tint: Color,
+        isSelected: Bool,
+        showTitleWhenUnselected: Bool,
+        badge: String? = nil,
+        unselectedUsesTint: Bool = false,
+        @ViewBuilder trailing: () -> some View = { EmptyView() },
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: isSelected ? 16 : 18, weight: .medium))
+                    .foregroundStyle(isSelected ? Color.white : (unselectedUsesTint ? tint : .secondary))
+                    .symbolEffect(.bounce, value: isSelected)
+
+                if let title, !title.isEmpty, showTitleWhenUnselected || isSelected {
+                    Text(title)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.white : (unselectedUsesTint ? tint : .secondary))
+                        .lineLimit(1)
+                }
+
+                if let badge, isSelected {
+                    Text(badge)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(tint)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color.white)
+                        )
+                }
+
+                trailing()
+            }
+            .padding(.horizontal, (showTitleWhenUnselected || isSelected) ? 16 : 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(isSelected ? tint : Color.clear)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(
+                        isSelected ? Color.clear : tint.opacity(unselectedUsesTint ? 0.4 : 0),
+                        lineWidth: unselectedUsesTint && !isSelected ? 1.5 : 0
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func truncatedTitle(_ title: String) -> String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.count <= 20 {
+            return trimmed
+        }
+        let prefix = trimmed.prefix(20)
+        return String(prefix)
     }
     
     @ViewBuilder
@@ -682,9 +668,7 @@ struct ATTimelineView_experimental: View {
                     if viewModel.isInitialLoadComplete {
                         TimelinePostList(
                             viewModel: viewModel,
-                            newPostsAboveCount: $newPostsAboveCount,
-                            hideDirectionIsUp: $hideDirectionIsUp,
-                            isTopbarHidden: $isTopbarHidden
+                            newPostsAboveCount: $newPostsAboveCount
                         )
                     } else {
                         ProgressPostsRedacted()
@@ -698,8 +682,7 @@ struct ATTimelineView_experimental: View {
                 if selectedTab == .aline {
                     // A-line computed timeline
                     ComputedTimelineContainer(
-                        posts: wrappers,
-                        isTopbarHidden: $isTopbarHidden
+                        posts: wrappers
                     )
                     .onReceive(NotificationCenter.default.publisher(for: .didLoadComputedPosts)) { _ in
                         Task {
@@ -711,35 +694,9 @@ struct ATTimelineView_experimental: View {
                 }
             case .content(let source):
                 let viewModel = listTimelineViewModel(for: source)
-                ListTimelineView(viewModel: viewModel, isTopbarHidden: $isTopbarHidden)
+                ListTimelineView(viewModel: viewModel)
             }
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 20, coordinateSpace: .local)
-                .onChanged { _ in }
-                .onEnded { value in
-                    let t = value.translation
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        // Commit only for clear horizontal swipe beyond threshold
-                        if abs(t.width) > abs(t.height) && abs(t.width) > 100 {
-                            if t.width > 0 {
-                                // Swipe right -> previous tab
-                                if let prevTab = previousTab() {
-                                    selectedTab = prevTab
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                }
-                            } else {
-                                // Swipe left -> next tab
-                                if let nextTab = nextTab() {
-                                    selectedTab = nextTab
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                }
-                            }
-                        }
-                    }
-                }
-        )
-        //.gestureMask(.subviews)
     }
 }
 

@@ -458,12 +458,12 @@ struct WrappedPostLinkView: View {
                 }
                 .padding(12)
                 .frame(height: 88)
-                .background(Color.warmBackground)
+                .background(Color.cardSecondaryBackground)
             }
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .background(Color.warmBackground)
+        .background(Color.cardSecondaryBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)

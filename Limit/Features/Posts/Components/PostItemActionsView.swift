@@ -43,7 +43,7 @@ struct PostItemActionsView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
-            .padding(.vertical, 6)
+            .padding(.vertical, 0)
             .contentShape(Rectangle())
             .monospacedDigit()
             
@@ -67,7 +67,7 @@ struct PostItemActionsView: View {
             .buttonStyle(.plain)
             .symbolVariant(postWrapper.isReposted || isRepostedByMe ? .fill : .none)
             .symbolEffect(.bounce, value: postWrapper.isReposted || isRepostedByMe)
-            .padding(.vertical, 6)
+            .padding(.vertical, 0)
             .contentShape(Rectangle())
             .monospacedDigit()
             
@@ -84,7 +84,7 @@ struct PostItemActionsView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
-            .padding(.vertical, 6)
+            .padding(.vertical, 0)
             .contentShape(Rectangle())
             .monospacedDigit()
             
@@ -109,7 +109,7 @@ struct PostItemActionsView: View {
                 .symbolVariant(favoritesPost.isFavorited(postWrapper.uri) ? .fill : .none)
                 .symbolEffect(.bounce, value: favoritesPost.isFavorited(postWrapper.uri))
                 .foregroundStyle(favoritesPost.isFavorited(postWrapper.uri) ? .mintAccent : .postAction)
-                .padding(.vertical, 6)
+                .padding(.vertical, 0)
                 .contentShape(Rectangle())
                 .monospacedDigit()
                 
@@ -122,7 +122,7 @@ struct PostItemActionsView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.postAction)
-                .padding(.vertical, 6)
+                .padding(.vertical, 0)
                 .contentShape(Rectangle())
                 
                 if !hideMoreActions {
@@ -135,7 +135,7 @@ struct PostItemActionsView: View {
                             .foregroundStyle(.postAction)
                     }
                     .buttonStyle(.plain)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 0)
                     .contentShape(Rectangle())
                 }
             }
@@ -144,7 +144,7 @@ struct PostItemActionsView: View {
         .frame(maxWidth: .infinity)
         .buttonStyle(.plain)
         .font(.caption)
-        .padding(.vertical, 4)
+        .padding(.vertical, 0)
         .controlSize(.regular)
         
     }

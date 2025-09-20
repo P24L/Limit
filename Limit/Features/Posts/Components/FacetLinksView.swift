@@ -108,7 +108,7 @@ struct LinkCardView: View {
         }
         .padding(8)
         .frame(maxWidth: cardWidth, minHeight: 80, maxHeight: 80)
-        .background(.warmBackground)
+        .background(Color.cardSecondaryBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)

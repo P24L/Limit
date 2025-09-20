@@ -13,8 +13,6 @@ struct ListTimelineView: View {
 
     @Environment(\.scenePhase) private var scenePhase
 
-    @Binding var isTopbarHidden: Bool
-
     @State private var isProgrammaticScroll = false
     @State private var hasUserInteracted = false
 
@@ -76,15 +74,16 @@ struct ListTimelineView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.warmBackground)
-        .contentMargins(.top, 120)
+        .contentMargins(.top, 12)
         .onScrollPhaseChange { _, phase in
             switch phase {
             case .tracking, .interacting:
-                isTopbarHidden = true
                 hasUserInteracted = true
                 viewModel.userDidInteract()
             case .idle:
-                isTopbarHidden = false
+                break
+            case nil:
+                break
             @unknown default:
                 break
             }

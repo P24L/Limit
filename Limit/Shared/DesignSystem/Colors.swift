@@ -26,6 +26,12 @@ extension Color {
             ? UIColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0)  // Dark card background
             : UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0) // Pure white for cards
     })
+
+    static let cardSecondaryBackground = Color(UIColor { traitCollection in
+        return traitCollection.userInterfaceStyle == .dark
+            ? UIColor(red: 0.20, green: 0.20, blue: 0.20, alpha: 1.0) // Slightly lighter than primary card in dark mode
+            : UIColor(red: 0.92, green: 0.92, blue: 0.93, alpha: 1.0) // Soft gray for secondary surfaces
+    })
     
     static let subtleGray = Color(UIColor { traitCollection in
         return traitCollection.userInterfaceStyle == .dark 
@@ -63,6 +69,7 @@ public extension ShapeStyle where Self == Color {
     // MARK: - Background Colors
     static var warmBackground: Color { .warmBackground }
     static var cardBackground: Color { .cardBackground }
+    static var cardSecondaryBackground: Color { .cardSecondaryBackground }
     static var subtleGray: Color { .subtleGray }
     static var systemBackground: Color { .systemBackground }
     

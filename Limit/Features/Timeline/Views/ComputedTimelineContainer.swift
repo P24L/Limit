@@ -16,24 +16,9 @@ struct ComputedTimelineContainer: View {
     @Environment(MultiAccountClient.self) private var client
     @Environment(ComputedTimelineFeed.self) private var computedFeed
     
-    @Binding var isTopbarHidden: Bool
-    
-    @State private var viewState: ViewState = .posts([])
-    
-    enum ViewState {
-        case posts([TimelinePostWrapper])
-    }
-    
     var body: some View {
         ScrollViewReader { proxy in
             List {
-                Color.clear
-                    .frame(height: 100)
-                    .id("top")
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets())
-
                 ForEach(posts, id: \.id) { post in
                     PostItemWrappedView(
                         post: post,
@@ -69,7 +54,6 @@ struct ComputedTimelineContainer: View {
                         .onAppear {
                             Task {
                                 await computedFeed.loadMorePosts(client: client)
-                                viewState = .posts(computedFeed.posts)
                             }
                         }
                         .listRowBackground(Color.clear)
@@ -80,18 +64,7 @@ struct ComputedTimelineContainer: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Color.warmBackground)
-            .onScrollPhaseChange { old, new in
-                if new == .tracking || new == .interacting {
-                    isTopbarHidden = true
-                } else if new == .idle {
-                    isTopbarHidden = false
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .didLoadComputedPosts)) { _ in
-                Task {
-                    viewState = .posts(computedFeed.posts)
-                }
-            }
+            .contentMargins(.top, 12)
         }
     }
 }
