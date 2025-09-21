@@ -1215,6 +1215,8 @@ final class TimelineFeed {
   private let hardCleanupThreshold = 2000      // When to force hard trim (aggressive cleanup)
   private let keepAroundVisible = 30           // Posts to keep below visible post in soft trim
 
+  private let initialCacheLoadLimit = 50
+
   init(context: ModelContext, client: MultiAccountClient) {
     self.context = context
     self.client = client
@@ -1275,6 +1277,7 @@ final class TimelineFeed {
         },
         sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
       )
+      descriptor.fetchLimit = initialCacheLoadLimit + 30
       descriptor.relationshipKeyPathsForPrefetching = [
         \.parentPost,
         \.rootPost,
@@ -1286,13 +1289,14 @@ final class TimelineFeed {
       ]
 
       let storedPosts = try context.fetch(descriptor)
-      self.posts = storedPosts.map { TimelinePostWrapper(from: $0) }
+      let limitedPosts = Array(storedPosts.prefix(initialCacheLoadLimit))
+      self.posts = limitedPosts.map { TimelinePostWrapper(from: $0) }
 
       preparePositionRestoreIfNeeded()
 
       // Try to get cursor from stored posts
       // Look through posts to find one with a cursor (not just the last one)
-      for post in storedPosts.reversed() {
+      for post in limitedPosts.reversed() {
         if let cursor = post.fetchedWithCursor {
           self.oldestCursor = cursor
           break
@@ -1569,7 +1573,7 @@ final class TimelineFeed {
         oldestCursor = cursor
       }
       
-      await getFreshPosts(from: newPosts, cursor: cursor)
+      getFreshPosts(from: newPosts, cursor: cursor)
     } else {
       // Fallback pro prázdný timeline
       let result = await client.fetchTimeline()
@@ -1580,7 +1584,7 @@ final class TimelineFeed {
         oldestCursor = cursor
       }
       
-      await getFreshPosts(from: newPosts, cursor: cursor)
+      getFreshPosts(from: newPosts, cursor: cursor)
     }
   }
 
@@ -1601,7 +1605,7 @@ final class TimelineFeed {
       return
     }
 
-    await appendPosts(from: olderPosts, cursor: newCursor)
+    appendPosts(from: olderPosts, cursor: newCursor)
     // Note: oldestCursor is now updated inside appendPosts
   }
 
