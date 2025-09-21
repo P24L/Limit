@@ -24,7 +24,8 @@ struct VisiblePostTracker {
     }
 
     var topVisibleID: String? {
-        orderedIDs.first
+        // Insertions happen at index 0, so the last entry tracks the actual top-most cell.
+        orderedIDs.last
     }
 
     mutating func reset(with initialID: String?) {

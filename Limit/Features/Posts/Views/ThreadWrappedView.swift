@@ -18,7 +18,6 @@ struct ThreadWrappedView: View {
     
     // Simplified state - array of posts with their depth in thread
     @State private var posts: [(post: TimelinePostWrapper, depth: Int)] = []
-    @State private var scrolledID: String? = nil
     @State private var hasLoadedThread = false
     
     // Adjust depth values for better visual display
@@ -99,42 +98,92 @@ struct ThreadWrappedView: View {
     }
     
     var body: some View {
-        Group {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(posts, id: \.post.id) { item in
-                        PostItemWrappedView(
-                            post: item.post, 
-                            isThreadView: true, 
-                            showCard: true,
-                            threadDepth: item.depth
-                        )
-                        .id(item.post.uri)  // Use URI instead of ID for stable anchoring
+        ScrollViewReader { proxy in
+            List {
+                ForEach(posts, id: \.post.uri) { item in
+                    PostItemWrappedView(
+                        post: item.post,
+                        isThreadView: true,
+                        showCard: true,
+                        threadDepth: item.depth,
+                        useListStyle: true
+                    )
+                    .listRowInsets(EdgeInsets(
+                        top: 0,
+                        leading: 6,
+                        bottom: 0,
+                        trailing: 6
+                    ))
+                    .listRowBackground(Color.warmBackground)
+                    .listRowSeparator(.hidden)
+                    .id(item.post.uri)
+                }
+
+                Color.clear
+                    .frame(height: 300)
+                    .listRowInsets(.init())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.warmBackground)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color.warmBackground)
+            .safeAreaInset(edge: .top) {
+                Color.warmBackground
+                    .frame(height: 12)
+            }
+            .task {
+                guard !hasLoadedThread else { return }
+                hasLoadedThread = true
+
+                // 1. Show the tapped post immediately for instant feedback
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        posts = [(post: postThread, depth: 0)]
                     }
                 }
-                .padding(.horizontal, 6)
-                .background(.warmBackground)
-                .scrollTargetLayout()
-            }
-            .contentMargins(.bottom, 500)
-            .scrollPosition(id: $scrolledID, anchor: .center)
-            .task {
-                // Only load thread if not already loaded
-                if !hasLoadedThread {
-                    hasLoadedThread = true
-                    
-                    // 1. Show the main post immediately (without depth info initially)
-                    posts = [(post: postThread, depth: 0)]
-                    scrolledID = postThread.uri
-                    
-                    // 2. Fetch full thread with depth information
-                    let threadPosts = await client.fetchThreadWrapped(for: postThread.uri)
-                    if !threadPosts.isEmpty {
-                        // Adjust depth values for better visual display
-                        posts = adjustDepthForDisplay(threadPosts)
-                        
-                        // Keep scroll position on the original post
-                        scrolledID = postThread.uri
+                await scrollToAnchor(proxy: proxy)
+
+                // 2. Load the full thread and preserve the tapped post position
+                let threadPosts = await client.fetchThreadWrapped(for: postThread.uri)
+                guard !threadPosts.isEmpty else { return }
+
+                let adjusted = adjustDepthForDisplay(threadPosts)
+
+                guard let anchorIndex = adjusted.firstIndex(where: { $0.post.uri == postThread.uri }) else {
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            posts = adjusted
+                        }
+                    }
+                    return
+                }
+
+                let anchor = adjusted[anchorIndex]
+                let prefix = Array(adjusted.prefix(anchorIndex))
+                let suffix = Array(adjusted.suffix(from: anchorIndex + 1))
+
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        posts = [anchor]
+                    }
+                }
+                await scrollToAnchor(proxy: proxy)
+
+                if !prefix.isEmpty {
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            posts.insert(contentsOf: prefix, at: 0)
+                        }
+                    }
+                    await scrollToAnchor(proxy: proxy)
+                }
+
+                if !suffix.isEmpty {
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            posts.append(contentsOf: suffix)
+                        }
                     }
                 }
             }
@@ -152,6 +201,16 @@ struct ThreadWrappedView: View {
                 } label: {
                     Image(systemName: "sparkles")
                 }
+            }
+        }
+    }
+}
+
+private extension ThreadWrappedView {
+    func scrollToAnchor(proxy: ScrollViewProxy) async {
+        await MainActor.run {
+            withAnimation(nil) {
+                proxy.scrollTo(postThread.uri, anchor: .top)
             }
         }
     }

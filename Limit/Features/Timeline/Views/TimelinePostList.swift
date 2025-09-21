@@ -24,6 +24,7 @@ struct TimelinePostList: View {
 
     @Environment(MultiAccountClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
+    @Environment(AppRouter.self) private var appRouter
     @AppStorage("showRepliesToOthers") private var showRepliesToOthers: Bool = true
 
     @State private var isProgrammaticScroll = false
@@ -37,6 +38,8 @@ struct TimelinePostList: View {
     private let positionTrackingEnabled = true
 
     var body: some View {
+        @Bindable var router = appRouter
+
         ScrollViewReader { proxy in
             List {
             ForEach(posts) { wrapper in
@@ -181,6 +184,10 @@ struct TimelinePostList: View {
             hasUserInteracted = false
         }
         .onDisappear {
+            let activeTab = router.selectedTab
+            if !router[activeTab].isEmpty {
+                return
+            }
             viewModel.prepareForTemporaryRemoval()
         }
     }

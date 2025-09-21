@@ -153,6 +153,30 @@ final class HomeTimelineViewModel {
         visibleTracker.reset(with: initialID)
     }
 
+    func currentAnchorPostID() -> String? {
+        if let topVisible = visibleTracker.topVisibleID {
+            return topVisible
+        }
+
+        if let currentScrollPosition {
+            return currentScrollPosition
+        }
+
+        return posts.first?.uri
+    }
+
+    func restoreToPostIfPossible(_ id: String?) {
+        guard let id,
+              posts.contains(where: { $0.uri == id }) else { return }
+
+        feed.currentScrollPosition = id
+        TimelinePositionManager.shared.scheduleDebouncedTimelineSave(id, accountDID: feed.accountDID)
+        feed.reapplyCurrentScrollPosition()
+        syncFromFeed()
+        visibleTracker.reset(with: id)
+        hasUserInteracted = false
+    }
+
     private func saveTopIfNeeded() {
         guard hasUserInteracted,
               let topID = visibleTracker.topVisibleID,
