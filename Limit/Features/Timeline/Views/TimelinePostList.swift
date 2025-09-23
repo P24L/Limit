@@ -31,6 +31,7 @@ struct TimelinePostList: View {
     @State private var hasUserInteracted = false
     @State private var isLoadingMore: Bool = false
     @State private var hasReachedEnd: Bool = false
+    @State private var visiblePostIDs: Set<String> = []
 
     @Binding var newPostsAboveCount: Int
 
@@ -69,20 +70,20 @@ struct TimelinePostList: View {
                                 viewModel.completePositionRestore(for: wrapper.uri)
                                 Task { @MainActor in
                                     isProgrammaticScroll = false
-                                    if let index = indexOfVisiblePost(wrapper) {
-                                        newPostsAboveCount = index
-                                    }
+                                    visiblePostIDs.insert(wrapper.uri)
+                                    updateNewPostsIndicator()
                                 }
                             } else {
                                 viewModel.postDidAppear(id: wrapper.uri)
-                                if let index = indexOfVisiblePost(wrapper) {
-                                    newPostsAboveCount = index
-                                }
+                                visiblePostIDs.insert(wrapper.uri)
+                                updateNewPostsIndicator()
                             }
                         }
                         .onDisappear {
                             guard positionTrackingEnabled else { return }
                             viewModel.postDidDisappear(id: wrapper.uri)
+                            visiblePostIDs.remove(wrapper.uri)
+                            updateNewPostsIndicator()
                         }
                 }
             }
@@ -169,6 +170,9 @@ struct TimelinePostList: View {
                 if viewModel.isRestoringPosition {
                     viewModel.retryRestoreIfNeeded()
                 }
+
+                visiblePostIDs = visiblePostIDs.intersection(Set(newPosts.map { $0.uri }))
+                updateNewPostsIndicator()
             }
             .onAppear {
                 if let target = viewModel.targetForInitialDisplay() {
@@ -215,15 +219,14 @@ struct TimelinePostList: View {
 
 
     // MARK: - Position Tracking
-    private func indexOfVisiblePost(_ wrapper: TimelinePostWrapper) -> Int? {
-        var visibleIndex = 0
-        for post in posts where isVisible(post) {
-            if post.uri == wrapper.uri {
-                return visibleIndex
+    private func updateNewPostsIndicator() {
+        for (index, post) in posts.enumerated() where isVisible(post) {
+            if visiblePostIDs.contains(post.uri) {
+                newPostsAboveCount = index
+                return
             }
-            visibleIndex += 1
         }
-        return nil
+        newPostsAboveCount = 0
     }
 
     // MARK: - Visibility Helpers

@@ -102,8 +102,22 @@ struct ATTimelineView_experimental: View {
     @State private var shouldRunDeferredTimelineRefresh = false
     @State private var homeTimelineViewModel: HomeTimelineViewModel?
     @StateObject private var listTimelineCache = ListTimelineViewModelCache()
-    
+
     // Swipe gesture state (UI preview removed; no offset tracking needed)
+    private var timelineIsLoading: Bool {
+        guard selectedTab == .timeline else { return false }
+        let isInitialLoadComplete = homeTimelineViewModel?.isInitialLoadComplete ?? false
+        return isRefreshingTimeline || !isInitialLoadComplete
+    }
+
+    private var timelineBadgeText: String? {
+        guard selectedTab == .timeline,
+              !timelineIsLoading,
+              newPostsAboveCount > 0 else {
+            return nil
+        }
+        return "\(newPostsAboveCount.abbreviatedRounded)"
+    }
     
     var body: some View {
         timelineContent
@@ -385,13 +399,24 @@ struct ATTimelineView_experimental: View {
     }
 
     private var timelineChip: some View {
-        chip(
+        let isSelected = selectedTab == .timeline
+
+        return chip(
             icon: TopbarTab.timeline.icon,
             title: TopbarTab.timeline.title,
             tint: TopbarTab.timeline.color,
-            isSelected: selectedTab == .timeline,
+            isSelected: isSelected,
             showTitleWhenUnselected: false,
-            badge: (selectedTab == .timeline && !isRefreshingTimeline && newPostsAboveCount > 0) ? "\(newPostsAboveCount.abbreviatedRounded)" : nil
+            badge: timelineBadgeText,
+            trailing: {
+                if timelineIsLoading {
+                    ProgressView()
+                        .progressViewStyle(
+                            CircularProgressViewStyle(tint: isSelected ? Color.white : TopbarTab.timeline.color)
+                        )
+                        .scaleEffect(0.7)
+                }
+            }
         ) {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 selectedTab = .timeline

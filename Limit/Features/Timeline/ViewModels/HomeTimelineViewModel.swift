@@ -53,7 +53,7 @@ final class HomeTimelineViewModel {
         pendingRestoreID = feed.pendingRestoreID
         scrollTargetID = feed.scrollToId
         currentScrollPosition = feed.currentScrollPosition
-        hasMoreOlderPosts = feed.oldestCursor != nil
+        hasMoreOlderPosts = feed.hasMorePostsAvailable
         if !posts.isEmpty {
             isInitialLoadComplete = true
             isLoading = false

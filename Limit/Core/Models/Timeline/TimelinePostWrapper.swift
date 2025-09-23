@@ -1216,6 +1216,8 @@ final class TimelineFeed {
   private let keepAroundVisible = 30           // Posts to keep below visible post in soft trim
 
   private let initialCacheLoadLimit = 50
+  private var cachedOfflinePosts: [TimelinePost] = []
+  private var didExhaustCachedPosts = false
 
   init(context: ModelContext, client: MultiAccountClient) {
     self.context = context
@@ -1231,6 +1233,8 @@ final class TimelineFeed {
       self.currentAccountDID = newClient.currentDID
     }
     hasLoadedInitialCache = false
+    cachedOfflinePosts.removeAll()
+    didExhaustCachedPosts = false
   }
 
   func beginRestoreFromSavedPositionIfAvailable() {
@@ -1267,6 +1271,8 @@ final class TimelineFeed {
       isRestoringPosition = false
       currentScrollPosition = nil
       hasLoadedInitialCache = false
+      cachedOfflinePosts.removeAll()
+      didExhaustCachedPosts = true
       return
     }
 
@@ -1292,11 +1298,14 @@ final class TimelineFeed {
       let limitedPosts = Array(storedPosts.prefix(initialCacheLoadLimit))
       self.posts = limitedPosts.map { TimelinePostWrapper(from: $0) }
 
+      cachedOfflinePosts = Array(storedPosts.dropFirst(initialCacheLoadLimit))
+      didExhaustCachedPosts = storedPosts.count <= initialCacheLoadLimit
+
       preparePositionRestoreIfNeeded()
 
       // Try to get cursor from stored posts
       // Look through posts to find one with a cursor (not just the last one)
-      for post in limitedPosts.reversed() {
+      for post in storedPosts.reversed() {
         if let cursor = post.fetchedWithCursor {
           self.oldestCursor = cursor
           break
@@ -1590,6 +1599,10 @@ final class TimelineFeed {
 
   /// Načte starší příspěvky z klienta podle oldestCursor a přidá je do timeline.
   func loadOlderTimeline() async {
+    if appendCachedOfflinePostsIfAvailable() {
+      return
+    }
+
     guard let cursor = oldestCursor else {
       return
     }
@@ -1607,6 +1620,109 @@ final class TimelineFeed {
 
     appendPosts(from: olderPosts, cursor: newCursor)
     // Note: oldestCursor is now updated inside appendPosts
+  }
+
+  var hasMorePostsAvailable: Bool {
+    !cachedOfflinePosts.isEmpty || (!didExhaustCachedPosts && posts.last != nil) || oldestCursor != nil
+  }
+
+  private func appendCachedOfflinePostsIfAvailable(batchSize: Int = 20) -> Bool {
+    var attempts = 0
+
+    while attempts < 3 {
+      if cachedOfflinePosts.isEmpty {
+        loadNextCachedBatch()
+      }
+
+      guard !cachedOfflinePosts.isEmpty else { return false }
+
+      let count = min(batchSize, cachedOfflinePosts.count)
+      let batch = Array(cachedOfflinePosts.prefix(count))
+      cachedOfflinePosts.removeFirst(count)
+      let appended = appendOfflineBatch(batch)
+
+      if appended > 0 {
+        return true
+      }
+
+      attempts += 1
+    }
+
+    return false
+  }
+
+  private func loadNextCachedBatch() {
+    guard !didExhaustCachedPosts else { return }
+    guard let accountDID = currentAccountDID else { return }
+    guard let cutoffDate = posts.last?.createdAt else {
+      didExhaustCachedPosts = true
+      return
+    }
+
+    var descriptor = FetchDescriptor<TimelinePost>(
+      predicate: #Predicate<TimelinePost> { post in
+        post.accountDID == accountDID && post.createdAt < cutoffDate
+      },
+      sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+    )
+    descriptor.fetchLimit = initialCacheLoadLimit + 30
+    descriptor.relationshipKeyPathsForPrefetching = [
+      \.parentPost,
+      \.rootPost,
+      \.quotedPost,
+      \.embeds,
+      \.linkExt,
+      \.postVideo,
+      \.facets,
+    ]
+
+    do {
+      let fetched = try context.fetch(descriptor)
+      if fetched.isEmpty {
+        didExhaustCachedPosts = true
+        cachedOfflinePosts.removeAll()
+      } else {
+        didExhaustCachedPosts = false
+        cachedOfflinePosts = fetched
+      }
+    } catch {
+      didExhaustCachedPosts = true
+      cachedOfflinePosts.removeAll()
+      DevLogger.shared.log("TimelineFeed - Failed to load cached batch: \(error.localizedDescription)")
+    }
+  }
+
+  private func appendOfflineBatch(_ storagePosts: [TimelinePost]) -> Int {
+    guard !storagePosts.isEmpty else { return 0 }
+
+    var existingURIs = Set(posts.map { $0.uri })
+    var newestCursor: String?
+    var appendedCount = 0
+
+    for model in storagePosts {
+      let wrapper = TimelinePostWrapper(from: model)
+      guard !existingURIs.contains(wrapper.uri) else { continue }
+      posts.append(wrapper)
+      existingURIs.insert(wrapper.uri)
+      appendedCount += 1
+      if newestCursor == nil, let cursor = model.fetchedWithCursor {
+        newestCursor = cursor
+      }
+    }
+
+    if let cursor = newestCursor {
+      oldestCursor = cursor
+    }
+
+    if appendedCount == 0, cachedOfflinePosts.isEmpty {
+      loadNextCachedBatch()
+    }
+
+    if appendedCount > 0 {
+      trimMemoryIfNeeded()
+    }
+
+    return appendedCount
   }
 
 }
