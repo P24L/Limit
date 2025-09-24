@@ -45,9 +45,8 @@ struct UserProfileView: View {
 
   enum ProfileSection: String, CaseIterable {
     case posts = "Posts"
-    case likes = "Likes"
     case followers = "Followers"
-    case followees = "Followees"
+    case following = "Following"
     case lists = "Lists"
     case feeds = "Feeds"
   }
@@ -71,18 +70,16 @@ struct UserProfileView: View {
 
           switch selectedSection {
           case .posts:
-            PostsSectionView(posts: actorWrapped.posts, isLoading: actorWrapped.isLoadingPosts)
-          case .likes:
-            PostsSectionView(posts: actorWrapped.likedPosts, isLoading: actorWrapped.isLoadingLikes)
+            ProfilePostsList(posts: actorWrapped.posts, isLoading: actorWrapped.isLoadingPosts)
           case .followers:
             FollowersSectionView(
               actorWrapper: actorWrapped,
               sectionType: .followers
             )
-          case .followees:
+          case .following:
             FollowersSectionView(
               actorWrapper: actorWrapped,
-              sectionType: .followees
+              sectionType: .following
             )
           case .lists:
             ListsSectionView(lists: actorWrapped.lists, isLoading: actorWrapped.isLoadingLists)
@@ -110,30 +107,17 @@ struct UserProfileView: View {
 
   @ViewBuilder
   var sectionPicker: some View {
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: 20) {
-        ForEach(ProfileSection.allCases, id: \.self) { section in
-          Button(action: {
-            selectedSection = section
-          }) {
-            Text(section.rawValue)
-              .font(.subheadline)
-              .fontWeight(selectedSection == section ? .semibold : .regular)
-              .foregroundColor(selectedSection == section ? .primary : .secondary)
-              .padding(.vertical, 12)
-              .padding(.horizontal, 12)
-              .background(
-                selectedSection == section
-                  ? Color.mintAccent.opacity(0.1) : Color.clear
-              )
-              .clipShape(RoundedRectangle(cornerRadius: 8))
-          }
-        }
+    Picker("", selection: $selectedSection) {
+      ForEach(ProfileSection.allCases, id: \.self) { section in
+        Text(section.rawValue).tag(section)
       }
-      .padding(.horizontal)
-      .padding(.vertical, 8)
-      .background(.background)
     }
+    .pickerStyle(.segmented)
+    .padding(.horizontal, 16)
+    .padding(.vertical, 8)
+    .background(.thinMaterial)
+    .clipShape(RoundedRectangle(cornerRadius: 16))
+    .shadow(color: Color.black.opacity(0.06), radius: 8, y: 4)
   }
 
   @ViewBuilder
@@ -170,15 +154,12 @@ struct UserProfileView: View {
 
         if let did = actorWrapped.actorDID as String? {
           VStack(spacing: 8) {
-            // Follow/Unfollow button
             Button {
               Task {
                 if let uri = followingURI {
-                  // UNFOLLOW: Set interim state, no refresh wait needed
                   interimFollowingURI = "UNFOLLOWED"
                   await client.deleteFollowRecord(recordID: uri)
                 } else {
-                  // FOLLOW: Set interim state, then refresh to get real URI
                   let tempURI = "temp_follow_uri"
                   interimFollowingURI = tempURI
                   _ = await client.followActor(actor: did)
@@ -205,8 +186,7 @@ struct UserProfileView: View {
                       lineWidth: 1)
                 )
             }
-            
-            // Lists button - only show if currentUser has lists
+
             if !currentUser.lists.isEmpty {
               Button {
                 showAddToListSheet = true
@@ -261,30 +241,54 @@ struct UserProfileView: View {
 
 // MARK: - Section Views
 
-struct PostsSectionView: View {
+struct ProfilePostsList: View {
   let posts: [TimelinePostWrapper]
   let isLoading: Bool
 
   var body: some View {
-    LazyVStack(spacing: 8) {
+    VStack(spacing: 0) {
       if isLoading && posts.isEmpty {
-        HStack {
-          ProgressView()
-            .scaleEffect(0.8)
-          Text("Loading posts...")
-            .font(.caption)
-            .foregroundColor(.secondary)
-        }
-        .padding()
+        loadingState
+          .padding(.vertical, 24)
       } else {
-        ForEach(posts, id: \.id) { post in
-          PostItemWrappedView(post: post, isThreadView: true, postViewType: .timeline, showCard: true)
+        LazyVStack(spacing: 0) {
+          ForEach(posts, id: \.id) { post in
+            PostItemWrappedView(
+              post: post,
+              isThreadView: true,
+              postViewType: .timeline,
+              useListStyle: true
+            )
             .id(post.id)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+
+            if post.id != posts.last?.id {
+              Divider()
+                .padding(.leading, 72)
+            }
+          }
+        }
+
+        if isLoading {
+          loadingState
+            .padding(.vertical, 16)
         }
       }
     }
-    .padding(.horizontal, 10)
-    .background(.warmBackground)
+    .frame(maxWidth: .infinity)
+    .background(Color.warmBackground)
+  }
+
+  private var loadingState: some View {
+    HStack(spacing: 8) {
+      ProgressView()
+        .scaleEffect(0.9)
+      Text("Loading posts...")
+        .font(.caption)
+        .foregroundColor(.secondary)
+    }
+    .frame(maxWidth: .infinity)
   }
 }
 
@@ -298,14 +302,14 @@ struct FollowersSectionView: View {
 
   enum SectionType {
     case followers
-    case followees
+    case following
   }
 
   private var followers: [AppBskyLexicon.Actor.ProfileViewDefinition] {
     switch sectionType {
     case .followers:
       return actorWrapper.followers
-    case .followees:
+    case .following:
       return actorWrapper.followees
     }
   }
@@ -314,7 +318,7 @@ struct FollowersSectionView: View {
     switch sectionType {
     case .followers:
       return actorWrapper.isLoadingFollowers
-    case .followees:
+    case .following:
       return actorWrapper.isLoadingFollowees
     }
   }
@@ -325,7 +329,7 @@ struct FollowersSectionView: View {
         HStack {
           ProgressView()
             .scaleEffect(0.8)
-          Text("Loading \(sectionType == .followers ? "followers" : "followees")...")
+          Text("Loading \(sectionType == .followers ? "followers" : "following")...")
             .font(.caption)
             .foregroundColor(.secondary)
         }
@@ -376,7 +380,7 @@ struct FollowersSectionView: View {
     switch sectionType {
     case .followers:
       success = await actorWrapper.loadFollowers()
-    case .followees:
+    case .following:
       success = await actorWrapper.loadFollowees()
     }
 
