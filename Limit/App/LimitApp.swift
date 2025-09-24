@@ -59,6 +59,7 @@ struct LimitApp: App {
     @State private var analyticsService = AnalyticsService.shared
     @State private var userPreferences = UserPreferences.shared
     @State private var appTheme = AppTheme.shared
+    @State private var themeManager = ThemeManager.shared
     
     let container: ModelContainer = {
         let config = ModelConfiguration(
@@ -160,6 +161,7 @@ struct LimitApp: App {
                         .environment(appState)
                         .environment(feed)
                         .environment(computedFeed)
+                        .environment(themeManager)
                 case .unauthenticated:
                     LoadingScreenView()
                         .environment(client)
@@ -167,6 +169,7 @@ struct LimitApp: App {
                         .environment(appState)
                         .environment(feed)
                         .environment(computedFeed)
+                        .environment(themeManager)
                 case .authenticated:
                     AppRootView()
                         .environment(client)
@@ -182,6 +185,7 @@ struct LimitApp: App {
                         .environment(notificationManager)
                         .environment(userPreferences)
                         .environment(appTheme)
+                        .environment(themeManager)
                 }
             }
             .task {

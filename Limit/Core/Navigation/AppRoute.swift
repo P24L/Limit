@@ -56,6 +56,7 @@ enum Destination: DestinationType {
     case safari(url: URL?)
     case favorites
     case settings
+    case colorTheme
     case actor(userID: String)
     case listTimeline(source: TimelineContentSource)
     case listManagement

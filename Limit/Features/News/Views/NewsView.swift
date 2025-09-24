@@ -12,10 +12,12 @@ struct NewsView: View {
     @State private var newsService = NewsService()
     @Environment(AppRouter.self) private var router
     @Environment(\.refresh) private var refresh
+    @Environment(ThemeManager.self) private var themeManager
     @State private var isTransitioning = false
     @State private var contentOpacity: Double = 1.0
     
     var body: some View {
+        let colors = themeManager.colors
         VStack(spacing: 0) {
             // Period selector
             Picker("Period", selection: $newsService.selectedPeriod) {
@@ -27,7 +29,7 @@ struct NewsView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.vertical, 12)
-            .background(Color.warmBackground)
+            .background(colors.backgroundSecondary)
             
             // Content
             if isTransitioning || (newsService.isLoading && newsService.trendingItems.isEmpty) {
@@ -49,14 +51,14 @@ struct NewsView: View {
                         .font(.largeTitle)
                         .foregroundColor(.orange)
                     Text(error)
-                        .foregroundColor(.secondaryText)
+                        .foregroundColor(colors.textSecondary)
                     Button("Retry") {
                         Task {
                             await newsService.fetchTrending(forceRefresh: true)
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.mintAccent)
+                    .tint(colors.accent)
                 }
                 Spacer()
             } else if newsService.trendingItems.isEmpty {
@@ -64,10 +66,10 @@ struct NewsView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "newspaper")
                         .font(.system(size: 60))
-                        .foregroundColor(.mintAccent.opacity(0.5))
+                        .foregroundColor(colors.accent.opacity(0.5))
                     Text("No trending articles")
                         .font(.headline)
-                        .foregroundColor(.secondaryText)
+                        .foregroundColor(colors.textSecondary)
                 }
                 Spacer()
             } else {
@@ -113,7 +115,7 @@ struct NewsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.warmBackground.opacity(0.3))
+        .background(colors.backgroundPrimary)
         .navigationTitle("🔥 Trending News")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -156,6 +158,7 @@ struct NewsView: View {
     
     @ViewBuilder
     private var languageSelector: some View {
+        let colors = themeManager.colors
         Menu {
             // All languages option
             Button {
@@ -202,7 +205,7 @@ struct NewsView: View {
                 Image(systemName: "chevron.down")
                     .font(.caption2)
             }
-            .foregroundColor(.mintAccent)
+            .foregroundColor(colors.accent)
         }
         .disabled(newsService.isLoadingLanguages)
     }

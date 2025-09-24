@@ -14,8 +14,8 @@ import Observation
 public class AppTheme {
     // MARK: - Theme Storage
     class Storage {
-        @AppStorage("theme_accentColor") public var accentColorHex: String = "#007AFF" // Default iOS blue
-        @AppStorage("theme_useSystemAccent") public var useSystemAccent: Bool = true
+        @AppStorage("theme_palette_id") public var paletteID: String = ThemePaletteID.mintClassic.rawValue
+        @AppStorage("theme_followSystemPalette") public var followSystemPalette: Bool = true
         @AppStorage("theme_cornerRadius") public var cornerRadius: Double = 12.0
         @AppStorage("theme_contentPadding") public var contentPadding: Double = 16.0
         @AppStorage("theme_compactMode") public var compactMode: Bool = false
@@ -26,18 +26,27 @@ public class AppTheme {
     // MARK: - Singleton
     public static let shared = AppTheme()
     private let storage = Storage()
+    private let themeManager = ThemeManager.shared
 
     // MARK: - Public Properties
 
-    public var accentColor: Color {
+    public var selectedPaletteID: ThemePaletteID {
         didSet {
-            storage.accentColorHex = accentColor.toHex() ?? "#007AFF"
+            storage.paletteID = selectedPaletteID.rawValue
+            themeManager.configure(
+                paletteID: selectedPaletteID,
+                usesSystemPalette: usesSystemPalette
+            )
         }
     }
 
-    public var useSystemAccent: Bool {
+    public var usesSystemPalette: Bool {
         didSet {
-            storage.useSystemAccent = useSystemAccent
+            storage.followSystemPalette = usesSystemPalette
+            themeManager.configure(
+                paletteID: selectedPaletteID,
+                usesSystemPalette: usesSystemPalette
+            )
         }
     }
 
@@ -61,9 +70,9 @@ public class AppTheme {
 
     // MARK: - Computed Properties
 
-    public var effectiveAccentColor: Color {
-        useSystemAccent ? Color.accentColor : accentColor
-    }
+    public var colors: ThemeColors { themeManager.colors }
+
+    public var effectiveAccentColor: Color { themeManager.colors.accent }
 
     public var effectivePadding: Double {
         compactMode ? contentPadding * 0.75 : contentPadding
@@ -77,26 +86,48 @@ public class AppTheme {
         compactMode ? 4 : 8
     }
 
+    public var availablePalettes: [ThemePalette] {
+        themeManager.availablePalettes
+    }
+
+    public var activePalette: ThemePalette {
+        themeManager.activePalette()
+    }
+
     // MARK: - Initialization
     private init() {
         // Load from storage
-        accentColor = Color(hex: storage.accentColorHex)
-        useSystemAccent = storage.useSystemAccent
+        selectedPaletteID = ThemePaletteID(rawValue: storage.paletteID) ?? .mintClassic
+        usesSystemPalette = storage.followSystemPalette
         cornerRadius = storage.cornerRadius
         contentPadding = storage.contentPadding
         compactMode = storage.compactMode
+
+        themeManager.configure(
+            paletteID: selectedPaletteID,
+            usesSystemPalette: usesSystemPalette
+        )
     }
 
     // MARK: - Public Methods
 
     public func resetToDefaults() {
-        accentColor = .blue
-        useSystemAccent = true
+        selectedPaletteID = .mintClassic
+        usesSystemPalette = true
         cornerRadius = 12.0
         contentPadding = 16.0
         compactMode = false
 
         DevLogger.shared.log("AppTheme - Reset to defaults")
+    }
+
+    public func applyPalette(_ paletteID: ThemePaletteID) {
+        usesSystemPalette = false
+        selectedPaletteID = paletteID
+    }
+
+    public func setFollowSystemPalette(_ isEnabled: Bool) {
+        usesSystemPalette = isEnabled
     }
 
     // MARK: - Color Presets
@@ -112,32 +143,4 @@ public class AppTheme {
         ("Teal", .teal),
         ("Indigo", .indigo)
     ]
-}
-
-// MARK: - Color Extensions
-
-extension Color {
-    func toHex() -> String? {
-        let uiColor = UIColor(self)
-        guard let components = uiColor.cgColor.components, components.count >= 3 else {
-            return nil
-        }
-        let r = Float(components[0])
-        let g = Float(components[1])
-        let b = Float(components[2])
-        let a = Float(components.count >= 4 ? components[3] : 1.0)
-
-        if a < 1 {
-            return String(format: "%02lX%02lX%02lX%02lX",
-                          lroundf(a * 255),
-                          lroundf(r * 255),
-                          lroundf(g * 255),
-                          lroundf(b * 255))
-        } else {
-            return String(format: "%02lX%02lX%02lX",
-                          lroundf(r * 255),
-                          lroundf(g * 255),
-                          lroundf(b * 255))
-        }
-    }
 }

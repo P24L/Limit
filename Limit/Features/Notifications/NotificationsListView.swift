@@ -11,11 +11,13 @@ import ATProtoKit
 struct NotificationsListView: View {
     @Environment(NotificationManager.self) var notificationManager
     @Environment(MultiAccountClient.self) private var client
+    @Environment(ThemeManager.self) private var themeManager
     @State private var isLoading = false
     @State private var hasLoadedInitial = false
     @State private var errorMessage: String? = nil
     
     var body: some View {
+        let colors = themeManager.colors
         Group {
             if let error = errorMessage {
                 errorStateView(error: error)
@@ -29,7 +31,7 @@ struct NotificationsListView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                .background(Color.warmBackground)
+                .background(colors.backgroundPrimary)
             } else if notificationManager.allNotifications.isEmpty && !isLoading {
                 emptyStateView
             } else {
@@ -70,7 +72,7 @@ struct NotificationsListView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                .background(Color.warmBackground)
+                .background(colors.backgroundPrimary)
                 .refreshable {
                     await loadNotifications(refresh: true)
                 }
@@ -97,25 +99,27 @@ struct NotificationsListView: View {
     
     @ViewBuilder
     private var emptyStateView: some View {
+        let colors = themeManager.colors
         VStack(spacing: 16) {
             Image(systemName: "bell.slash")
                 .font(.system(size: 60))
-                .foregroundColor(.secondary)
+                .foregroundColor(colors.textSecondary)
             Text("No notifications")
                 .font(.title2)
-                .foregroundColor(.secondary)
+                .foregroundColor(colors.textSecondary)
             Text("When someone interacts with your posts, you'll see it here")
                 .font(.subheadline)
-                .foregroundColor(.tertiaryText)
+                .foregroundColor(colors.textTertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.warmBackground)
+        .background(colors.backgroundPrimary)
     }
     
     @ViewBuilder
     private func errorStateView(error: String) -> some View {
+        let colors = themeManager.colors
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 50))
@@ -142,19 +146,20 @@ struct NotificationsListView: View {
                     .fontWeight(.medium)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .background(Color.mintAccent)
+                    .background(colors.accent)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.warmBackground)
+        .background(colors.backgroundPrimary)
     }
 }
 
 struct NotificationRowView: View {
     let notification: NotificationWrapper
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
     
     var body: some View {
         notificationContent
@@ -162,23 +167,25 @@ struct NotificationRowView: View {
     
     @ViewBuilder
     private var notificationContent: some View {
+        let colors = themeManager.colors
         HStack(alignment: .top, spacing: 12) {
             avatarSection
             contentSection
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(Color.systemBackground)
+        .background(colors.surfacePrimary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(notification.isRead ? Color.clear : Color.mintAccent.opacity(0.3), lineWidth: 1)
+                .stroke(notification.isRead ? Color.clear : colors.accent.opacity(0.3), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
-    
+
     @ViewBuilder
     private var avatarSection: some View {
+        let colors = themeManager.colors
         ZStack(alignment: .bottomTrailing) {
             AvatarView(url: notification.author.avatarImageURL, size: 48)
                 .onTapGesture {
@@ -187,7 +194,7 @@ struct NotificationRowView: View {
             
             // Action icon badge
             Circle()
-                .fill(Color.warmBackground)
+                .fill(colors.backgroundSecondary)
                 .frame(width: 20, height: 20)
                 .overlay(
                     Image(systemName: notification.actionIcon)
@@ -208,6 +215,7 @@ struct NotificationRowView: View {
     
     @ViewBuilder
     private var headerRow: some View {
+        let colors = themeManager.colors
         VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Text(notification.author.displayName ?? notification.author.actorHandle)
@@ -222,12 +230,12 @@ struct NotificationRowView: View {
                 
                 Text(notification.timeAgoText)
                     .font(.caption2)
-                    .foregroundColor(.tertiaryText)
+                    .foregroundColor(colors.textTertiary)
             }
             
             Text(notification.displayText)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(colors.textSecondary)
                 .lineLimit(2)
         }
     }
@@ -375,29 +383,31 @@ struct NotificationRowView: View {
 // MARK: - Loading Skeleton
 
 struct NotificationSkeletonRow: View {
+    @Environment(ThemeManager.self) private var themeManager
     @State private var isAnimating = false
     
     var body: some View {
+        let colors = themeManager.colors
         HStack(alignment: .top, spacing: 12) {
             // Avatar skeleton
             Circle()
-                .fill(Color.gray.opacity(0.3))
+                .fill(colors.backgroundSecondary.opacity(0.6))
                 .frame(width: 48, height: 48)
             
             VStack(alignment: .leading, spacing: 8) {
                 // Name skeleton
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(colors.backgroundSecondary.opacity(0.6))
                     .frame(width: 120, height: 16)
                 
                 // Action text skeleton
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(colors.backgroundSecondary.opacity(0.6))
                     .frame(width: 200, height: 14)
                 
                 // Post preview skeleton
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.2))
+                    .fill(colors.backgroundSecondary.opacity(0.4))
                     .frame(height: 60)
                     .frame(maxWidth: .infinity)
             }
@@ -406,12 +416,12 @@ struct NotificationSkeletonRow: View {
             
             // Time skeleton
             RoundedRectangle(cornerRadius: 4)
-                .fill(Color.gray.opacity(0.3))
+                .fill(colors.backgroundSecondary.opacity(0.6))
                 .frame(width: 40, height: 12)
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(Color.systemBackground)
+        .background(themeManager.colors.surfacePrimary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
         .padding(.horizontal, 10)
@@ -453,4 +463,3 @@ extension View {
             .mask(self)
     }
 }
-

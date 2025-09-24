@@ -11,9 +11,11 @@ import Foundation
 import SwiftUI
 
 struct ThreadConnectionView: View {
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
         Rectangle()
-            .fill(.mintInactive)
+            .fill(themeManager.colors.accentMuted)
             .frame(width: 2)
             .frame(height: 80) // Spans between cards
     }
@@ -25,6 +27,7 @@ struct TimelinePostList: View {
     @Environment(MultiAccountClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
     @Environment(AppRouter.self) private var appRouter
+    @Environment(ThemeManager.self) private var themeManager
     @AppStorage("showRepliesToOthers") private var showRepliesToOthers: Bool = true
 
     @State private var isProgrammaticScroll = false
@@ -40,6 +43,7 @@ struct TimelinePostList: View {
 
     var body: some View {
         @Bindable var router = appRouter
+        let colors = themeManager.colors
 
         ScrollViewReader { proxy in
             List {
@@ -60,7 +64,7 @@ struct TimelinePostList: View {
                             bottom: 4,
                             trailing: 6
                         ))
-                        .listRowBackground(Color.warmBackground)
+                        .listRowBackground(colors.backgroundSecondary)
                         .listRowSeparator(.visible, edges: .bottom)
                         .onAppear {
                             guard positionTrackingEnabled else { return }
@@ -93,7 +97,7 @@ struct TimelinePostList: View {
                 HStack {
                     Spacer()
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .mintAccent))
+                        .progressViewStyle(CircularProgressViewStyle(tint: colors.accent))
                         .padding(.vertical, 20)
                     Spacer()
                 }
@@ -108,10 +112,10 @@ struct TimelinePostList: View {
                 VStack(spacing: 8) {
                     Image(systemName: "checkmark.circle")
                         .font(.system(size: 24))
-                        .foregroundColor(.mintAccent)
+                        .foregroundColor(colors.accent)
                     Text("You've reached the end")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colors.textSecondary)
                 }
                 .padding(.vertical, 30)
                 .frame(maxWidth: .infinity)
@@ -142,7 +146,7 @@ struct TimelinePostList: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color.warmBackground)
+            .background(colors.backgroundPrimary)
             .contentMargins(.top, 12)
             .contentMargins(.bottom, 100)
             .onScrollPhaseChange { _, new in

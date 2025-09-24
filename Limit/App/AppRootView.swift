@@ -13,12 +13,15 @@ struct AppRootView: View {
     @Environment(MultiAccountClient.self) private var client
     @Environment(NotificationManager.self) private var notificationManager
     @Environment(CurrentUser.self) private var currentUser
+    @Environment(ThemeManager.self) private var themeManager
+    @Environment(\.colorScheme) private var colorScheme
     
     @StateObject private var listTimelineCache = ListTimelineViewModelCache()
     
     var body: some View {
         @Bindable var router = router
-        
+        let colors = themeManager.colors
+
         ZStack {
             TabView(selection: $router.selectedTab) {
           ForEach(AppTab.allCases) { tab in
@@ -38,8 +41,9 @@ struct AppRootView: View {
           }
             }
             //.tint(.mintAccent)
-            .background(.warmBackground)
+            .background(colors.backgroundPrimary)
             .onAppear {
+                themeManager.updateColorScheme(colorScheme)
                 configureTabBarAppearance()
             }
             .task {
@@ -50,6 +54,10 @@ struct AppRootView: View {
             .sheet(item: $router.presentedSheet) { sheet in
               sheetView(for: sheet)
             }
+            .onChange(of: colorScheme) { _, newValue in
+                themeManager.updateColorScheme(newValue)
+                configureTabBarAppearance()
+            }
             .onChange(of: currentUser.did) { _, _ in
                 listTimelineCache.removeAll()
             }
@@ -59,25 +67,25 @@ struct AppRootView: View {
     private func configureTabBarAppearance() {
         let tabBarAppearance = UITabBarAppearance()
         tabBarAppearance.configureWithDefaultBackground()
-        
+
         // Background
-        tabBarAppearance.backgroundColor = UIColor(.cardBackground)
-        
+        tabBarAppearance.backgroundColor = UIColor(themeManager.colors.surfacePrimary)
+
         // Normal state
-        tabBarAppearance.stackedLayoutAppearance.normal.iconColor = UIColor(.postAction)
+        tabBarAppearance.stackedLayoutAppearance.normal.iconColor = UIColor(themeManager.colors.textSecondary)
         tabBarAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor(.postAction)
+            .foregroundColor: UIColor(themeManager.colors.textSecondary)
         ]
 
         // Selected state
-        tabBarAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(.mintAccent)
+        tabBarAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(themeManager.colors.accent)
         tabBarAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(.mintAccent)
+            .foregroundColor: UIColor(themeManager.colors.accent)
         ]
-        
+
         // Add subtle shadow
-        tabBarAppearance.shadowColor = UIColor(.subtleGray)
-        
+        tabBarAppearance.shadowColor = UIColor(themeManager.colors.border)
+
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
     }
@@ -117,6 +125,8 @@ struct AppRootView: View {
             FavoritesViews()
         case .settings:
             SettingsView()
+        case .colorTheme:
+            ColorThemeView()
         case .actor(let actorDID):
             ActorView(actorDID: actorDID)
         case .listTimeline(let source):

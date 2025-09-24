@@ -237,6 +237,19 @@ struct ProfileTabView: View {
                                 .foregroundColor(.gray)
                         }
                     }
+
+                    Button {
+                        router.navigateTo(.colorTheme)
+                    } label: {
+                        HStack {
+                            Label("Color Theme", systemImage: "paintpalette")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
                     
                     // Sign Out
                     Button {
