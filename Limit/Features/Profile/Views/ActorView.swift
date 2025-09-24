@@ -122,119 +122,224 @@ struct UserProfileView: View {
 
   @ViewBuilder
   private var profileHeaderView: some View {
-    VStack(spacing: 16) {
-      if let bannerURL = actorWrapped.profile?.bannerImageURL {
-        WebImage(url: bannerURL) { phase in
-          switch phase {
-          case .empty:
-            Color.gray.opacity(0.1)
-          case .success(let image):
-            image.resizable()
-          case .failure:
-            Color.gray.opacity(0.1)
-          }
-        }
-        .frame(height: 160)
-        .clipped()
-      }
-
-      HStack(spacing: 16) {
-        AvatarView(url: actorWrapped.profile?.avatarImageURL, size: 64)
-
-        VStack(alignment: .leading) {
-          if let name = actorWrapped.profile?.displayName {
-            Text(name).font(.title2).bold()
-          }
-          if let handle = actorWrapped.profile?.actorHandle {
-            Text("@\(handle)").foregroundColor(.secondary)
-          }
-        }
-
-        Spacer()
-
-        if let did = actorWrapped.actorDID as String? {
-          VStack(spacing: 8) {
-            Button {
-              Task {
-                if let uri = followingURI {
-                  interimFollowingURI = "UNFOLLOWED"
-                  await client.deleteFollowRecord(recordID: uri)
-                } else {
-                  let tempURI = "temp_follow_uri"
-                  interimFollowingURI = tempURI
-                  _ = await client.followActor(actor: did)
-                  await actorWrapped.refreshProfile()
-                  interimFollowingURI = nil
-                }
+    VStack(spacing: 0) {
+      ZStack(alignment: .bottom) {
+        // Banner background with fixed height
+        Group {
+          if let bannerURL = actorWrapped.profile?.bannerImageURL {
+            WebImage(url: bannerURL) { phase in
+              switch phase {
+              case .empty:
+                LinearGradient(
+                  gradient: Gradient(colors: [Color.mintAccent.opacity(0.3), Color.mintAccent.opacity(0.1)]),
+                  startPoint: .topLeading,
+                  endPoint: .bottomTrailing
+                )
+              case .success(let image):
+                image
+                  .resizable()
+                  .aspectRatio(contentMode: .fill)
+                  .containerRelativeFrame(.horizontal)
+              case .failure:
+                LinearGradient(
+                  gradient: Gradient(colors: [Color.gray.opacity(0.2), Color.gray.opacity(0.1)]),
+                  startPoint: .topLeading,
+                  endPoint: .bottomTrailing
+                )
               }
-            } label: {
-              Text(followingURI == nil ? "Follow" : "Unfollow")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(
-                  followingURI == nil ? Color.mintAccent : Color.mintInactive
-                )
-                .foregroundColor(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                  RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                      followingURI == nil
-                        ? Color.mintInactive : Color.mintAccent,
-                      lineWidth: 1)
-                )
             }
+            .frame(height: 200)
+            .clipped()
+            .overlay(
+              LinearGradient(
+                gradient: Gradient(colors: [Color.black.opacity(0), Color.black.opacity(0.3)]),
+                startPoint: .top,
+                endPoint: .bottom
+              )
+            )
+          } else {
+            LinearGradient(
+              gradient: Gradient(colors: [Color.mintAccent.opacity(0.2), Color.mintAccent.opacity(0.05)]),
+              startPoint: .topLeading,
+              endPoint: .bottomTrailing
+            )
+            .containerRelativeFrame(.horizontal)
+            .frame(height: 200)
+          }
+        }
 
-            if !currentUser.lists.isEmpty {
+        // Avatar and action buttons overlay
+        HStack(alignment: .bottom, spacing: 16) {
+          // Large avatar with border
+          AvatarView(url: actorWrapped.profile?.avatarImageURL, size: 96)
+            .overlay(
+              Circle()
+                .stroke(
+                  LinearGradient(
+                    gradient: Gradient(colors: [Color.white, Color.white.opacity(0.8)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                  ),
+                  lineWidth: 4
+                )
+            )
+            .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
+
+          Spacer()
+
+          // Action buttons
+          if let did = actorWrapped.actorDID as String? {
+            VStack(alignment: .trailing, spacing: 8) {
+              // Follow/Unfollow button
               Button {
-                showAddToListSheet = true
-              } label: {
-                HStack(spacing: 6) {
-                  Image(systemName: "arrow.left.arrow.right")
-                    .font(.caption)
-                  Text("Lists")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                Task {
+                  if let uri = followingURI {
+                    interimFollowingURI = "UNFOLLOWED"
+                    await client.deleteFollowRecord(recordID: uri)
+                  } else {
+                    let tempURI = "temp_follow_uri"
+                    interimFollowingURI = tempURI
+                    _ = await client.followActor(actor: did)
+                    await actorWrapped.refreshProfile()
+                    interimFollowingURI = nil
+                  }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.blue.opacity(0.1))
-                .foregroundColor(.blue)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(
-                  RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+              } label: {
+                HStack(spacing: 8) {
+                  Image(systemName: followingURI == nil ? "person.badge.plus" : "person.badge.minus")
+                    .font(.system(size: 14, weight: .semibold))
+                  Text(followingURI == nil ? "Follow" : "Following")
+                    .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(
+                  RoundedRectangle(cornerRadius: 22)
+                    .fill(
+                      LinearGradient(
+                        gradient: Gradient(colors: followingURI == nil
+                          ? [Color.mintAccent, Color.mintAccent.opacity(0.8)]
+                          : [Color.gray.opacity(0.6), Color.gray.opacity(0.4)]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                      )
+                    )
                 )
+                .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+              }
+
+              // Lists button (if available)
+              if !currentUser.lists.isEmpty {
+                Button {
+                  showAddToListSheet = true
+                } label: {
+                  HStack(spacing: 8) {
+                    Image(systemName: "list.bullet")
+                      .font(.system(size: 14, weight: .semibold))
+                    Text("Lists")
+                      .font(.system(size: 15, weight: .semibold))
+                  }
+                  .foregroundColor(.white)
+                  .padding(.horizontal, 20)
+                  .padding(.vertical, 10)
+                  .background(
+                    RoundedRectangle(cornerRadius: 22)
+                      .fill(
+                        LinearGradient(
+                          gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
+                          startPoint: .topLeading,
+                          endPoint: .bottomTrailing
+                        )
+                      )
+                  )
+                  .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 3)
+                }
               }
             }
           }
         }
+        .padding(.horizontal, 20)
+        .offset(y: 48) // Avatar extends 48px below banner
       }
-      .padding(.horizontal)
+      .frame(height: 200) // Fixed banner container height
 
-      if let bio = actorWrapped.profile?.description {
-        Text(bio)
-          .padding(.horizontal)
-          .font(.body)
-          .multilineTextAlignment(.leading)
-      }
+      // Name and handle section with space for avatar overflow
+      VStack(spacing: 8) {
+        HStack {
+          VStack(alignment: .leading, spacing: 6) {
+            if let name = actorWrapped.profile?.displayName {
+              Text(name)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+            }
+            if let handle = actorWrapped.profile?.actorHandle {
+              Text("@\(handle)")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.secondary)
+            }
+          }
+          Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 56) // Space for avatar overflow (48px avatar offset + 8px spacing)
 
-      HStack(spacing: 24) {
-        if let followers = actorWrapped.profile?.followerCount {
-          Label("\(followers)", systemImage: "person.2.fill")
+        // Bio section
+        if let bio = actorWrapped.profile?.description, !bio.isEmpty {
+          Text(bio)
+            .font(.system(size: 15))
+            .foregroundColor(.primary.opacity(0.9))
+            .multilineTextAlignment(.leading)
+            .lineSpacing(4)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
         }
-        if let follows = actorWrapped.profile?.followCount {
-          Label("\(follows)", systemImage: "person.fill.checkmark")
+
+        // Stats section with improved styling
+        HStack(spacing: 28) {
+          if let followers = actorWrapped.profile?.followerCount {
+            VStack(spacing: 2) {
+              Text("\(followers)")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
+              Text("Followers")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+            }
+          }
+
+          if let follows = actorWrapped.profile?.followCount {
+            VStack(spacing: 2) {
+              Text("\(follows)")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
+              Text("Following")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+            }
+          }
+
+          if let posts = actorWrapped.profile?.postCount {
+            VStack(spacing: 2) {
+              Text("\(posts)")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
+              Text("Posts")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+            }
+          }
         }
-        if let posts = actorWrapped.profile?.postCount {
-          Label("\(posts)", systemImage: "text.bubble.fill")
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+          RoundedRectangle(cornerRadius: 12)
+            .fill(Color.gray.opacity(0.05))
+        )
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
       }
-      .padding(.horizontal)
-      .font(.subheadline)
-      .foregroundColor(.secondary)
+      .padding(.bottom, 16)
     }
   }
 }

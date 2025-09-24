@@ -50,7 +50,7 @@ struct TrendingCardView: View {
                                 .tint(.secondaryText)
                         )
                 }
-                .frame(maxWidth: .infinity)
+                .containerRelativeFrame(.horizontal)
                 .frame(height: 200)
                 .clipped()
                 .onTapGesture {
@@ -155,7 +155,7 @@ struct TrendingCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.warmBackground.opacity(0.3))
         }
-        .frame(maxWidth: .infinity)
+        .containerRelativeFrame(.horizontal)
         .background(Color.warmBackground)
         .cornerRadius(16)
         .cardShadow()
