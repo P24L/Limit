@@ -27,5 +27,7 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>WishKitAPIKey</key>
+	<string>$(WISHKIT_API_KEY)</string>
 </dict>
 </plist>

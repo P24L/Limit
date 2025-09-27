@@ -237,6 +237,19 @@ struct ProfileTabView: View {
                         }
                     }
 
+                    NavigationLink {
+                        FeatureRequestsView()
+                    } label: {
+                        HStack {
+                            Label("Feature Requests", systemImage: "list.bullet.rectangle.portrait")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
+
                     // Send Feedback
                     Button {
                         router.presentedSheet = .composePost(initialText: "@limitapp.bsky.social ")

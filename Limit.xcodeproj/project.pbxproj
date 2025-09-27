@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		F00503BB2DE6423A00362B00 /* KeychainSwift in Frameworks */ = {isa = PBXBuildFile; productRef = F00503BA2DE6423A00362B00 /* KeychainSwift */; };
+		F00547882E88672A0046DAB0 /* WishKit in Frameworks */ = {isa = PBXBuildFile; productRef = F00547872E88672A0046DAB0 /* WishKit */; };
 		F0056F882E5D79AA00732830 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F0056F7E2E5D79AA00732830 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F00927A52DF1A76500A61A93 /* AppRouter in Frameworks */ = {isa = PBXBuildFile; productRef = F00927A42DF1A76500A61A93 /* AppRouter */; };
 		F009A3ED2E4D17CF0005FD3C /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = F009A3EC2E4D17CF0005FD3C /* FirebaseAnalytics */; };
@@ -113,6 +114,7 @@
 				F0B84CAB2DD71B6C0007E370 /* ATMacro in Frameworks */,
 				F00927A52DF1A76500A61A93 /* AppRouter in Frameworks */,
 				F0B84CAD2DD71B6C0007E370 /* ATProtoKit in Frameworks */,
+				F00547882E88672A0046DAB0 /* WishKit in Frameworks */,
 				F0E832082E571F5100B802BE /* JWTKit in Frameworks */,
 				F0E832172E57355300B802BE /* ATIdentityTools in Frameworks */,
 				F0F1234D2E0F400000BC679A /* FirebaseCore in Frameworks */,
@@ -218,6 +220,7 @@
 				F0F1234C2E0F400000BC679A /* FirebaseCore */,
 				F0F123502E0F400000BC679A /* FirebaseFunctions */,
 				F022E1842E35629400612E14 /* WebImageExtractor */,
+				F00547872E88672A0046DAB0 /* WishKit */,
 				F009A3EC2E4D17CF0005FD3C /* FirebaseAnalytics */,
 				F0E832072E571F5100B802BE /* JWTKit */,
 				F0E832162E57355300B802BE /* ATIdentityTools */,
@@ -265,6 +268,7 @@
 				F0E832062E571F5100B802BE /* XCRemoteSwiftPackageReference "jwt-kit" */,
 				F0E832152E57355300B802BE /* XCRemoteSwiftPackageReference "ATIdentityTools" */,
 				F0E8321A2E57383B00B802BE /* XCRemoteSwiftPackageReference "ATCryptography" */,
+				F00547862E88672A0046DAB0 /* XCRemoteSwiftPackageReference "wishkit-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F0B84C992DD71AF30007E370 /* Products */;
@@ -630,6 +634,14 @@
 				minimumVersion = 24.0.0;
 			};
 		};
+		F00547862E88672A0046DAB0 /* XCRemoteSwiftPackageReference "wishkit-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/wishkit/wishkit-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.7.0;
+			};
+		};
 		F00927A32DF1A76500A61A93 /* XCRemoteSwiftPackageReference "AppRouter" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/dimillian/AppRouter.git";
@@ -693,6 +705,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F00503B92DE6423A00362B00 /* XCRemoteSwiftPackageReference "keychain-swift" */;
 			productName = KeychainSwift;
+		};
+		F00547872E88672A0046DAB0 /* WishKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F00547862E88672A0046DAB0 /* XCRemoteSwiftPackageReference "wishkit-ios" */;
+			productName = WishKit;
 		};
 		F00927A42DF1A76500A61A93 /* AppRouter */ = {
 			isa = XCSwiftPackageProductDependency;
