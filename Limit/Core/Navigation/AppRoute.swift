@@ -56,6 +56,7 @@ enum Destination: DestinationType {
     case safari(url: URL?)
     case favorites
     case settings
+    case mutedReplies
     case colorTheme
     case actor(userID: String)
     case listTimeline(source: TimelineContentSource)
@@ -90,7 +91,7 @@ enum Sheet: SheetType {
     case aiExplanation(type: AIExplanationType)
     case aiSummary(bookmark: BookmarkView)
     case repostOptions(post: TimelinePostWrapper)
-    case moreOptions(post: TimelinePostWrapper)
+    case moreOptions(post: TimelinePostWrapper, showMuteRepliesOption: Bool = false)
     case bookmarkEdit(id: String? = nil)
     
     var id: Int { hashValue }

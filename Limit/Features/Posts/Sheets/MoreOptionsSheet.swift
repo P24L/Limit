@@ -15,15 +15,18 @@ struct MoreOptionsSheet: View {
     @Environment(MultiAccountClient.self) private var client
     @Environment(FavoritePostManager.self) private var favorites
     @Environment(ThemeManager.self) private var themeManager
-    
+    @Environment(UserPreferences.self) private var userPreferences
+
     let post: TimelinePostWrapper
-    
+    let showMuteRepliesAction: Bool
+
     @State private var showCopiedToast = false
     @State private var shareURL: URL? = nil
     @State private var isSharing = false
     @State private var isBookmarkWorking = false
     @State private var isRepostWorking = false
     @State private var isDeleting = false
+    @State private var isMutingReplies = false
     
     private var isOwnPost: Bool {
         post.authorHandle == client.handle || post.authorID == client.currentDID
@@ -63,7 +66,20 @@ struct MoreOptionsSheet: View {
                         dismiss()
                         router.navigateTo(.postThreadWrapped(postThread: post))
                     }
-                    
+
+                    if showMuteRepliesAction {
+                        actionRow(
+                            icon: "speaker.slash",
+                            tint: .orange,
+                            title: "Mute replies to others",
+                            showProgress: isMutingReplies
+                        ) {
+                            Task { @MainActor in
+                                await muteRepliesToOthers()
+                            }
+                        }
+                    }
+
                     Divider().padding(.vertical, 4)
                     
                     // Engagement
@@ -187,6 +203,28 @@ struct MoreOptionsSheet: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             withAnimation { showCopiedToast = false }
         }
+    }
+
+    @MainActor
+    private func muteRepliesToOthers() async {
+        guard !isMutingReplies else { return }
+        guard !post.authorID.isEmpty else { return }
+        isMutingReplies = true
+        defer { isMutingReplies = false }
+
+        let actor = MutedReplyActor(
+            did: post.authorID,
+            handle: post.authorHandle,
+            displayName: post.authorDisplayName,
+            avatarURLString: post.authorAvatarURL?.absoluteString
+        )
+
+        userPreferences.muteReplies(for: actor)
+
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+
+        dismiss()
     }
 }
 

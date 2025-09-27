@@ -58,6 +58,9 @@ struct SettingsView: View {
                     get: { preferences.showDirectReplyContext },
                     set: { preferences.showDirectReplyContext = $0 }
                 ))
+                NavigationLink("Muted users") {
+                    MutedRepliesSettingsView()
+                }
             }
             // Debug Section (only in DEBUG builds)
 #if DEBUG

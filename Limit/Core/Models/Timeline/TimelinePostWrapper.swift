@@ -47,6 +47,11 @@ final class TimelinePostWrapper: Identifiable, Hashable, Equatable {
   var parentPost: TimelinePostWrapper?
   var rootPost: TimelinePostWrapper?
 
+  var isReplyToOthers: Bool {
+    guard let rootPost else { return false }
+    return rootPost.authorID != authorID
+  }
+
   var repostedByID: String?
   var repostedByHandle: String?
   var repostedByDisplayName: String?

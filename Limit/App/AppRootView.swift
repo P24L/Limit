@@ -134,6 +134,8 @@ struct AppRootView: View {
             FavoritesViews()
         case .settings:
             SettingsView()
+        case .mutedReplies:
+            MutedRepliesSettingsView()
         case .colorTheme:
             ColorThemeView()
         case .actor(let actorDID):
@@ -197,8 +199,8 @@ struct AppRootView: View {
             RepostOptionsSheet(post: post)
                 .presentationDetents([.height(280)])
                 .presentationDragIndicator(.hidden)
-        case .moreOptions(let post):
-            MoreOptionsSheet(post: post)
+        case .moreOptions(let post, let showMuteRepliesOption):
+            MoreOptionsSheet(post: post, showMuteRepliesAction: showMuteRepliesOption)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         case .bookmarkEdit(let id):

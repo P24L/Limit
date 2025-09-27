@@ -28,7 +28,7 @@ struct TimelinePostList: View {
     @Environment(CurrentUser.self) private var currentUser
     @Environment(AppRouter.self) private var appRouter
     @Environment(ThemeManager.self) private var themeManager
-    @AppStorage("showRepliesToOthers") private var showRepliesToOthers: Bool = true
+    @Environment(UserPreferences.self) private var userPreferences
 
     @State private var isProgrammaticScroll = false
     @State private var hasUserInteracted = false
@@ -229,7 +229,12 @@ struct TimelinePostList: View {
 
     // MARK: - Visibility Helpers
     private func isVisible(_ wrapper: TimelinePostWrapper) -> Bool {
-        if showRepliesToOthers { return true }
+        if wrapper.isReplyToOthers,
+           userPreferences.isRepliesMuted(forDid: wrapper.authorID) {
+            return false
+        }
+
+        if userPreferences.showRepliesToOthers { return true }
         // Non-reply posts are always visible
         guard let root = wrapper.rootPost else { return true }
         // Show only replies where author == root author (self-thread)

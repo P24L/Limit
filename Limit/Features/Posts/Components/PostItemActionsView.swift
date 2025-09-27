@@ -14,6 +14,7 @@ struct PostItemActionsView: View {
     @Environment(\.modelContext) var context
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(FavoritePostManager.self) private var favoritesPost
+    @Environment(UserPreferences.self) private var userPreferences
     
     var postWrapper: TimelinePostWrapper
     
@@ -27,6 +28,15 @@ struct PostItemActionsView: View {
     
     private var isRepostedByMe: Bool {
         postWrapper.repostedByHandle == client.handle || postWrapper.repostedByID == client.currentDID
+    }
+
+    private var showMuteRepliesOption: Bool {
+        guard userPreferences.showRepliesToOthers,
+              !postWrapper.authorID.isEmpty,
+              postWrapper.authorID != client.currentDID,
+              postWrapper.isReplyToOthers else { return false }
+
+        return !userPreferences.isRepliesMuted(forDid: postWrapper.authorID)
     }
     
     var body: some View {
@@ -131,7 +141,7 @@ struct PostItemActionsView: View {
                 
                 if !hideMoreActions {
                     Button {
-                        router.presentedSheet = .moreOptions(post: postWrapper)
+                        router.presentedSheet = .moreOptions(post: postWrapper, showMuteRepliesOption: showMuteRepliesOption)
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.body)
