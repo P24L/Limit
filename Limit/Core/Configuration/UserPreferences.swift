@@ -79,6 +79,7 @@ public class UserPreferences {
         // General App Behavior
         @AppStorage("hasSeenOnboarding") public var hasSeenOnboarding: Bool = false
         @AppStorage("lastAppVersion") public var lastAppVersion: String = ""
+        @AppStorage("openLinksInApp") public var openLinksInApp: Bool = true
 
         init() {
             // Perform any migration if needed
@@ -179,6 +180,12 @@ public class UserPreferences {
         }
     }
 
+    public var openLinksInApp: Bool {
+        didSet {
+            storage.openLinksInApp = openLinksInApp
+        }
+    }
+
     // MARK: - Initialization
     private init() {
         // Load from storage
@@ -191,6 +198,7 @@ public class UserPreferences {
         hasSeenOnboarding = storage.hasSeenOnboarding
         lastAppVersion = storage.lastAppVersion
         mutedReplyActors = storage.loadMutedReplyActors()
+        openLinksInApp = storage.openLinksInApp
 
         // Apply initial theme
         applyThemeChange()

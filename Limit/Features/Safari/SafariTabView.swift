@@ -13,9 +13,11 @@ import WebKit
 struct SafariTabView: View {
     @State private var webPage: WebPage?
     @State private var currentURL: URL?
+    @State private var hasOpenedExternally = false
     @Environment(AppRouter.self) private var router
     @Environment(MultiAccountClient.self) private var client
     @Environment(BookmarkManager.self) private var bookmarkManager
+    @Environment(UserPreferences.self) private var preferences
 
     var safariURL: URL?
 
@@ -30,6 +32,11 @@ struct SafariTabView: View {
                 UniversalLinkProcessingView(url: safariURL)
                     .onAppear {
                         handleUniversalLink(safariURL)
+                    }
+            } else if shouldOpenExternally(for: safariURL) {
+                Color.clear
+                    .onAppear {
+                        openExternallyIfNeeded(url: safariURL)
                     }
             } else {
                 // Normal web content with iOS 26 WebView
@@ -151,6 +158,24 @@ private extension SafariTabView {
 
 // MARK: - WebPage Management
 private extension SafariTabView {
+    func shouldOpenExternally(for url: URL) -> Bool {
+        guard preferences.openLinksInApp == false else { return false }
+        return url.host != "viewer.hyperlimit.app"
+    }
+
+    func openExternallyIfNeeded(url: URL) {
+        guard !hasOpenedExternally else { return }
+        hasOpenedExternally = true
+
+        UIApplication.shared.open(url)
+
+        // Pop this Safari view off the stack after a short delay
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            router.popNavigation(for: router.selectedTab)
+        }
+    }
+
     func initWebPage() {
         var config = WebPage.Configuration()
 

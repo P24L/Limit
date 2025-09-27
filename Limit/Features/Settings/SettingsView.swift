@@ -41,7 +41,7 @@ struct SettingsView: View {
     @State private var showClearTimelineConfirmation = false
     @State private var isClearingTimelinePosts = false
     @State private var isClearingMediaCache = false
-    
+
     var body: some View {
         Form {          
             // Options Section
@@ -268,6 +268,10 @@ struct SettingsView: View {
 
             // About Section
             Section(header: Text("More")) {
+                Toggle("In-app browser", isOn: Binding(
+                    get: { preferences.openLinksInApp },
+                    set: { preferences.openLinksInApp = $0 }
+                ))
                 Button {
                     clearMediaCache()
                 } label: {
