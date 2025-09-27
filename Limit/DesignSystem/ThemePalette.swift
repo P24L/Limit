@@ -402,12 +402,7 @@ public enum ThemePaletteLibrary {
         allPalettes.first(where: { $0.id == id }) ?? mintClassic
     }
 
-    public static func defaultPalette(for colorScheme: ColorScheme) -> ThemePalette {
-        switch colorScheme {
-        case .dark:
-            return midnight
-        default:
-            return mintClassic
-        }
+    public static func defaultPalette(for _: ColorScheme) -> ThemePalette {
+        midnight
     }
 }

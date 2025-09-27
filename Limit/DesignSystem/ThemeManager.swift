@@ -19,7 +19,7 @@ public final class ThemeManager {
     public private(set) var tokens: ThemeTokens
 
     private init(
-        paletteID: ThemePaletteID = .mintClassic,
+        paletteID: ThemePaletteID = .midnight,
         usesSystemPalette: Bool = true,
         colorScheme: ColorScheme = .light
     ) {

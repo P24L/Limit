@@ -14,7 +14,7 @@ import Observation
 public class AppTheme {
     // MARK: - Theme Storage
     class Storage {
-        @AppStorage("theme_palette_id") public var paletteID: String = ThemePaletteID.mintClassic.rawValue
+        @AppStorage("theme_palette_id") public var paletteID: String = ThemePaletteID.midnight.rawValue
         @AppStorage("theme_followSystemPalette") public var followSystemPalette: Bool = true
         @AppStorage("theme_cornerRadius") public var cornerRadius: Double = 12.0
         @AppStorage("theme_contentPadding") public var contentPadding: Double = 16.0
@@ -102,7 +102,7 @@ public class AppTheme {
     // MARK: - Initialization
     private init() {
         // Load from storage
-        selectedPaletteID = ThemePaletteID(rawValue: storage.paletteID) ?? .mintClassic
+        selectedPaletteID = ThemePaletteID(rawValue: storage.paletteID) ?? .midnight
         usesSystemPalette = storage.followSystemPalette
         cornerRadius = storage.cornerRadius
         contentPadding = storage.contentPadding
@@ -117,7 +117,7 @@ public class AppTheme {
     // MARK: - Public Methods
 
     public func resetToDefaults() {
-        selectedPaletteID = .mintClassic
+        selectedPaletteID = .midnight
         usesSystemPalette = true
         cornerRadius = 12.0
         contentPadding = 16.0
