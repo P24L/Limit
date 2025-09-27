@@ -12,6 +12,7 @@ struct RepostOptionsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
     
     let post: TimelinePostWrapper
     
@@ -28,10 +29,11 @@ struct RepostOptionsSheet: View {
     }
     
     var body: some View {
+        let colors = themeManager.colors
         VStack(spacing: 0) {
             // Drag indicator
             RoundedRectangle(cornerRadius: 3)
-                .fill(Color.gray.opacity(0.3))
+                .fill(colors.backgroundSecondary.opacity(0.6))
                 .frame(width: 40, height: 5)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
@@ -71,7 +73,7 @@ struct RepostOptionsSheet: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
-                        .background(Color.red.opacity(0.1))
+                        .background(Color.red.opacity(0.15))
                         .cornerRadius(12)
                     }
                     .disabled(isDeleting)
@@ -107,7 +109,7 @@ struct RepostOptionsSheet: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
-                        .background(Color.orange.opacity(0.1))
+                        .background(Color.orange.opacity(0.15))
                         .cornerRadius(12)
                     }
                     .disabled(isReposting)
@@ -121,7 +123,7 @@ struct RepostOptionsSheet: View {
                         HStack {
                             Image(systemName: "arrow.2.squarepath")
                                 .font(.title2)
-                                .foregroundColor(.mintAccent)
+                                .foregroundColor(colors.accent)
                                 .frame(width: 40)
                             
                             VStack(alignment: .leading, spacing: 4) {
@@ -143,7 +145,7 @@ struct RepostOptionsSheet: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
-                        .background(Color.gray.opacity(0.1))
+                        .background(colors.backgroundSecondary.opacity(0.6))
                         .cornerRadius(12)
                     }
                     .disabled(isReposting)
@@ -158,7 +160,7 @@ struct RepostOptionsSheet: View {
                     HStack {
                         Image(systemName: "quote.bubble")
                             .font(.title2)
-                            .foregroundColor(.mintAccent)
+                            .foregroundColor(colors.accent)
                             .frame(width: 40)
                         
                         VStack(alignment: .leading, spacing: 4) {
@@ -175,7 +177,7 @@ struct RepostOptionsSheet: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
-                    .background(Color.gray.opacity(0.1))
+                    .background(colors.backgroundSecondary.opacity(0.6))
                     .cornerRadius(12)
                 }
             }
@@ -191,7 +193,7 @@ struct RepostOptionsSheet: View {
             Spacer()
         }
         .frame(maxHeight: 300)
-        .background(Color(UIColor.systemBackground))
+        .background(colors.backgroundPrimary)
         .onTapGesture {
             // Prevent dismissing when tapping on the sheet content
         }

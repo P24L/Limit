@@ -52,8 +52,10 @@ struct LinkCardView: View {
     let isFirst: Bool
     let facet: TimelinePostWrapper.ProcessedFacet
     @Environment(BookmarkManager.self) private var bookmarkManager
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         HStack(alignment: .top, spacing: 12) {
             // Favicon on the left
             Group {
@@ -79,17 +81,17 @@ struct LinkCardView: View {
                 Text(linkTitle)
                     .font(.footnote)
                     .lineLimit(2)
-                    .foregroundColor(.primary)
-                
+                    .foregroundColor(colors.textPrimary)
+
                 // URL preview
                 Text(displayURL)
                     .font(.caption)
                     .lineLimit(1)
-                    .foregroundColor(.mintAccent)
+                    .foregroundColor(colors.accent)
             }
-            
+
             Spacer()
-            
+
             // Bookmark button
             if let url = URL(string: uri) {
                 Button {
@@ -103,16 +105,16 @@ struct LinkCardView: View {
                 .buttonStyle(.plain)
                 .symbolVariant(bookmarkManager.isBookmarked(url) ? .fill : .none)
                 .symbolEffect(.bounce, value: bookmarkManager.isBookmarked(url))
-                .foregroundStyle(bookmarkManager.isBookmarked(url) ? .mintAccent : .postAction)
+                .foregroundStyle(bookmarkManager.isBookmarked(url) ? colors.accent : colors.textSecondary)
             }
         }
         .padding(8)
         .frame(maxWidth: cardWidth, minHeight: 80, maxHeight: 80)
-        .background(Color.cardSecondaryBackground)
+        .background(colors.backgroundSecondary)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
+                .stroke(colors.border.opacity(0.3), lineWidth: 0.5)
         )
         .cardShadow()
     }

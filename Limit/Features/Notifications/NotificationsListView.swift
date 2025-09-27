@@ -57,7 +57,7 @@ struct NotificationsListView: View {
                                     .scaleEffect(0.8)
                                 Text("Loading more notifications...")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundColor(colors.textSecondary)
                             }
                             .padding()
                         }
@@ -66,7 +66,7 @@ struct NotificationsListView: View {
                         if !notificationManager.hasMoreNotifications && notificationManager.allNotifications.count > 0 {
                             Text("No more notifications")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(colors.textSecondary)
                                 .padding()
                         }
                     }
@@ -123,15 +123,16 @@ struct NotificationsListView: View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 50))
-                .foregroundStyle(.red)
+                .foregroundColor(colors.warning)
             
             Text("Failed to load notifications")
                 .font(.title2)
                 .fontWeight(.semibold)
+                .foregroundColor(colors.textPrimary)
             
             Text(error)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundColor(colors.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             
@@ -180,7 +181,7 @@ struct NotificationRowView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(notification.isRead ? Color.clear : colors.accent.opacity(0.3), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .shadow(color: colors.border.opacity(0.25), radius: 2, x: 0, y: 1)
     }
 
     @ViewBuilder
@@ -222,6 +223,7 @@ struct NotificationRowView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .lineLimit(1)
+                    .foregroundColor(colors.textPrimary)
                     .onTapGesture {
                         router.navigateTo(.actor(userID: notification.author.actorDID))
                     }
@@ -242,6 +244,7 @@ struct NotificationRowView: View {
     
     @ViewBuilder
     private var detailContent: some View {
+        let colors = themeManager.colors
         switch notification.reason {
                 case .like, .repost:
                     // Show the original post that was liked/reposted
@@ -257,7 +260,7 @@ struct NotificationRowView: View {
                             Text(post.text)
                                 .font(.caption)
                                 .lineLimit(3)
-                                .foregroundColor(.primary)
+                                .foregroundColor(colors.textPrimary)
                             
                             if !post.embeds.isEmpty {
                                 HStack(spacing: 4) {
@@ -266,11 +269,11 @@ struct NotificationRowView: View {
                                     Text("\(post.embeds.count) image\(post.embeds.count > 1 ? "s" : "")")
                                         .font(.caption2)
                                 }
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(colors.textSecondary)
                             }
                         }
                         .padding(8)
-                        .background(notificationBackgroundColor.opacity(0.1))
+                        .background(notificationHighlightColor.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .onTapGesture {
                             router.navigateTo(.postThreadWrapped(postThread: post))
@@ -279,7 +282,7 @@ struct NotificationRowView: View {
                         // Loading state for like/repost
                         Text("Loading post...")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(colors.textSecondary)
                             .italic()
                     }
                     
@@ -297,10 +300,10 @@ struct NotificationRowView: View {
                             Text(postText)
                                 .font(.caption)
                                 .lineLimit(3)
-                                .foregroundColor(.primary)
+                                .foregroundColor(colors.textPrimary)
                         }
                         .padding(8)
-                        .background(notificationBackgroundColor.opacity(0.1))
+                        .background(notificationHighlightColor.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .onTapGesture {
                             // Navigate to the original post thread (reasonSubjectURI)
@@ -340,42 +343,42 @@ struct NotificationRowView: View {
     }
     
     private var iconColor: Color {
+        let colors = themeManager.colors
         switch notification.reason {
         case .like:
-            return .red
+            return colors.destructive
         case .repost:
-            return .green
+            return colors.success
         case .follow:
-            return .blue
+            return colors.accent
         case .reply, .mention:
-            return .orange
+            return colors.warning
         case .quote:
-            return .purple
+            return colors.accentMuted
         case .verified:
-            return .mint
+            return colors.success
         default:
-            return .secondary
+            return colors.textSecondary
         }
     }
     
-    private var notificationBackgroundColor: Color {
+    private var notificationHighlightColor: Color {
+        let colors = themeManager.colors
         switch notification.reason {
         case .like:
-            return .red
+            return colors.destructive
         case .repost:
-            return .green
+            return colors.success
         case .follow:
-            return .blue
-        case .reply:
-            return .orange
-        case .mention:
-            return .yellow
+            return colors.accent
+        case .reply, .mention:
+            return colors.warning
         case .quote:
-            return .purple
+            return colors.accentMuted
         case .verified:
-            return .mint
+            return colors.success
         default:
-            return .gray
+            return colors.border
         }
     }
 }
@@ -421,9 +424,9 @@ struct NotificationSkeletonRow: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(themeManager.colors.surfacePrimary)
+        .background(colors.surfacePrimary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .shadow(color: colors.border.opacity(0.25), radius: 2, x: 0, y: 1)
         .padding(.horizontal, 10)
         .redacted(reason: isAnimating ? .placeholder : [])
         .shimmering(active: isAnimating)

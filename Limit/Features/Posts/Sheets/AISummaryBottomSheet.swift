@@ -11,16 +11,18 @@ import SwiftUI
 struct AISummaryBottomSheet: View {
     @Environment(AppRouter.self) private var router
     @Environment(BookmarkManager.self) private var bookmarkManager
+    @Environment(ThemeManager.self) private var themeManager
     
     let bookmark: BookmarkView
     
     @State private var dragOffset: CGSize = .zero
     
     var body: some View {
+        let colors = themeManager.colors
         VStack(spacing: 0) {
             // Drag handle
             RoundedRectangle(cornerRadius: 2)
-                .fill(.tertiary)
+                .fill(colors.backgroundSecondary.opacity(0.6))
                 .frame(width: 36, height: 4)
                 .padding(.top, 8)
                 .padding(.bottom, 16)
@@ -32,11 +34,12 @@ struct AISummaryBottomSheet: View {
                         HStack(spacing: 8) {
                             Image(systemName: "sparkles")
                                 .font(.title2)
-                                .foregroundStyle(.blue)
+                                .foregroundColor(colors.accent)
                             
                             Text("AI Summary")
                                 .font(.title2)
                                 .fontWeight(.bold)
+                                .foregroundColor(colors.textPrimary)
                         }
                         
                         Spacer()
@@ -46,7 +49,7 @@ struct AISummaryBottomSheet: View {
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title2)
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(colors.textSecondary)
                         }
                         .buttonStyle(.plain)
                     }
@@ -56,10 +59,11 @@ struct AISummaryBottomSheet: View {
                         Text(bookmark.record.title)
                             .font(.headline)
                             .fontWeight(.semibold)
+                            .foregroundColor(colors.textPrimary)
                         
                         Text(bookmark.record.url)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundColor(colors.textSecondary)
                             .lineLimit(2)
                     }
                     .onTapGesture {
@@ -80,24 +84,24 @@ struct AISummaryBottomSheet: View {
                                 .font(.subheadline)
                                 .textSelection(.enabled)
                                 .padding(12)
-                                .background(.blue.opacity(0.05))
+                                .background(colors.accent.opacity(0.08))
                                 .cornerRadius(12)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .stroke(.blue.opacity(0.2), lineWidth: 1)
+                                        .stroke(colors.accent.opacity(0.25), lineWidth: 1)
                                 )
                             
                             if let updatedAt = bookmark.record.updatedAt {
                                 Text("Generated \(updatedAt, style: .relative) ago")
                                     .font(.caption2)
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundColor(colors.textSecondary)
                                     .frame(maxWidth: .infinity, alignment: .trailing)
                             }
                         } else {
                             VStack(spacing: 8) {
                                 ProgressView()
                                 Text("Generating summary...")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundColor(colors.textSecondary)
                                     .font(.caption)
                             }
                             .frame(maxWidth: .infinity)
@@ -110,7 +114,7 @@ struct AISummaryBottomSheet: View {
                 .padding(.horizontal, 20)
             }
         }
-        .background(.regularMaterial)
+        .background(colors.backgroundPrimary)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .offset(y: dragOffset.height)
         .gesture(
@@ -132,4 +136,3 @@ struct AISummaryBottomSheet: View {
         )
     }
 }
-

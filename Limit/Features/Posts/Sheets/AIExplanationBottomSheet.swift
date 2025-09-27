@@ -16,6 +16,7 @@ enum AIExplanationType: Hashable {
 struct AIExplanationBottomSheet: View {
     @Environment(AppRouter.self) private var router
     @Environment(AIService.self) private var aiService
+    @Environment(ThemeManager.self) private var themeManager
     
     let explanationType: AIExplanationType
     
@@ -24,10 +25,11 @@ struct AIExplanationBottomSheet: View {
     @State private var dragOffset: CGSize = .zero
     
     var body: some View {
+        let colors = themeManager.colors
         VStack(spacing: 0) {
             // Drag handle
             RoundedRectangle(cornerRadius: 2)
-                .fill(.tertiary)
+                .fill(colors.backgroundSecondary.opacity(0.6))
                 .frame(width: 36, height: 4)
                 .padding(.top, 8)
                 .padding(.bottom, 16)
@@ -52,7 +54,7 @@ struct AIExplanationBottomSheet: View {
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title2)
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(colors.textSecondary)
                         }
                         .buttonStyle(.plain)
                     }
@@ -64,7 +66,7 @@ struct AIExplanationBottomSheet: View {
                             VStack(spacing: 8) {
                                 ProgressView()
                                 Text(loadingText)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundColor(colors.textSecondary)
                                     .font(.caption)
                             }
                             .frame(maxWidth: .infinity)
@@ -82,7 +84,7 @@ struct AIExplanationBottomSheet: View {
                                 
                                 if let error = aiService.lastError {
                                     Text(error.localizedDescription)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundColor(colors.textSecondary)
                                         .font(.caption)
                                         .multilineTextAlignment(.center)
                                 }
@@ -101,16 +103,16 @@ struct AIExplanationBottomSheet: View {
                             Text(explanation)
                                 .font(.subheadline)
                                 .padding(12)
-                                .background(.blue.opacity(0.05))
+                                .background(colors.accent.opacity(0.08))
                                 .cornerRadius(12)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .stroke(.blue.opacity(0.2), lineWidth: 1)
+                                        .stroke(colors.accent.opacity(0.25), lineWidth: 1)
                                 )
                             
                         } else {
                             Text("No explanation available")
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(colors.textSecondary)
                                 .italic()
                                 .frame(maxWidth: .infinity, alignment: .center)
                                 .padding(.vertical, 16)
@@ -122,7 +124,7 @@ struct AIExplanationBottomSheet: View {
                 .padding(.horizontal, 20)
             }
         }
-        .background(.regularMaterial)
+        .background(colors.backgroundPrimary)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .offset(y: dragOffset.height)
         .gesture(

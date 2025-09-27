@@ -22,6 +22,7 @@ struct ATTimelineView_experimental: View {
     @Environment(AppRouter.self) private var router
     @Environment(ComputedTimelineFeed.self) private var computedFeed
     @Environment(BookmarkManager.self) private var bookmarkManager
+    @Environment(ThemeManager.self) private var themeManager
 
     enum ViewState {
         case loading
@@ -121,6 +122,7 @@ struct ATTimelineView_experimental: View {
     
     var body: some View {
         timelineContent
+            .background(themeManager.colors.backgroundCanvas)
             .safeAreaBar(edge: .top) {
                 topBar
             }
@@ -328,14 +330,14 @@ struct ATTimelineView_experimental: View {
 
             if isListsExpanded, !currentUser.lists.isEmpty {
                 Divider()
-                    .overlay(Color.black.opacity(0.06))
+                    .overlay(themeManager.colors.border.opacity(0.2))
                 listsSecondaryBar
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             if isFeedsExpanded, !currentUser.feeds.isEmpty {
                 Divider()
-                    .overlay(Color.black.opacity(0.06))
+                    .overlay(themeManager.colors.border.opacity(0.2))
                     .transition(.opacity)
                 feedsSecondaryBar
                     .transition(.move(edge: .top).combined(with: .opacity))
@@ -343,8 +345,8 @@ struct ATTimelineView_experimental: View {
         }
         .background(
             Rectangle()
-                .fill(.warmBackground)
-                .shadow(color: .black.opacity(0.06), radius: 12, y: 6)
+                .fill(themeManager.colors.chromeBackground)
+                .shadow(color: themeManager.colors.border.opacity(0.2), radius: 12, y: 6)
         )
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isListsExpanded)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isFeedsExpanded)
@@ -388,11 +390,11 @@ struct ATTimelineView_experimental: View {
         } label: {
             Image(systemName: "square.and.pencil")
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(.mintAccent)
+                .foregroundStyle(themeManager.colors.accent)
                 .frame(width: 36, height: 36)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(.mintAccent.opacity(0.12))
+                        .fill(themeManager.colors.accent.opacity(0.12))
                 )
         }
         .buttonStyle(.plain)
@@ -404,15 +406,16 @@ struct ATTimelineView_experimental: View {
         return chip(
             icon: TopbarTab.timeline.icon,
             title: TopbarTab.timeline.title,
-            tint: TopbarTab.timeline.color,
+            tint: themeManager.colors.accent,
             isSelected: isSelected,
             showTitleWhenUnselected: false,
             badge: timelineBadgeText,
+            neutralColor: themeManager.colors.chromeForeground.opacity(0.75),
             trailing: {
                 if timelineIsLoading {
                     ProgressView()
                         .progressViewStyle(
-                            CircularProgressViewStyle(tint: isSelected ? Color.white : TopbarTab.timeline.color)
+                            CircularProgressViewStyle(tint: isSelected ? Color.white : themeManager.colors.accent)
                         )
                         .scaleEffect(0.7)
                 }
@@ -432,6 +435,7 @@ struct ATTimelineView_experimental: View {
             tint: TopbarTab.aline.color,
             isSelected: selectedTab == .aline,
             showTitleWhenUnselected: false,
+            neutralColor: themeManager.colors.chromeForeground.opacity(0.75),
             trailing: {
                 if isSelected {
                     if isRefreshingAline {
@@ -467,7 +471,8 @@ struct ATTimelineView_experimental: View {
             title: TopbarTab.trendingPosts.title,
             tint: TopbarTab.trendingPosts.color,
             isSelected: selectedTab == .trendingPosts,
-            showTitleWhenUnselected: false
+            showTitleWhenUnselected: false,
+            neutralColor: themeManager.colors.chromeForeground.opacity(0.75)
         ) {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 selectedTab = .trendingPosts
@@ -488,7 +493,8 @@ struct ATTimelineView_experimental: View {
             title: nil,
             tint: TopbarTab.list(0).color,
             isSelected: isSelected,
-            showTitleWhenUnselected: false
+            showTitleWhenUnselected: false,
+            neutralColor: themeManager.colors.chromeForeground.opacity(0.75)
         ) {
             guard !currentUser.lists.isEmpty else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -523,7 +529,8 @@ struct ATTimelineView_experimental: View {
             title: nil,
             tint: TopbarTab.feed(0).color,
             isSelected: isSelected,
-            showTitleWhenUnselected: false
+            showTitleWhenUnselected: false,
+            neutralColor: themeManager.colors.chromeForeground.opacity(0.75)
         ) {
             guard !currentUser.feeds.isEmpty else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -617,6 +624,7 @@ struct ATTimelineView_experimental: View {
         showTitleWhenUnselected: Bool,
         badge: String? = nil,
         unselectedUsesTint: Bool = false,
+        neutralColor: Color = .secondary,
         @ViewBuilder trailing: () -> some View = { EmptyView() },
         action: @escaping () -> Void
     ) -> some View {
@@ -624,13 +632,13 @@ struct ATTimelineView_experimental: View {
             HStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: isSelected ? 16 : 18, weight: .medium))
-                    .foregroundStyle(isSelected ? Color.white : (unselectedUsesTint ? tint : .secondary))
+                    .foregroundStyle(isSelected ? Color.white : (unselectedUsesTint ? tint : neutralColor))
                     .symbolEffect(.bounce, value: isSelected)
 
                 if let title, !title.isEmpty, showTitleWhenUnselected || isSelected {
                     Text(title)
                         .font(.callout.weight(.semibold))
-                        .foregroundStyle(isSelected ? Color.white : (unselectedUsesTint ? tint : .secondary))
+                        .foregroundStyle(isSelected ? Color.white : (unselectedUsesTint ? tint : neutralColor))
                         .lineLimit(1)
                 }
 

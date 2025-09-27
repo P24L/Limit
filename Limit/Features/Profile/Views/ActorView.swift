@@ -39,6 +39,7 @@ struct UserProfileView: View {
   var actorWrapped: ActorWrapper
   @Environment(MultiAccountClient.self) private var client
   @Environment(CurrentUser.self) private var currentUser
+  @Environment(ThemeManager.self) private var themeManager
   @State private var selectedSection: ProfileSection = .posts
   @State private var interimFollowingURI: String?
   @State private var showAddToListSheet = false
@@ -122,6 +123,7 @@ struct UserProfileView: View {
 
   @ViewBuilder
   private var profileHeaderView: some View {
+    let colors = themeManager.colors
     VStack(spacing: 0) {
       ZStack(alignment: .bottom) {
         // Banner background with fixed height
@@ -131,7 +133,7 @@ struct UserProfileView: View {
               switch phase {
               case .empty:
                 LinearGradient(
-                  gradient: Gradient(colors: [Color.mintAccent.opacity(0.3), Color.mintAccent.opacity(0.1)]),
+                  gradient: Gradient(colors: [colors.accent.opacity(0.3), colors.accent.opacity(0.1)]),
                   startPoint: .topLeading,
                   endPoint: .bottomTrailing
                 )
@@ -159,7 +161,7 @@ struct UserProfileView: View {
             )
           } else {
             LinearGradient(
-              gradient: Gradient(colors: [Color.mintAccent.opacity(0.2), Color.mintAccent.opacity(0.05)]),
+              gradient: Gradient(colors: [colors.accent.opacity(0.2), colors.accent.opacity(0.05)]),
               startPoint: .topLeading,
               endPoint: .bottomTrailing
             )
@@ -219,8 +221,8 @@ struct UserProfileView: View {
                     .fill(
                       LinearGradient(
                         gradient: Gradient(colors: followingURI == nil
-                          ? [Color.mintAccent, Color.mintAccent.opacity(0.8)]
-                          : [Color.gray.opacity(0.6), Color.gray.opacity(0.4)]),
+                          ? [colors.accent, colors.accent.opacity(0.8)]
+                          : [colors.accentMuted, colors.accentMuted.opacity(0.8)]),
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                       )
@@ -301,10 +303,10 @@ struct UserProfileView: View {
             VStack(spacing: 2) {
               Text("\(followers)")
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundColor(colors.textPrimary)
               Text("Followers")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(colors.textSecondary)
             }
           }
 
@@ -312,10 +314,10 @@ struct UserProfileView: View {
             VStack(spacing: 2) {
               Text("\(follows)")
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundColor(colors.textPrimary)
               Text("Following")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(colors.textSecondary)
             }
           }
 
@@ -323,10 +325,10 @@ struct UserProfileView: View {
             VStack(spacing: 2) {
               Text("\(posts)")
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundColor(colors.textPrimary)
               Text("Posts")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.secondary)
+                .foregroundColor(colors.textSecondary)
             }
           }
         }
@@ -334,7 +336,7 @@ struct UserProfileView: View {
         .padding(.vertical, 12)
         .background(
           RoundedRectangle(cornerRadius: 12)
-            .fill(Color.gray.opacity(0.05))
+            .fill(colors.backgroundSecondary)
         )
         .padding(.horizontal, 20)
         .padding(.top, 12)
@@ -349,8 +351,10 @@ struct UserProfileView: View {
 struct ProfilePostsList: View {
   let posts: [TimelinePostWrapper]
   let isLoading: Bool
+  @Environment(ThemeManager.self) private var themeManager
 
   var body: some View {
+    let colors = themeManager.colors
     VStack(spacing: 0) {
       if isLoading && posts.isEmpty {
         loadingState
@@ -382,16 +386,18 @@ struct ProfilePostsList: View {
       }
     }
     .frame(maxWidth: .infinity)
-    .background(Color.warmBackground)
+    .background(colors.backgroundPrimary)
   }
 
+  @ViewBuilder
   private var loadingState: some View {
+    let colors = themeManager.colors
     HStack(spacing: 8) {
       ProgressView()
         .scaleEffect(0.9)
       Text("Loading posts...")
         .font(.caption)
-        .foregroundColor(.secondary)
+        .foregroundColor(colors.textSecondary)
     }
     .frame(maxWidth: .infinity)
   }
@@ -401,6 +407,7 @@ struct FollowersSectionView: View {
   let actorWrapper: ActorWrapper
   let sectionType: SectionType
   @Environment(MultiAccountClient.self) private var client
+  @Environment(ThemeManager.self) private var themeManager
   @State private var isLoadingMore = false
   @State private var hasMoreData = true
   @State private var lastFollowersCount = 0
@@ -429,6 +436,7 @@ struct FollowersSectionView: View {
   }
 
   var body: some View {
+    let colors = themeManager.colors
     LazyVStack(spacing: 12) {
       if isInitialLoading && followers.isEmpty {
         HStack {
@@ -436,7 +444,7 @@ struct FollowersSectionView: View {
             .scaleEffect(0.8)
           Text("Loading \(sectionType == .followers ? "followers" : "following")...")
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundColor(colors.textSecondary)
         }
         .padding()
       } else {
@@ -466,7 +474,7 @@ struct FollowersSectionView: View {
               .scaleEffect(0.8)
             Text("Loading more...")
               .font(.caption)
-              .foregroundColor(.secondary)
+              .foregroundColor(colors.textSecondary)
           }
           .padding()
         }
@@ -506,8 +514,10 @@ struct FollowerItemView: View {
   @State var followingURI: String?
   @Environment(MultiAccountClient.self) private var client
   @Environment(AppRouter.self) private var router
+  @Environment(ThemeManager.self) private var themeManager
 
   var body: some View {
+    let colors = themeManager.colors
     HStack(spacing: 12) {
       AvatarView(url: profile.avatarImageURL, size: 48)
         .onTapGesture {
@@ -518,11 +528,14 @@ struct FollowerItemView: View {
         HStack {
           VStack(alignment: .leading, spacing: 4) {
             if let name = profile.displayName {
-              Text(name).font(.subheadline).fontWeight(.medium)
+              Text(name)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(colors.textPrimary)
             }
             Text("@\(profile.actorHandle)")
               .font(.caption)
-              .foregroundColor(.secondary)
+              .foregroundColor(colors.textSecondary)
           }
           .onTapGesture {
             router.navigateTo(.actor(userID: profile.actorDID))
@@ -546,16 +559,18 @@ struct FollowerItemView: View {
               .fontWeight(.medium)
               .padding(.horizontal, 12)
               .padding(.vertical, 6)
-              .background(followingURI == nil ? Color.mintAccent : Color.mintInactive)
-              .foregroundColor(.white)
-              .clipShape(RoundedRectangle(cornerRadius: 16))
+              .background(
+                RoundedRectangle(cornerRadius: 16)
+                  .fill(followingURI == nil ? colors.accent : colors.accentMuted)
+              )
+              .foregroundColor(Color.white)
           }
         }
 
         if let description = profile.description, !description.isEmpty {
           Text(description)
             .font(.caption)
-            .foregroundColor(.secondary)
+            .foregroundColor(colors.textSecondary)
             .lineLimit(3)
             .multilineTextAlignment(.leading)
             .onTapGesture {
@@ -566,11 +581,11 @@ struct FollowerItemView: View {
     }
     .padding(.vertical, 8)
     .padding(.horizontal, 12)
-    .background(Color.warmBackground)
+    .background(colors.backgroundSecondary)
     .clipShape(RoundedRectangle(cornerRadius: 12))
     .overlay(
       RoundedRectangle(cornerRadius: 12)
-        .stroke(Color.subtleGray.opacity(0.3), lineWidth: 0.5)
+        .stroke(colors.border.opacity(0.3), lineWidth: 0.5)
     )
     .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
   }

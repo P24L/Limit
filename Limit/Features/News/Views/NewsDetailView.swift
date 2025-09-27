@@ -18,15 +18,18 @@ struct NewsDetailView: View {
     @Environment(AppRouter.self) private var router
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(MultiAccountClient.self) private var client
+    @Environment(ThemeManager.self) private var themeManager
     
     var body: some View {
+        let colors = themeManager.colors
+
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 contentView
             }
             .padding()
         }
-        .background(Color.warmBackground.opacity(0.3))
+        .background(colors.backgroundPrimary)
         .navigationTitle("Article Details")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -50,7 +53,7 @@ struct NewsDetailView: View {
         HStack {
             Spacer()
             ProgressView()
-                .tint(.mintAccent)
+                .tint(themeManager.colors.accent)
                 .padding(.top, 50)
             Spacer()
         }
@@ -63,7 +66,7 @@ struct NewsDetailView: View {
                 .font(.largeTitle)
                 .foregroundColor(.orange)
             Text(error)
-                .foregroundColor(.secondaryText)
+                .foregroundColor(themeManager.colors.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 50)
@@ -84,7 +87,7 @@ struct NewsDetailView: View {
             HStack {
                 Spacer()
                 ProgressView("Loading posts...")
-                    .tint(.mintAccent)
+                    .tint(themeManager.colors.accent)
                 Spacer()
             }
             .padding(.vertical, 40)
@@ -94,7 +97,7 @@ struct NewsDetailView: View {
                     .font(.largeTitle)
                     .foregroundColor(.orange)
                 Text(error)
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(themeManager.colors.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 40)
@@ -102,10 +105,10 @@ struct NewsDetailView: View {
             VStack(spacing: 16) {
                 Image(systemName: "doc.text.magnifyingglass")
                     .font(.largeTitle)
-                    .foregroundColor(.mintAccent.opacity(0.5))
+                    .foregroundColor(themeManager.colors.accent.opacity(0.5))
                 Text("No recent posts")
                     .font(.headline)
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(themeManager.colors.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 40)
@@ -113,7 +116,7 @@ struct NewsDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Recent Posts")
                     .font(.headline)
-                    .foregroundColor(.mintAccent)
+                    .foregroundColor(themeManager.colors.accent)
                 
                 ForEach(recentPosts, id: \.id) { post in
                     PostItemWrappedView(post: post)
@@ -136,7 +139,7 @@ struct NewsDetailView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(.mintAccent)
+            .tint(themeManager.colors.accent)
             
             Button {
                 Task {
@@ -151,7 +154,7 @@ struct NewsDetailView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .tint(isBookmarked ? .mintAccent : .postAction)
+            .tint(isBookmarked ? themeManager.colors.accent : themeManager.colors.textSecondary)
         }
         .padding(.top, 8)
     }

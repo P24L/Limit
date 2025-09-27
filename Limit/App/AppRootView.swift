@@ -7,6 +7,7 @@
 
 import AppRouter
 import SwiftUI
+import UIKit
 
 struct AppRootView: View {
     @Environment(AppRouter.self) private var router
@@ -41,7 +42,7 @@ struct AppRootView: View {
           }
             }
             //.tint(.mintAccent)
-            .background(colors.backgroundPrimary)
+            .background(colors.backgroundCanvas)
             .onAppear {
                 themeManager.updateColorScheme(colorScheme)
                 configureTabBarAppearance()
@@ -69,22 +70,30 @@ struct AppRootView: View {
         tabBarAppearance.configureWithDefaultBackground()
 
         // Background
-        tabBarAppearance.backgroundColor = UIColor(themeManager.colors.surfacePrimary)
+        let chromeBackground = UIColor(themeManager.colors.chromeBackground)
+        let chromeForeground = UIColor(themeManager.colors.chromeForeground)
+        let accent = UIColor(themeManager.colors.accent)
+        let inactive = chromeForeground.withAlphaComponent(0.7)
+
+        tabBarAppearance.backgroundColor = chromeBackground
 
         // Normal state
-        tabBarAppearance.stackedLayoutAppearance.normal.iconColor = UIColor(themeManager.colors.textSecondary)
-        tabBarAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor(themeManager.colors.textSecondary)
-        ]
+        [tabBarAppearance.stackedLayoutAppearance,
+         tabBarAppearance.inlineLayoutAppearance,
+         tabBarAppearance.compactInlineLayoutAppearance].forEach { layout in
+            layout.normal.iconColor = inactive
+            layout.normal.titleTextAttributes = [
+                .foregroundColor: inactive
+            ]
 
-        // Selected state
-        tabBarAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(themeManager.colors.accent)
-        tabBarAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(themeManager.colors.accent)
-        ]
+            layout.selected.iconColor = accent
+            layout.selected.titleTextAttributes = [
+                .foregroundColor: accent
+            ]
+        }
 
         // Add subtle shadow
-        tabBarAppearance.shadowColor = UIColor(themeManager.colors.border)
+        tabBarAppearance.shadowColor = UIColor(themeManager.colors.border).withAlphaComponent(0.25)
 
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance

@@ -14,6 +14,10 @@ public struct ThemeColors {
     public let backgroundSecondary: Color
     public let surfacePrimary: Color
     public let surfaceSecondary: Color
+    public let backgroundCanvas: Color
+    public let backgroundListRow: Color
+    public let chromeBackground: Color
+    public let chromeForeground: Color
     public let textPrimary: Color
     public let textSecondary: Color
     public let textTertiary: Color
@@ -29,6 +33,10 @@ public struct ThemeColors {
         backgroundSecondary = set.backgroundSecondary
         surfacePrimary = set.surfacePrimary
         surfaceSecondary = set.surfaceSecondary
+        backgroundCanvas = set.backgroundCanvas
+        backgroundListRow = set.backgroundListRow
+        chromeBackground = set.chromeBackground
+        chromeForeground = set.chromeForeground
         textPrimary = set.textPrimary
         textSecondary = set.textSecondary
         textTertiary = set.textTertiary

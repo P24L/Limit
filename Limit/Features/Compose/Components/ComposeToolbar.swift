@@ -17,23 +17,25 @@ struct ComposeToolbar: View {
     let onAddVideo: () -> Void
     let onToggleLanguage: (Locale) -> Void
     let onAddThread: () -> Void
-    
+
     @State private var showLanguageMenu = false
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         HStack(spacing: 20) {
             // Media buttons
             Button(action: onAddImage) {
                 Image(systemName: "photo")
                     .font(.system(size: 20))
-                    .foregroundColor(canAddMedia ? .mintAccent : .gray)
+                    .foregroundColor(canAddMedia ? colors.accent : colors.textSecondary)
             }
             .disabled(!canAddMedia)
-            
+
             Button(action: onAddVideo) {
                 Image(systemName: "video")
                     .font(.system(size: 20))
-                    .foregroundColor(canAddMedia ? .mintAccent : .gray)
+                    .foregroundColor(canAddMedia ? colors.accent : colors.textSecondary)
             }
             .disabled(!canAddMedia)
             
@@ -59,16 +61,16 @@ struct ComposeToolbar: View {
                             .fontWeight(.medium)
                     }
                 }
-                .foregroundColor(.mintAccent)
+                .foregroundColor(colors.accent)
             }
-            
+
             // Thread button
             Button(action: onAddThread) {
                 Image(systemName: "plus.square.on.square")
                     .font(.system(size: 20))
-                    .foregroundColor(.mintAccent)
+                    .foregroundColor(colors.accent)
             }
-            
+
             Spacer()
             
             // Character counter
@@ -111,11 +113,12 @@ struct ComposeToolbar: View {
 struct CharacterCountView: View {
     let count: Int
     let remaining: Int
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     private var color: Color {
         switch remaining {
         case 51...:
-            return .secondary
+            return themeManager.colors.textSecondary
         case 21...50:
             return .orange
         case 0...20:
@@ -124,7 +127,7 @@ struct CharacterCountView: View {
             return .red
         }
     }
-    
+
     private var progress: Double {
         Double(count) / 300.0
     }
@@ -134,9 +137,9 @@ struct CharacterCountView: View {
             // Circular progress
             ZStack {
                 Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 3)
+                    .stroke(themeManager.colors.backgroundSecondary.opacity(0.5), lineWidth: 3)
                     .frame(width: 24, height: 24)
-                
+
                 Circle()
                     .trim(from: 0, to: min(progress, 1.0))
                     .stroke(color, lineWidth: 3)
@@ -208,4 +211,3 @@ struct ImagePreviewCell: View {
         }
     }
 }
-

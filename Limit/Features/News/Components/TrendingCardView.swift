@@ -12,17 +12,20 @@ struct TrendingCardView: View {
     let item: TrendingURL
     @Environment(AppRouter.self) private var router
     @Environment(BookmarkManager.self) private var bookmarkManager
+    @Environment(ThemeManager.self) private var themeManager
     
     var onDetailTap: () -> Void
     
     var body: some View {
+        let colors = themeManager.colors
+
         VStack(alignment: .leading, spacing: 0) {
             // Header with domain and time
             HStack {
                 Text(item.domain)
                     .font(.footnote)
                     .fontWeight(.medium)
-                    .foregroundColor(.mintAccent)
+                    .foregroundColor(colors.accent)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 
@@ -44,7 +47,7 @@ struct TrendingCardView: View {
                         .scaledToFill()
                 } placeholder: {
                     Rectangle()
-                        .fill(Color.subtleGray.opacity(0.3))
+                        .fill(colors.backgroundSecondary.opacity(0.3))
                         .overlay(
                             ProgressView()
                                 .tint(.secondaryText)
@@ -63,7 +66,7 @@ struct TrendingCardView: View {
                 HStack(alignment: .top, spacing: 8) {
                     Text(title)
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(colors.textPrimary)
                         .lineLimit(3)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .onTapGesture {
@@ -86,7 +89,7 @@ struct TrendingCardView: View {
                         Image(systemName: "bookmark")
                             .font(.title2)
                             .symbolVariant(isBookmarked ? .fill : .none)
-                            .foregroundColor(isBookmarked ? .mintAccent : .postAction)
+                            .foregroundColor(isBookmarked ? colors.accent : colors.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -98,7 +101,7 @@ struct TrendingCardView: View {
             if let description = item.embedDescription {
                 Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(colors.textSecondary)
                     .lineLimit(4)
                     .padding(.horizontal, 12)
                     .padding(.top, 8)
@@ -116,10 +119,12 @@ struct TrendingCardView: View {
                     Text("\(item.postCount)")
                         .font(.footnote)
                         .foregroundColor(.secondaryText)
+                        .foregroundColor(colors.textSecondary)
                 } icon: {
                     Image(systemName: "arrow.2.squarepath")
                         .font(.caption)
                         .foregroundColor(.secondaryText)
+                        .foregroundColor(colors.textSecondary)
                 }
                 
                 // Like count
@@ -146,17 +151,17 @@ struct TrendingCardView: View {
                             .font(.footnote)
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(.postAction)
+                    .foregroundColor(colors.textSecondary)
                 }
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.warmBackground.opacity(0.3))
+            .background(colors.backgroundSecondary.opacity(0.3))
         }
         .containerRelativeFrame(.horizontal)
-        .background(Color.warmBackground)
+        .background(colors.backgroundSecondary)
         .cornerRadius(16)
         .cardShadow()
     }

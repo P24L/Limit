@@ -74,6 +74,11 @@ public class AppTheme {
 
     public var effectiveAccentColor: Color { themeManager.colors.accent }
 
+    public var backgroundCanvas: Color { themeManager.colors.backgroundCanvas }
+    public var backgroundListRow: Color { themeManager.colors.backgroundListRow }
+    public var chromeBackground: Color { themeManager.colors.chromeBackground }
+    public var chromeForeground: Color { themeManager.colors.chromeForeground }
+
     public var effectivePadding: Double {
         compactMode ? contentPadding * 0.75 : contentPadding
     }

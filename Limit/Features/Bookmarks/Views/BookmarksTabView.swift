@@ -7,10 +7,12 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct BookmarksTabView: View {
     @Environment(AppRouter.self) private var router
     @Environment(BookmarkManager.self) private var bookmarkManager
+    @Environment(ThemeManager.self) private var themeManager
     
     @State private var selectedSubTab: BookmarkSubTab = .saved
     @State private var searchText = ""
@@ -30,6 +32,8 @@ struct BookmarksTabView: View {
     }
     
     var body: some View {
+        let colors = themeManager.colors
+
         Group {
             switch selectedSubTab {
             case .saved:
@@ -65,7 +69,7 @@ struct BookmarksTabView: View {
                             Text("Clear filter")
                                 .font(.footnote)
                         }
-                        .foregroundColor(.mintAccent)
+                        .foregroundColor(colors.accent)
                     }
                 }
             }
@@ -75,16 +79,29 @@ struct BookmarksTabView: View {
                     router.presentedSheet = .bookmarkEdit(id: nil)
                 } label: {
                     Image(systemName: "plus")
-                        .foregroundColor(.mintAccent)
+                        .foregroundColor(colors.accent)
                 }
             }
         }
         .safeAreaInset(edge: .top) { subTabPicker }
+        .onAppear {
+            applySearchAppearance(colors: colors, placeholder: currentSearchPlaceholder())
+        }
+        .onChange(of: themeManager.paletteID) { _, _ in
+            applySearchAppearance(colors: themeManager.colors, placeholder: currentSearchPlaceholder())
+        }
+        .onChange(of: themeManager.colorScheme) { _, _ in
+            applySearchAppearance(colors: themeManager.colors, placeholder: currentSearchPlaceholder())
+        }
+        .onChange(of: selectedListName) { _, _ in
+            applySearchAppearance(colors: themeManager.colors, placeholder: currentSearchPlaceholder())
+        }
     }
     
     // MARK: - Sub Tab Picker
     @ViewBuilder
     private var subTabPicker: some View {
+        let colors = themeManager.colors
         HStack(spacing: 0) {
             ForEach(BookmarkSubTab.allCases, id: \.self) { tab in
                 Button {
@@ -96,13 +113,13 @@ struct BookmarksTabView: View {
                             .font(.footnote)
                             .fontWeight(selectedSubTab == tab ? .semibold : .regular)
                     }
-                    .foregroundColor(selectedSubTab == tab ? .white : .primary)
+                    .foregroundColor(selectedSubTab == tab ? Color.white : colors.textPrimary)
                     .padding(.vertical, 4)
                     .padding(.horizontal, 12)
                     .frame(maxWidth: .infinity)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(selectedSubTab == tab ? Color.mintAccent : Color.clear)
+                            .fill(selectedSubTab == tab ? colors.accent : Color.clear)
                     )
                 }
                 .buttonStyle(.borderless)
@@ -112,11 +129,40 @@ struct BookmarksTabView: View {
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.cardBackground)
+                .fill(colors.backgroundSecondary)
         )
         .padding(.horizontal, 16)
         .padding(.top, 0)
         .padding(.bottom, 0)
+    }
+}
+
+// MARK: - Search Appearance Helpers
+extension BookmarksTabView {
+    private func currentSearchPlaceholder() -> String {
+        if let name = selectedListName {
+            return "Search in \(name)"
+        }
+        return "Search bookmarks"
+    }
+
+    private func applySearchAppearance(colors: ThemeColors, placeholder: String) {
+        let searchField = UISearchTextField.appearance(whenContainedInInstancesOf: [UISearchBar.self])
+        searchField.backgroundColor = UIColor(colors.backgroundSecondary)
+        searchField.textColor = UIColor(colors.textPrimary)
+        searchField.tintColor = UIColor(colors.accent)
+        searchField.clearButtonMode = .whileEditing
+        searchField.layer.cornerRadius = 10
+        searchField.layer.masksToBounds = true
+        searchField.layer.borderColor = UIColor(colors.border.opacity(0.3)).cgColor
+        let displayScale = max(searchField.traitCollection.displayScale, 1)
+        searchField.layer.borderWidth = 1 / displayScale
+        searchField.attributedPlaceholder = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .foregroundColor: UIColor(colors.textSecondary)
+            ]
+        )
     }
 }
 
@@ -127,6 +173,7 @@ struct BookmarksTabView: View {
 struct BookmarkListsView: View {
     @Environment(BookmarkManager.self) var bookmarkManager
     @Environment(AppRouter.self) var router
+    @Environment(ThemeManager.self) private var themeManager
     
     @Binding var selectedListUri: String?
     @Binding var selectedListName: String?
@@ -134,21 +181,22 @@ struct BookmarkListsView: View {
     
     var body: some View {
         ScrollView {
+            let colors = themeManager.colors
             LazyVStack(spacing: 12) {
                 if bookmarkManager.bookmarkLists.isEmpty {
                 // Empty state
                 VStack(spacing: 16) {
                     Image(systemName: "folder.badge.plus")
                         .font(.system(size: 50))
-                        .foregroundColor(.gray)
+                        .foregroundColor(colors.textSecondary)
                     
                     Text("No lists yet")
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(colors.textPrimary)
                     
                     Text("Organize your bookmarks into lists")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colors.textSecondary)
                         .multilineTextAlignment(.center)
                     
                     Button {
@@ -158,7 +206,7 @@ struct BookmarkListsView: View {
                             .font(.footnote)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(Color.mintAccent)
+                            .background(colors.accent)
                             .foregroundColor(.white)
                             .cornerRadius(20)
                     }
@@ -201,12 +249,15 @@ struct BookmarkListsView: View {
 struct BookmarkListRow: View {
     let list: BookmarkListView
     @Environment(AppRouter.self) var router
+    @Environment(ThemeManager.self) private var themeManager
     
     @Binding var selectedListUri: String?
     @Binding var selectedListName: String?
     @Binding var selectedSubTab: BookmarksTabView.BookmarkSubTab
     
     var body: some View {
+        let colors = themeManager.colors
+
         Button {
             // Set filter and switch to saved tab
             selectedListUri = list.uri
@@ -229,18 +280,18 @@ struct BookmarkListRow: View {
                         if list.record.pinned ?? false {
                             Image(systemName: "pin.fill")
                                 .font(.caption2)
-                                .foregroundColor(.orange)
+                                .foregroundColor(colors.accent)
                         }
                         Text(list.record.name)
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(.primary)
+                            .foregroundColor(colors.textPrimary)
                     }
                     
                     if let description = list.record.description {
                         Text(description)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(colors.textSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -251,20 +302,20 @@ struct BookmarkListRow: View {
                 if let count = list.bookmarkCount, count > 0 {
                     Text("\(count)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colors.textSecondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(Color.gray.opacity(0.1))
+                        .background(colors.backgroundSecondary.opacity(0.6))
                         .cornerRadius(8)
                 }
                 
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(colors.textSecondary)
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
-            .background(Color.cardBackground)
+            .background(colors.backgroundSecondary)
             .cornerRadius(12)
         }
         .buttonStyle(.plain)

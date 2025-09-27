@@ -17,6 +17,7 @@ struct AddToListSheet: View {
     @Environment(MultiAccountClient.self) private var client
     @Environment(CurrentUser.self) private var currentUser
     @Environment(\.dismiss) private var dismiss
+    @Environment(ThemeManager.self) private var themeManager
     
     @State private var listMemberships: [String: Bool] = [:] // listURI -> isMember
     @State private var isLoading = true
@@ -25,6 +26,7 @@ struct AddToListSheet: View {
     var body: some View {
         NavigationView {
             VStack {
+                let colors = themeManager.colors
                 // Actor info header
                 HStack(spacing: 12) {
                     // Real actor avatar
@@ -35,10 +37,11 @@ struct AddToListSheet: View {
                             Text(displayName)
                                 .font(.headline)
                                 .lineLimit(1)
+                                .foregroundColor(colors.textPrimary)
                         }
                         Text("@\(actorHandle)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(colors.textSecondary)
                             .lineLimit(1)
                     }
                     
@@ -55,7 +58,7 @@ struct AddToListSheet: View {
                         ProgressView()
                         Text("Loading lists...")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(colors.textSecondary)
                             .padding(.top, 8)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -63,13 +66,14 @@ struct AddToListSheet: View {
                     VStack(spacing: 16) {
                         Image(systemName: "list.bullet")
                             .font(.system(size: 32))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(colors.textSecondary)
                         
                         Text("No Lists")
                             .font(.headline)
+                            .foregroundColor(colors.textPrimary)
                         
                         Text("Create lists in Settings to organize people you follow")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(colors.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     }
@@ -90,9 +94,11 @@ struct AddToListSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    let colors = themeManager.colors
                     Button("Done") {
                         dismiss()
                     }
+                    .foregroundColor(colors.accent)
                 }
             }
             .task {
@@ -159,21 +165,23 @@ struct ListToggleRow: View {
     let isMember: Bool
     let isProcessing: Bool
     let onToggle: (Bool) async -> Void
+    @Environment(ThemeManager.self) private var themeManager
     
     var body: some View {
-        HStack(spacing: 12) {
+        let colors = themeManager.colors
+        return HStack(spacing: 12) {
             // List avatar or placeholder
             Group {
                 if let avatarURL = list.avatarImageURL {
                     AvatarView(url: avatarURL, size: 36)
                 } else {
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.blue.opacity(0.1))
+                        .fill(colors.accent.opacity(0.12))
                         .frame(width: 36, height: 36)
                         .overlay {
                             Image(systemName: "list.bullet")
                                 .font(.system(size: 14))
-                                .foregroundColor(.mintAccent)
+                                .foregroundColor(colors.accent)
                         }
                 }
             }
@@ -182,16 +190,17 @@ struct ListToggleRow: View {
                 Text(list.name)
                     .font(.headline)
                     .lineLimit(1)
+                    .foregroundColor(colors.textPrimary)
                 
                 if let description = list.description, !description.isEmpty {
                     Text(description)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colors.textSecondary)
                         .lineLimit(1)
                 } else {
                     Text("\(list.listItemCount ?? 0) members")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colors.textSecondary)
                 }
             }
             
@@ -208,7 +217,7 @@ struct ListToggleRow: View {
                 }) {
                     Image(systemName: isMember ? "checkmark.circle.fill" : "circle")
                         .font(.title2)
-                        .foregroundColor(isMember ? .green : .secondary)
+                        .foregroundColor(isMember ? colors.accent : colors.textSecondary)
                 }
             }
         }
@@ -223,4 +232,3 @@ struct ListToggleRow: View {
         }
     }
 }
-

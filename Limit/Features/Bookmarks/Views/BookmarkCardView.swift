@@ -11,6 +11,7 @@ import SDWebImageSwiftUI
 struct BookmarkCardView: View {
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
 
     let bookmark: BookmarkView
 
@@ -23,13 +24,14 @@ struct BookmarkCardView: View {
     private let cornerRadius: CGFloat = 14
     private let hPadding: CGFloat = 12
     private let vPadding: CGFloat = 10
-    private let thumbSize: CGFloat = 88
 
     var body: some View {
+        let colors = themeManager.colors
+
         VStack(alignment: .leading, spacing: 12) {
             // MARK: Header
             HStack(alignment: .top, spacing: 12) {
-                thumbnail(size: thumbSize)
+                thumbnail()
 
                 VStack(alignment: .leading, spacing: 6) {
                     // Title
@@ -37,7 +39,7 @@ struct BookmarkCardView: View {
                         .font(.headline)
                         .fontWeight(.semibold)
                         .lineLimit(3)
-                        .foregroundStyle(.primary)
+                        .foregroundColor(colors.textPrimary)
 
                     // Meta (host · relative time)
                     HStack(spacing: 6) {
@@ -50,14 +52,14 @@ struct BookmarkCardView: View {
                         Text(bookmark.record.createdAt, style: .relative)
                     }
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(colors.textSecondary)
                     .lineLimit(1)
 
                     // Description
                     if let description = bookmark.record.description, !description.isEmpty {
                         Text(description)
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundColor(colors.textSecondary)
                             .lineLimit(3)
                             .multilineTextAlignment(.leading)
                     }
@@ -76,14 +78,14 @@ struct BookmarkCardView: View {
                         ForEach(tags, id: \.self) { tag in
                             Text("#\(tag)")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundColor(colors.textSecondary)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
                                 .background(
-                                    Capsule().fill(Color.gray.opacity(0.12))
+                                    Capsule().fill(colors.backgroundSecondary.opacity(0.6))
                                 )
                                 .overlay(
-                                    Capsule().stroke(Color.gray.opacity(0.16), lineWidth: 0.5)
+                                    Capsule().stroke(colors.border.opacity(0.2), lineWidth: 0.5)
                                 )
                         }
                     }
@@ -102,10 +104,10 @@ struct BookmarkCardView: View {
                 } label: {
                     Image(systemName: "safari")
                         .font(.caption)
-                        .foregroundColor(.primary)
+                        .foregroundColor(colors.textPrimary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.gray.opacity(0.1))
+                        .background(colors.backgroundSecondary.opacity(0.6))
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -124,10 +126,10 @@ struct BookmarkCardView: View {
                         else { Image(systemName: "square.and.arrow.up").font(.caption) }
                         Text("Share").font(.caption)
                     }
-                    .foregroundColor(.mintAccent)
+                    .foregroundColor(colors.accent)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color.gray.opacity(0.1))
+                    .background(colors.backgroundSecondary.opacity(0.6))
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -139,10 +141,10 @@ struct BookmarkCardView: View {
                 } label: {
                     Image(systemName: bookmark.record.archived == true ? "archivebox.fill" : "archivebox")
                         .font(.caption)
-                        .foregroundColor(.primary)
+                        .foregroundColor(colors.textPrimary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.gray.opacity(0.1))
+                        .background(colors.backgroundSecondary.opacity(0.6))
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -153,10 +155,10 @@ struct BookmarkCardView: View {
                 } label: {
                     Image(systemName: "pencil")
                         .font(.caption)
-                        .foregroundColor(.primary)
+                        .foregroundColor(colors.textPrimary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.gray.opacity(0.1))
+                        .background(colors.backgroundSecondary.opacity(0.6))
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -168,7 +170,7 @@ struct BookmarkCardView: View {
         .padding(.horizontal, hPadding)
         .background(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(Color.cardBackground)
+                .fill(colors.backgroundSecondary)
                 .subtleShadow()
         )
         .contentShape(Rectangle())
@@ -189,59 +191,70 @@ struct BookmarkCardView: View {
 
     // MARK: - Subviews
     @ViewBuilder
-    private func thumbnail(size: CGFloat) -> some View {
+    private func thumbnail() -> some View {
+        let colors = themeManager.colors
         Group {
             if let imageUrl = bookmark.record.imageUrl, let url = URL(string: imageUrl) {
                 WebImage(url: url) { phase in
                     switch phase {
                     case .empty:
-                        RoundedRectangle(cornerRadius: 12).fill(.gray.opacity(0.25))
+                        RoundedRectangle(cornerRadius: 12).fill(colors.backgroundSecondary.opacity(0.5))
                     case .success(let image):
                         image.resizable()
                     case .failure:
-                        RoundedRectangle(cornerRadius: 12).fill(.gray.opacity(0.25))
+                        RoundedRectangle(cornerRadius: 12).fill(colors.backgroundSecondary.opacity(0.5))
                     }
                 }
                 .aspectRatio(1, contentMode: .fill)
-                .frame(width: size, height: size)
+                .containerRelativeFrame(.horizontal, count: 4, span: 1, spacing: hPadding)
+                .frame(minHeight: 88)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             } else if let imageBlob = getCachedImageBlob(), let uiImage = UIImage(data: imageBlob) {
                 Image(uiImage: uiImage)
                     .resizable()
                     .aspectRatio(1, contentMode: .fill)
-                    .frame(width: size, height: size)
+                    .containerRelativeFrame(.horizontal, count: 4, span: 1, spacing: hPadding)
+                    .frame(minHeight: 88)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12).fill(.gray.opacity(0.2))
-                    Image(systemName: "link").font(.title3).foregroundStyle(.secondary)
+                    RoundedRectangle(cornerRadius: 12).fill(colors.backgroundSecondary.opacity(0.5))
+                    Image(systemName: "link")
+                        .font(.title3)
+                        .foregroundColor(colors.textSecondary)
                 }
-                .frame(width: size, height: size)
+                .containerRelativeFrame(.horizontal, count: 4, span: 1, spacing: hPadding)
+                .frame(minHeight: 88)
             }
         }
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.black.opacity(0.04), lineWidth: 0.5)
+                .stroke(colors.border.opacity(0.25), lineWidth: 0.5)
         )
     }
 
     @ViewBuilder
     private func summaryChip(_ text: String) -> some View {
+        let colors = themeManager.colors
         Button {
             router.presentedSheet = .aiSummary(bookmark: bookmark)
         } label: {
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "sparkles").font(.caption).foregroundStyle(.blue)
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundColor(colors.accent)
                 Text(text)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(colors.textSecondary)
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundColor(colors.textSecondary)
             }
             .padding(10)
-            .background(Color.blue.opacity(0.05))
+            .background(colors.accent.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)

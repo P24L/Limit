@@ -20,6 +20,7 @@ struct BookmarkEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(MultiAccountClient.self) private var client
+    @Environment(ThemeManager.self) private var themeManager
 
     @State private var editState = BookmarkEditState()
     @State private var showDeleteAlert = false
@@ -33,6 +34,7 @@ struct BookmarkEditSheet: View {
 
     var body: some View {
         NavigationStack {
+            let colors = themeManager.colors
             ScrollView(.vertical) {
                 VStack(spacing: 16) {
                     headerPreview
@@ -55,8 +57,8 @@ struct BookmarkEditSheet: View {
             .background(
                 LinearGradient(
                     stops: [
-                        .init(color: Color(.systemBackground), location: 0),
-                        .init(color: Color(.secondarySystemBackground), location: 1)
+                        .init(color: colors.backgroundPrimary, location: 0),
+                        .init(color: colors.backgroundSecondary, location: 1)
                     ],
                     startPoint: .top, endPoint: .bottom
                 ).ignoresSafeArea()
@@ -80,20 +82,24 @@ struct BookmarkEditSheet: View {
 private extension BookmarkEditSheet {
     @ToolbarContentBuilder
     var topBar: some ToolbarContent {
+        let colors = themeManager.colors
         ToolbarItem(placement: .navigationBarLeading) {
             Button("Cancel") { dismiss() }
+                .foregroundColor(colors.accent)
         }
         ToolbarItem(placement: .navigationBarTrailing) {
             HStack(spacing: 12) {
                 Button { withAnimation(.spring(duration: 0.35)) { showOptions.toggle() } } label: {
                     Image(systemName: showOptions ? "slider.horizontal.2.square" : "slider.horizontal.3")
                         .imageScale(.medium)
+                        .foregroundColor(colors.accent)
                 }
                 .accessibilityLabel("Options")
 
                 Button(action: { Task { await saveBookmark() } }) {
                     Text("Save")
                         .fontWeight(.semibold)
+                        .foregroundColor(colors.accent)
                 }
                 .disabled(editState.url.isEmpty || editState.title.isEmpty || editState.isSaving)
             }
@@ -104,7 +110,8 @@ private extension BookmarkEditSheet {
 // MARK: - Header Preview
 private extension BookmarkEditSheet {
     var headerPreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let colors = themeManager.colors
+        return VStack(alignment: .leading, spacing: 12) {
             ZStack(alignment: .bottomLeading) {
                 Group {
                     if let imageUrl = editState.imageUrl, let url = URL(string: imageUrl) {
@@ -113,7 +120,7 @@ private extension BookmarkEditSheet {
                             .aspectRatio(16/9, contentMode: .fill)
                             .transition(.fade(duration: 0.25))
                     } else {
-                        Rectangle().fill(.secondary.opacity(0.15))
+                        Rectangle().fill(colors.backgroundSecondary.opacity(0.5))
                             .overlay(
                                 Image(systemName: "bookmark.square")
                                     .font(.system(size: 40, weight: .regular))
@@ -126,7 +133,7 @@ private extension BookmarkEditSheet {
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .strokeBorder(.black.opacity(0.06))
+                        .strokeBorder(colors.border.opacity(0.3))
                 )
 
                 HStack(spacing: 10) {
@@ -134,10 +141,11 @@ private extension BookmarkEditSheet {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(editState.title.isEmpty ? "Untitled" : editState.title)
                             .font(.headline)
+                            .foregroundColor(colors.textPrimary)
                             .lineLimit(1)
                         Text(domain(from: editState.url))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundColor(colors.textSecondary)
                             .lineLimit(1)
                     }
                     Spacer()
@@ -152,6 +160,7 @@ private extension BookmarkEditSheet {
     }
 
     func faviconView(for urlString: String) -> some View {
+        let colors = themeManager.colors
         let host = domain(from: urlString)
         let faviconURL = URL(string: "https://www.google.com/s2/favicons?domain=\(host)&sz=64")
         return Group {
@@ -166,6 +175,7 @@ private extension BookmarkEditSheet {
                     )
             } else {
                 Image(systemName: "globe")
+                    .foregroundColor(colors.textSecondary)
                     .frame(width: 22, height: 22)
             }
         }
@@ -176,15 +186,16 @@ private extension BookmarkEditSheet {
 private extension BookmarkEditSheet {
     @ViewBuilder
     func sectionCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        let colors = themeManager.colors
         VStack(alignment: .leading, spacing: 12) { content() }
             .padding(14)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(colors.backgroundSecondary)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(.black.opacity(0.04))
+                    .stroke(colors.border.opacity(0.3))
             )
             .shadow(color: .black.opacity(0.03), radius: 10, x: 0, y: 4)
     }
@@ -210,7 +221,7 @@ private extension BookmarkEditSheet {
                         Image(systemName: "arrow.clockwise")
                     }
                     .buttonStyle(.borderless)
-                    .foregroundStyle(.mintAccent)
+                    .foregroundColor(themeManager.colors.accent)
                 }
             }
         }
@@ -299,7 +310,7 @@ private extension BookmarkEditSheet {
                     }
                     .font(.caption)
                     .buttonStyle(.borderedProminent)
-                    .tint(.mintAccent)
+                    .tint(themeManager.colors.accent)
                     .disabled(editState.isGeneratingAISummary)
                 }
             }
@@ -349,13 +360,14 @@ private extension BookmarkEditSheet {
 // MARK: - Lists
 private extension BookmarkEditSheet {
     var listsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let colors = themeManager.colors
+        return VStack(alignment: .leading, spacing: 10) {
             sectionHeader(title: "Lists", systemImage: "folder")
 
             if editState.availableLists.isEmpty {
                 Label("No lists available", systemImage: "info.circle")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(colors.textSecondary)
                     .italic()
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10)], spacing: 10) {
@@ -369,9 +381,10 @@ private extension BookmarkEditSheet {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(isSelected ? .mintAccent : .secondary)
+                                    .foregroundColor(isSelected ? colors.accent : colors.textSecondary)
                                 Text(list.record.name)
                                     .font(.subheadline)
+                                    .foregroundColor(colors.textPrimary)
                                     .lineLimit(1)
                                 Spacer(minLength: 0)
                             }
@@ -380,11 +393,11 @@ private extension BookmarkEditSheet {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(isSelected ? Color.mintAccent.opacity(0.12) : Color(.tertiarySystemBackground))
+                                    .fill(isSelected ? colors.accent.opacity(0.12) : colors.backgroundSecondary)
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(isSelected ? Color.mintAccent.opacity(0.5) : .black.opacity(0.06))
+                                    .stroke(isSelected ? colors.accent.opacity(0.4) : colors.border.opacity(0.3))
                             )
                         }
                         .buttonStyle(.plain)
@@ -398,18 +411,22 @@ private extension BookmarkEditSheet {
 // MARK: - Options
 private extension BookmarkEditSheet {
     var optionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let colors = themeManager.colors
+        return VStack(alignment: .leading, spacing: 12) {
             sectionHeader(title: "Options", systemImage: "gear")
             Toggle(isOn: $editState.pinned) {
                 Label("Pin to top", systemImage: "pin.fill")
+                    .foregroundColor(colors.textPrimary)
             }
             .toggleStyle(.switch)
-            .tint(.mintAccent)
+            .tint(colors.accent)
 
             Toggle(isOn: $editState.archived) {
                 Label("Archive", systemImage: "archivebox")
+                    .foregroundColor(colors.textPrimary)
             }
             .toggleStyle(.switch)
+            .tint(colors.accent)
         }
     }
 }
@@ -417,7 +434,8 @@ private extension BookmarkEditSheet {
 // MARK: - Bottom Action Bar
 private extension BookmarkEditSheet {
     var bottomActionBar: some View {
-        VStack(spacing: 10) {
+        let colors = themeManager.colors
+        return VStack(spacing: 10) {
             Divider()
             HStack(spacing: 12) {
                 if editState.isEditMode {
@@ -439,7 +457,7 @@ private extension BookmarkEditSheet {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.mintAccent)
+                .tint(colors.accent)
                 .disabled(editState.url.isEmpty || editState.title.isEmpty || editState.isSaving)
             }
             .padding(.horizontal, 16)
@@ -453,13 +471,14 @@ private extension BookmarkEditSheet {
 // MARK: - Shared Helpers
 private extension BookmarkEditSheet {
     func sectionHeader(title: String, systemImage: String) -> some View {
-        HStack(spacing: 8) {
+        let colors = themeManager.colors
+        return HStack(spacing: 8) {
             Image(systemName: systemImage)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundColor(colors.textSecondary)
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundColor(colors.textSecondary)
             Spacer()
         }
         .accessibilityElement(children: .combine)
@@ -527,24 +546,27 @@ private extension BookmarkEditSheet {
 struct TagChip: View {
     let tag: String
     let onRemove: () -> Void
+    @Environment(ThemeManager.self) private var themeManager
 
     var body: some View {
-        HStack(spacing: 6) {
+        let colors = themeManager.colors
+        return HStack(spacing: 6) {
             Text(tag)
                 .font(.caption)
+                .foregroundColor(colors.textPrimary)
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(colors.textSecondary)
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(
-            Capsule().fill(Color(.tertiarySystemBackground))
+            Capsule().fill(colors.backgroundSecondary)
         )
         .overlay(
-            Capsule().stroke(.black.opacity(0.06))
+            Capsule().stroke(colors.border.opacity(0.3))
         )
     }
 }

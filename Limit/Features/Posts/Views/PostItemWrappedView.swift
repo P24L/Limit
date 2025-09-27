@@ -35,6 +35,7 @@ struct PostItemWrappedView: View {
     @Environment(\.modelContext) var context
     @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
 
     @Namespace var namespace
 
@@ -75,6 +76,7 @@ struct PostItemWrappedView: View {
     }
 
     var body: some View {
+        let colors = themeManager.colors
         let content = VStack(alignment: .leading, spacing: 8) {
             // MARK: Top content (avatar + main body)
             HStack(alignment: .top) {
@@ -132,7 +134,7 @@ struct PostItemWrappedView: View {
                         }
                         Text(!(post.authorDisplayName ?? "").isEmpty ? (post.authorDisplayName ?? "") : post.authorHandle)
                             .font(.subheadline)
-                            .foregroundColor(.mintAccent)
+                            .foregroundColor(colors.accent)
                         Spacer(minLength: 8)
                         Text(post.createdAt.relativeFormatted)
                             .font(.footnote)
@@ -268,7 +270,7 @@ struct PostItemWrappedView: View {
                     if let quotedPost = post.quotedPost, depth < 2 {
                         PostItemWrappedView(post: quotedPost, depth: depth + 1, postViewType: .quoted, showCard: false)
                             .padding(10)
-                            .background(Color.warmBackground)
+                            .background(themeManager.colors.backgroundSecondary)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
@@ -304,8 +306,8 @@ struct PostItemWrappedView: View {
                         HStack(spacing: 3) {
                             ForEach(0..<threadDepth, id: \.self) { index in
                                 Rectangle()
-                                    // Last line is mint accent, others are gray
-                                    .fill(index == threadDepth - 1 ? Color.mintAccent : Color.gray.opacity(0.3))
+                                    // Last line uses palette accent, others subdued border
+                                    .fill(index == threadDepth - 1 ? colors.accent : colors.border.opacity(0.35))
                                     .frame(width: 2)
                             }
                         }
@@ -330,7 +332,7 @@ struct PostItemWrappedView: View {
                     .padding(.horizontal, 6)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.cardBackground)
+                            .fill(themeManager.colors.backgroundListRow)
                             .subtleShadow()
                     )
             } else {
@@ -384,9 +386,11 @@ struct PostItemWrappedView: View {
 struct WrappedPostLinkView: View {
     @Environment(AppRouter.self) private var router
     @Environment(BookmarkManager.self) private var bookmarkManager
+    @Environment(ThemeManager.self) private var themeManager
     var linkExt: TimelinePostWrapper.LinkEmbed
 
     var body: some View {
+        let colors = themeManager.colors
         Button(action: {
             if let url = URL(string: linkExt.uri) {
                 router.navigateTo(.safari(url: url))
@@ -441,7 +445,7 @@ struct WrappedPostLinkView: View {
                                 Text(hostURL)
                                     .font(.footnote)
                                     .lineLimit(1)
-                                    .foregroundColor(.mintInactive)
+                                    .foregroundColor(colors.accent)
                             }
                         }
                         Spacer()
@@ -475,7 +479,10 @@ struct WrappedPostLinkView: View {
 
 
 struct ThreadLinkView: View {
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         GeometryReader { geometry in
             let height = geometry.size.height
             let spacing: CGFloat = 24 // rozestup mezi trojúhelníky
@@ -484,13 +491,13 @@ struct ThreadLinkView: View {
             
             ZStack(alignment: .topLeading) {
                 Rectangle()
-                    .fill(Color.mintInactive)
+                    .fill(colors.accentMuted)
                     .frame(width: 2)
                     .frame(maxHeight: .infinity)
 
                 ForEach(0..<triangleCount, id: \.self) { i in
                     Triangle()
-                        .fill(Color.mintInactive)
+                        .fill(colors.accentMuted)
                         .frame(width: triangleSize, height: triangleSize)
                         .rotationEffect(.degrees(0)) // směřuje nahoru
                         .offset(x: (triangleSize * -0.5) + 1, y: CGFloat(i) * spacing + triangleSize / 2)
@@ -633,6 +640,7 @@ private struct ViewHeightKey: PreferenceKey {
 
 struct BookmarkToggleButton: View {
     @Environment(BookmarkManager.self) private var bookmarkManager
+    @Environment(ThemeManager.self) private var themeManager
     let url: URL
     let title: String?
     let description: String?
@@ -675,7 +683,7 @@ struct BookmarkToggleButton: View {
                 .font(.title2)
                 .symbolVariant(isBookmarked ? .fill : .none)
                 .symbolEffect(.bounce, value: isBookmarked)
-                .foregroundStyle(isBookmarked ? .mintAccent : .postAction)
+                .foregroundStyle(isBookmarked ? themeManager.colors.accent : themeManager.colors.textSecondary)
                 .scaleEffect(isAnimating ? 1.1 : 1.0)
         }
         .buttonStyle(.plain)

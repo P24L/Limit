@@ -11,6 +11,7 @@ import AppRouter
 
 struct RichTextView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
     
     let text: String
     let facets: TimelinePostWrapper.PostFacets?
@@ -31,6 +32,7 @@ struct RichTextView: View {
             // Plain text - add thread navigation
             Text(text)
                 .font(font)
+                .foregroundStyle(themeManager.colors.textPrimary)
                 .onTapGesture {
                     if let postWrapper = postWrapper {
                         router.navigateTo(.postThreadWrapped(postThread: postWrapper))
@@ -42,6 +44,7 @@ struct RichTextView: View {
 
 private struct InteractiveRichText: View {
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
     
     let text: String
     let facets: TimelinePostWrapper.PostFacets
@@ -172,7 +175,7 @@ private struct InteractiveRichText: View {
         
         var segments: [TextSegment] = []
         let sortedFacets = facets.facets.sorted { $0.range.location < $1.range.location }
-        
+
         var currentIndex = 0
         
         for facet in sortedFacets {
@@ -189,11 +192,11 @@ private struct InteractiveRichText: View {
                 let plainStart = text.index(text.startIndex, offsetBy: currentIndex)
                 let plainEnd = text.index(text.startIndex, offsetBy: range.location)
                 let plainText = String(text[plainStart..<plainEnd])
-                
+
                 segments.append(TextSegment(
                     text: plainText,
                     facet: nil,
-                    color: .primary,
+                    color: themeManager.colors.textPrimary,
                     isUnderlined: false
                 ))
             }
@@ -219,11 +222,11 @@ private struct InteractiveRichText: View {
         if currentIndex < text.count {
             let remainingStart = text.index(text.startIndex, offsetBy: currentIndex)
             let remainingText = String(text[remainingStart...])
-            
+
             segments.append(TextSegment(
                 text: remainingText,
                 facet: nil,
-                color: .primary,
+                color: themeManager.colors.textPrimary,
                 isUnderlined: false
             ))
         }
@@ -234,13 +237,14 @@ private struct InteractiveRichText: View {
     }
     
     private func styleForFacet(_ type: TimelinePostWrapper.FacetType) -> (Color, Bool) {
+        let colors = themeManager.colors
         switch type {
         case .link:
-            return (.mintAccent, false)
+            return (colors.accent, false)
         case .mention:
-            return (.mintAccent, false)
+            return (colors.accent, false)
         case .tag:
-            return (.mintAccent, false)
+            return (colors.accent, false)
         }
     }
 }

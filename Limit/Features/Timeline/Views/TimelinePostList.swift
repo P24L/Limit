@@ -64,7 +64,7 @@ struct TimelinePostList: View {
                             bottom: 4,
                             trailing: 6
                         ))
-                        .listRowBackground(colors.backgroundSecondary)
+                        .listRowBackground(colors.backgroundListRow)
                         .listRowSeparator(.visible, edges: .bottom)
                         .onAppear {
                             guard positionTrackingEnabled else { return }
@@ -146,7 +146,7 @@ struct TimelinePostList: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(colors.backgroundPrimary)
+            .background(colors.backgroundCanvas)
             .contentMargins(.top, 12)
             .contentMargins(.bottom, 100)
             .onScrollPhaseChange { _, new in

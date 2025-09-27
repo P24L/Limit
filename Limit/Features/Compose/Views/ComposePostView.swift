@@ -14,6 +14,7 @@ struct ComposePostView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
     
     @State private var viewModel = PostComposerViewModel()
     @State private var showImagePicker = false
@@ -39,6 +40,7 @@ struct ComposePostView: View {
     
     var body: some View {
         NavigationView {
+            let colors = themeManager.colors
             VStack(spacing: 0) {
                 // Header
                 ComposeHeaderView(
@@ -177,7 +179,7 @@ struct ComposePostView: View {
                         isTextFieldFocused = true
                     }
                 )
-                .background(Color(UIColor.systemBackground))
+                .background(colors.backgroundSecondary)
                 .overlay(alignment: .top) {
                     Divider()
                 }
@@ -331,8 +333,10 @@ struct SimpleMentionSuggestionsView: View {
     let suggestions: [HandleSuggestion]
     let isLoading: Bool
     let onSelect: (HandleSuggestion) -> Void
+    @Environment(ThemeManager.self) private var themeManager
     
     var body: some View {
+        let colors = themeManager.colors
         VStack(alignment: .leading, spacing: 0) {
             if isLoading && suggestions.isEmpty {
                 HStack {
@@ -340,7 +344,7 @@ struct SimpleMentionSuggestionsView: View {
                         .scaleEffect(0.8)
                     Text("Searching...")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colors.textSecondary)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -358,15 +362,17 @@ struct SimpleMentionSuggestionsView: View {
                 }
             }
         }
-        .background(Color(.systemBackground))
+        .background(colors.backgroundPrimary)
     }
 }
 
 struct SimpleMentionRow: View {
     let suggestion: HandleSuggestion
     let onTap: () -> Void
+    @Environment(ThemeManager.self) private var themeManager
     
     var body: some View {
+        let colors = themeManager.colors
         Button(action: onTap) {
             HStack(spacing: 10) {
                 // Avatar
@@ -378,15 +384,15 @@ struct SimpleMentionRow: View {
                                 .scaledToFill()
                         } placeholder: {
                             Circle()
-                                .fill(Color.gray.opacity(0.3))
+                                .fill(colors.backgroundSecondary.opacity(0.5))
                         }
                     } else {
                         Circle()
-                            .fill(Color.gray.opacity(0.3))
+                            .fill(colors.backgroundSecondary.opacity(0.5))
                             .overlay(
                                 Text(String(suggestion.handle.prefix(1)).uppercased())
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(colors.textSecondary)
                             )
                     }
                 }
@@ -397,13 +403,13 @@ struct SimpleMentionRow: View {
                     if let displayName = suggestion.displayName, !displayName.isEmpty {
                         Text(displayName)
                             .font(.subheadline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(colors.textPrimary)
                             .lineLimit(1)
                     }
                     
                     Text("@\(suggestion.handle)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colors.textSecondary)
                         .lineLimit(1)
                 }
                 
@@ -424,16 +430,18 @@ struct ComposeHeaderView: View {
     let isPosting: Bool
     let onCancel: () -> Void
     let onPost: () -> Void
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         HStack {
             Button("Cancel") {
                 onCancel()
             }
-            .foregroundColor(.mintAccent)
-            
+            .foregroundColor(colors.accent)
+
             Spacer()
-            
+
             if isPosting {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle())
@@ -443,12 +451,12 @@ struct ComposeHeaderView: View {
                     onPost()
                 }
                 .fontWeight(.semibold)
-                .foregroundColor(canPost ? .white : .gray)
+                .foregroundColor(canPost ? Color.white : colors.textSecondary)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(canPost ? Color.mintAccent : Color.gray.opacity(0.3))
+                        .fill(canPost ? colors.accent : colors.backgroundSecondary.opacity(0.6))
                 )
                 .disabled(!canPost)
             }
@@ -485,11 +493,17 @@ struct ThreadPostIndicator: View {
     let number: Int
     let isActive: Bool
     let hasContent: Bool
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         VStack(spacing: 4) {
             Circle()
-                .fill(isActive ? Color.mintAccent : (hasContent ? Color.mintInactive : Color.gray.opacity(0.3)))
+                .fill(
+                    isActive
+                        ? colors.accent
+                        : (hasContent ? colors.accentMuted : colors.backgroundSecondary.opacity(0.6))
+                )
                 .frame(width: 30, height: 30)
                 .overlay(
                     Text("\(number)")
@@ -497,11 +511,11 @@ struct ThreadPostIndicator: View {
                         .fontWeight(.medium)
                         .foregroundColor(.white)
                 )
-            
+
             if isActive {
                 Text("Post \(number)")
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(colors.textSecondary)
             }
         }
     }
@@ -510,38 +524,42 @@ struct ThreadPostIndicator: View {
 struct VideoPreviewView: View {
     let video: VideoAttachment
     let onRemove: () -> Void
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         HStack {
             Image(systemName: "video.fill")
                 .font(.title2)
-                .foregroundColor(.blue)
-            
+                .foregroundColor(colors.accent)
+
             VStack(alignment: .leading) {
                 Text("Video")
                     .font(.subheadline)
                 Text("\(String(format: "%.1f", video.sizeInMB)) MB")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(colors.textSecondary)
             }
-            
+
             Spacer()
-            
+
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(colors.textSecondary)
             }
         }
         .padding()
-        .background(Color.gray.opacity(0.1))
+        .background(colors.backgroundSecondary.opacity(0.6))
         .cornerRadius(8)
     }
 }
 
 struct LinkPreviewCard: View {
     let preview: ExternalLinkPreview
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         HStack(spacing: 12) {
             if let thumbnailURL = preview.thumbnailURL {
                 AsyncImage(url: thumbnailURL) { image in
@@ -552,33 +570,34 @@ struct LinkPreviewCard: View {
                         .clipped()
                 } placeholder: {
                     Rectangle()
-                        .fill(Color.gray.opacity(0.2))
+                        .fill(colors.backgroundSecondary.opacity(0.5))
                         .frame(width: 60, height: 60)
                 }
                 .cornerRadius(8)
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(preview.title)
                     .font(.subheadline)
+                    .foregroundColor(colors.textPrimary)
                     .lineLimit(2)
-                
+
                 if let description = preview.description {
                     Text(description)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colors.textSecondary)
                         .lineLimit(2)
                 }
-                
+
                 Text(preview.url.host() ?? "")
                     .font(.caption2)
-                    .foregroundColor(.mintAccent)
+                    .foregroundColor(colors.accent)
             }
-            
+
             Spacer()
         }
         .padding()
-        .background(Color.gray.opacity(0.1))
+        .background(colors.backgroundSecondary.opacity(0.6))
         .cornerRadius(12)
     }
 }

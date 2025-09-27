@@ -14,6 +14,7 @@ struct MoreOptionsSheet: View {
     @Environment(AppRouter.self) private var router
     @Environment(MultiAccountClient.self) private var client
     @Environment(FavoritePostManager.self) private var favorites
+    @Environment(ThemeManager.self) private var themeManager
     
     let post: TimelinePostWrapper
     
@@ -38,26 +39,27 @@ struct MoreOptionsSheet: View {
     }
     
     var body: some View {
+        let colors = themeManager.colors
         ZStack(alignment: .top) {
             ScrollView {
                 VStack(spacing: 12) {
                     // Core actions
                     if canCopyText {
-                        actionRow(icon: "doc.on.doc", tint: .mintAccent, title: "Copy Text") {
+                        actionRow(icon: "doc.on.doc", tint: colors.accent, title: "Copy Text") {
                             copyToPasteboard(post.text)
                             dismiss()
                         }
                     }
-                    actionRow(icon: "link", tint: .mintAccent, title: "Copy Link") {
+                    actionRow(icon: "link", tint: colors.accent, title: "Copy Link") {
                         if let url = bskyPermalink {
                             copyToPasteboard(url.absoluteString)
                             dismiss()
                         }
                     }
-                    actionRow(icon: "square.and.arrow.up", tint: .mintAccent, title: "Share…") {
+                    actionRow(icon: "square.and.arrow.up", tint: colors.accent, title: "Share…") {
                         if let url = bskyPermalink { shareURL = url }
                     }
-                    actionRow(icon: "bubble.right", tint: .mintAccent, title: "View Thread") {
+                    actionRow(icon: "bubble.right", tint: colors.accent, title: "View Thread") {
                         dismiss()
                         router.navigateTo(.postThreadWrapped(postThread: post))
                     }
@@ -67,7 +69,7 @@ struct MoreOptionsSheet: View {
                     // Engagement
                     actionRow(
                         icon: "bookmark",
-                        tint: favorites.isFavorited(post.uri) ? .mintAccent : .postAction,
+                        tint: favorites.isFavorited(post.uri) ? colors.accent : colors.textSecondary,
                         title: favorites.isFavorited(post.uri) ? "Remove Bookmark" : "Add Bookmark",
                         showProgress: isBookmarkWorking
                     ) {
@@ -93,7 +95,7 @@ struct MoreOptionsSheet: View {
                             }
                         }
                     } else {
-                        actionRow(icon: "arrow.2.squarepath", tint: .mintAccent, title: "Repost", showProgress: isRepostWorking) {
+                        actionRow(icon: "arrow.2.squarepath", tint: colors.accent, title: "Repost", showProgress: isRepostWorking) {
                             Task { @MainActor in
                                 isRepostWorking = true
                                 await post.toggleRepost(using: client)
@@ -103,7 +105,7 @@ struct MoreOptionsSheet: View {
                         }
                     }
                     
-                    actionRow(icon: "quote.bubble", tint: .mintAccent, title: "Quote Post") {
+                    actionRow(icon: "quote.bubble", tint: colors.accent, title: "Quote Post") {
                         dismiss()
                         router.presentedSheet = .composePost(quotedPost: post)
                     }
@@ -138,6 +140,7 @@ struct MoreOptionsSheet: View {
                     .onDisappear { shareURL = nil }
             }
         }
+        .background(colors.backgroundPrimary)
     }
     
     private var isRepostedByMe: Bool {
@@ -146,6 +149,7 @@ struct MoreOptionsSheet: View {
     
     @ViewBuilder
     private func actionRow(icon: String, tint: Color, title: String, showProgress: Bool = false, action: @escaping () -> Void) -> some View {
+        let colors = themeManager.colors
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
@@ -154,13 +158,13 @@ struct MoreOptionsSheet: View {
                     .frame(width: 40)
                 Text(title)
                     .font(.subheadline)
-                    .foregroundColor(.primary)
+                    .foregroundColor(colors.textPrimary)
                 Spacer()
                 if showProgress { ProgressView().scaleEffect(0.8) }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color.gray.opacity(0.1))
+            .background(colors.backgroundSecondary.opacity(0.6))
             .cornerRadius(12)
         }
         .buttonStyle(.plain)
@@ -171,7 +175,7 @@ struct MoreOptionsSheet: View {
             .font(.caption)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(.ultraThinMaterial)
+            .background(themeManager.colors.backgroundSecondary.opacity(0.8))
             .cornerRadius(8)
     }
     

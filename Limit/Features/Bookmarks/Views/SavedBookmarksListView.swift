@@ -209,8 +209,11 @@ private struct TagChipsBar: View {
     let onToggle: (String) -> Void
     let onClear: () -> Void
     let onToggleArchived: () -> Void
+    @Environment(ThemeManager.self) private var themeManager
     
     var body: some View {
+        let colors = themeManager.colors
+
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 // "All" chip
@@ -226,9 +229,9 @@ private struct TagChipsBar: View {
                     .padding(.vertical, 4)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(selected.isEmpty ? Color.mintAccent : Color.mintInactive.opacity(0.3))
+                            .fill(selected.isEmpty ? colors.accent : colors.accentMuted.opacity(0.3))
                     )
-                    .foregroundColor(selected.isEmpty ? .white : .primary)
+                    .foregroundColor(selected.isEmpty ? Color.white : colors.textPrimary)
                 }
                 .buttonStyle(.plain)
                 
@@ -245,9 +248,9 @@ private struct TagChipsBar: View {
                     .padding(.vertical, 4)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(includeArchived ? Color.mintAccent : Color.mintInactive.opacity(0.3))
+                            .fill(includeArchived ? colors.accent : colors.accentMuted.opacity(0.3))
                     )
-                    .foregroundColor(includeArchived ? .white : .primary)
+                    .foregroundColor(includeArchived ? Color.white : colors.textPrimary)
                 }
                 .buttonStyle(.plain)
                 
@@ -267,9 +270,9 @@ private struct TagChipsBar: View {
                         .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(isOn ? Color.mintAccent : Color.mintInactive.opacity(0.3))
+                                .fill(isOn ? colors.accent : colors.accentMuted.opacity(0.3))
                         )
-                        .foregroundColor(isOn ? .white : .primary)
+                        .foregroundColor(isOn ? Color.white : colors.textPrimary)
                     }
                     .buttonStyle(.plain)
                 }
