@@ -343,34 +343,28 @@ struct PostItemWrappedView: View {
             }
         }
 
-        // Apply height measurement hack only for non-List styles
-        return Group {
-            if useListStyle {
-                cardStyledContent
-            } else {
-                cardStyledContent
-                    .background(
-                        GeometryReader { geometry in
-                            Color.clear
-                                .preference(key: PostHeightPreferenceKey.self, value: geometry.size.height)
-                        }
-                    )
-                    .onPreferenceChange(PostHeightPreferenceKey.self) { height in
-                        guard height > 0 else { return }
-                        // Shrink-only: allow reducing locked height, but never increase it
-                        if let current = self.measuredHeight {
-                            // Use a tiny epsilon to avoid needless churn from sub-pixel jitter
-                            if height + 0.5 < current {
-                                self.measuredHeight = height
-                            }
-                        } else {
-                            self.measuredHeight = height
-                        }
+        // Apply height measurement hack to stabilize row height in Lists and Lazy stacks
+        return cardStyledContent
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .preference(key: PostHeightPreferenceKey.self, value: geometry.size.height)
+                }
+            )
+            .onPreferenceChange(PostHeightPreferenceKey.self) { height in
+                guard height > 0 else { return }
+                // Shrink-only: allow reducing locked height, but never increase it
+                if let current = self.measuredHeight {
+                    // Use a tiny epsilon to avoid needless churn from sub-pixel jitter
+                    if height + 0.5 < current {
+                        self.measuredHeight = height
                     }
-                    .frame(height: measuredHeight)
+                } else {
+                    self.measuredHeight = height
+                }
             }
-        }
-        .padding(.bottom, 0)
+            .frame(height: measuredHeight)
+            .padding(.bottom, 0)
     }
 
     // MARK: - Optimized Image Gallery Helper
