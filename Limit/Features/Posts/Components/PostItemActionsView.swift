@@ -40,6 +40,7 @@ struct PostItemActionsView: View {
                     .lineLimit(1)
                     .font(.callout)
                     .imageScale(.medium)
+                    .labelStyle(.compact())
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)
@@ -56,12 +57,14 @@ struct PostItemActionsView: View {
                         .lineLimit(1)
                         .font(.callout)
                         .imageScale(.medium)
+                        .labelStyle(.compact())
                 } else {
                     Label("\(postWrapper.repostCount.abbreviatedRounded)", systemImage: postWrapper.isReposted ? "arrow.2.squarepath" : "arrow.2.squarepath")
                         .foregroundStyle(postWrapper.isReposted ? .mintAccent : .postAction)
                         .lineLimit(1)
                         .font(.callout)
                         .imageScale(.medium)
+                        .labelStyle(.compact())
                 }
             }
             .buttonStyle(.plain)
@@ -81,6 +84,7 @@ struct PostItemActionsView: View {
                     .lineLimit(1)
                     .font(.callout)
                     .imageScale(.medium)
+                    .labelStyle(.compact())
             }
             .buttonStyle(.plain)
             .foregroundStyle(.postAction)

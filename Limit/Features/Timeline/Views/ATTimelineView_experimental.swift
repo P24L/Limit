@@ -311,9 +311,15 @@ struct ATTimelineView_experimental: View {
         shouldRunDeferredTimelineRefresh = false
         isRefreshingTimeline = true
         if selectedTab == .timeline {
-            let anchorID = homeTimelineViewModel?.currentAnchorPostID()
-            await homeTimelineViewModel?.refreshTimeline()
-            homeTimelineViewModel?.restoreToPostIfPossible(anchorID)
+            if let viewModel = homeTimelineViewModel {
+                viewModel.beginRefresh()
+                let anchorID = viewModel.currentAnchorPostID()
+                await viewModel.refreshTimeline()
+                viewModel.restoreToPostIfPossible(anchorID)
+                viewModel.endRefresh()
+            } else {
+                await feed.refreshTimeline()
+            }
         } else {
             await feed.refreshTimeline()
         }

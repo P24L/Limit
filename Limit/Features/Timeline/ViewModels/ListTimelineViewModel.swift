@@ -30,6 +30,8 @@ final class ListTimelineViewModel {
     private var needsScrollToCurrentOnReappear = false
     private var visibleTracker = VisiblePostTracker()
     private var hasUserInteracted = false
+    private var postIndexMap: [String: Int] = [:]
+    private var isPerformingRefresh = false
 
     init(source: TimelineContentSource, client: MultiAccountClient, accountDID: String?) {
         self.source = source
@@ -61,6 +63,7 @@ final class ListTimelineViewModel {
         let data = await fetchAllData()
         DevLogger.shared.log("ListTimelineViewModel - loadInitial fetched \(data.count) posts for \(sourceIdentifier)")
         posts = data
+        rebuildPostIndexMap()
         isInitialLoadComplete = true
         pendingRestoreID = nil
         isRestoringPosition = false
@@ -72,6 +75,14 @@ final class ListTimelineViewModel {
     func refresh() async {
         DevLogger.shared.log("ListTimelineViewModel - refresh called for \(sourceIdentifier)")
         await loadInitial(force: true)
+    }
+
+    func beginRefresh() {
+        isPerformingRefresh = true
+    }
+
+    func endRefresh() {
+        isPerformingRefresh = false
     }
 
     func prepareForTemporaryRemoval() {
@@ -219,7 +230,8 @@ final class ListTimelineViewModel {
 
     private func saveTopIfNeeded() {
         guard hasUserInteracted,
-              let topID = visibleTracker.topVisibleID,
+              !isPerformingRefresh,
+              let topID = visibleTracker.topVisibleID(using: postIndexMap),
               topID != currentScrollPosition else { return }
 
         currentScrollPosition = topID
@@ -229,5 +241,29 @@ final class ListTimelineViewModel {
         default:
             TimelinePositionManager.shared.scheduleDebouncedTimelineSave(topID, accountDID: accountDID)
         }
+    }
+
+    private func rebuildPostIndexMap() {
+        postIndexMap = [:]
+        postIndexMap.reserveCapacity(posts.count)
+        for (index, post) in posts.enumerated() {
+            postIndexMap[post.uri] = index
+        }
+    }
+
+    func currentAnchorPostID() -> String? {
+        if isPerformingRefresh, let currentScrollPosition {
+            return currentScrollPosition
+        }
+
+        if let topVisible = visibleTracker.topVisibleID(using: postIndexMap) {
+            return topVisible
+        }
+
+        if let currentScrollPosition {
+            return currentScrollPosition
+        }
+
+        return posts.first?.uri
     }
 }

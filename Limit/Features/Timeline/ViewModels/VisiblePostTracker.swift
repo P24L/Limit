@@ -8,32 +8,35 @@
 import Foundation
 
 struct VisiblePostTracker {
-    private var orderedIDs: [String] = []
-    private var idSet: Set<String> = []
+    private var visibleIDs: Set<String> = []
 
     mutating func add(_ id: String) {
-        guard !idSet.contains(id) else { return }
-        orderedIDs.insert(id, at: 0)
-        idSet.insert(id)
+        visibleIDs.insert(id)
     }
 
     mutating func remove(_ id: String) {
-        guard idSet.contains(id) else { return }
-        idSet.remove(id)
-        orderedIDs.removeAll { $0 == id }
+        visibleIDs.remove(id)
     }
 
-    var topVisibleID: String? {
-        // Insertions happen at index 0, so the last entry tracks the actual top-most cell.
-        orderedIDs.last
+    func topVisibleID(using indexMap: [String: Int]) -> String? {
+        var bestMatch: (id: String, index: Int)?
+        for id in visibleIDs {
+            guard let index = indexMap[id] else { continue }
+            if let current = bestMatch {
+                if index < current.index {
+                    bestMatch = (id, index)
+                }
+            } else {
+                bestMatch = (id, index)
+            }
+        }
+        return bestMatch?.id
     }
 
     mutating func reset(with initialID: String?) {
-        orderedIDs.removeAll()
-        idSet.removeAll()
+        visibleIDs.removeAll()
         if let initialID {
-            orderedIDs = [initialID]
-            idSet = [initialID]
+            visibleIDs = [initialID]
         }
     }
 }

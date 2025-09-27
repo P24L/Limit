@@ -29,6 +29,10 @@ final class HomeTimelineViewModel {
     private var visibleTracker = VisiblePostTracker()
     @ObservationIgnored
     private var hasUserInteracted = false
+    @ObservationIgnored
+    private var postIndexMap: [String: Int] = [:]
+    @ObservationIgnored
+    private var isPerformingRefresh = false
 
     init(feed: TimelineFeed) {
         self.feed = feed
@@ -49,6 +53,7 @@ final class HomeTimelineViewModel {
 
     private func syncFromFeed() {
         posts = feed.postTimeline
+        rebuildPostIndexMap()
         isRestoringPosition = feed.isRestoringPosition
         pendingRestoreID = feed.pendingRestoreID
         scrollTargetID = feed.scrollToId
@@ -154,7 +159,11 @@ final class HomeTimelineViewModel {
     }
 
     func currentAnchorPostID() -> String? {
-        if let topVisible = visibleTracker.topVisibleID {
+        if isPerformingRefresh, let currentScrollPosition {
+            return currentScrollPosition
+        }
+
+        if let topVisible = visibleTracker.topVisibleID(using: postIndexMap) {
             return topVisible
         }
 
@@ -177,13 +186,30 @@ final class HomeTimelineViewModel {
         hasUserInteracted = false
     }
 
+    func beginRefresh() {
+        isPerformingRefresh = true
+    }
+
+    func endRefresh() {
+        isPerformingRefresh = false
+    }
+
     private func saveTopIfNeeded() {
         guard hasUserInteracted,
-              let topID = visibleTracker.topVisibleID,
+              !isPerformingRefresh,
+              let topID = visibleTracker.topVisibleID(using: postIndexMap),
               topID != currentScrollPosition else { return }
 
         feed.currentScrollPosition = topID
         TimelinePositionManager.shared.scheduleDebouncedTimelineSave(topID, accountDID: feed.accountDID)
         syncFromFeed()
+    }
+
+    private func rebuildPostIndexMap() {
+        postIndexMap = [:]
+        postIndexMap.reserveCapacity(posts.count)
+        for (index, post) in posts.enumerated() {
+            postIndexMap[post.uri] = index
+        }
     }
 }

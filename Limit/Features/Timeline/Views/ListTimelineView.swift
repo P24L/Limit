@@ -103,7 +103,9 @@ struct ListTimelineView: View {
             await viewModel.loadInitial()
         }
         .refreshable {
+            viewModel.beginRefresh()
             await viewModel.refresh()
+            viewModel.endRefresh()
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {

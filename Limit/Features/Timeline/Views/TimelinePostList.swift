@@ -48,14 +48,7 @@ struct TimelinePostList: View {
         ScrollViewReader { proxy in
             List {
             ForEach(posts) { wrapper in
-                if !isVisible(wrapper) {
-                    Color.clear
-                        .frame(height: 0)
-                        .id(wrapper.uri)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                } else {
+                if isVisible(wrapper) {
                     postItemForList(for: wrapper)
                         .id(wrapper.uri)
                         .listRowInsets(EdgeInsets(
@@ -72,6 +65,7 @@ struct TimelinePostList: View {
                                viewModel.pendingRestoreID == wrapper.uri {
                                 DevLogger.shared.log("TimelinePostList - ✅ Restore target appeared: \(wrapper.uri)")
                                 viewModel.completePositionRestore(for: wrapper.uri)
+                                viewModel.postDidAppear(id: wrapper.uri)
                                 Task { @MainActor in
                                     isProgrammaticScroll = false
                                     visiblePostIDs.insert(wrapper.uri)
