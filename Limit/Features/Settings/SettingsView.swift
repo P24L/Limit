@@ -37,6 +37,8 @@ struct SettingsView: View {
     @State private var accountToDelete: UserAccount? = nil
     @State private var showDeleteConfirmation = false
     @State private var showLogoutConfirmation = false
+    @State private var showClearTimelineConfirmation = false
+    @State private var isClearingTimelinePosts = false
     
     var body: some View {
         Form {          
@@ -61,6 +63,16 @@ struct SettingsView: View {
                 NavigationLink("Muted users") {
                     MutedRepliesSettingsView()
                 }
+                Button(role: .destructive) {
+                    showClearTimelineConfirmation = true
+                } label: {
+                    if isClearingTimelinePosts {
+                        ProgressView()
+                    } else {
+                        Text("Clear timeline posts")
+                    }
+                }
+                .disabled(isClearingTimelinePosts)
             }
             // Debug Section (only in DEBUG builds)
 #if DEBUG
@@ -257,6 +269,14 @@ struct SettingsView: View {
                 Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "-"))")
             }
         }
+        .alert("Clear timeline posts?", isPresented: $showClearTimelineConfirmation) {
+            Button("Clear", role: .destructive) {
+                clearTimelinePosts()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This removes all cached timeline posts, media, link metadata, and actor data stored locally.")
+        }
         .onAppear {
             UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
@@ -264,6 +284,44 @@ struct SettingsView: View {
                 .windows
                 .first?
                 .overrideUserInterfaceStyle = preferences.isDarkMode ? .dark : .light
+        }
+    }
+}
+
+extension SettingsView {
+    @MainActor
+    private func clearTimelinePosts() {
+        guard !isClearingTimelinePosts else { return }
+
+        isClearingTimelinePosts = true
+        defer { isClearingTimelinePosts = false }
+
+        do {
+            feed.clearStorage()
+
+            let postImages = try context.fetch(FetchDescriptor<PostImage>())
+            postImages.forEach { context.delete($0) }
+
+            let postLinks = try context.fetch(FetchDescriptor<PostLinkExt>())
+            postLinks.forEach { context.delete($0) }
+
+            let postVideos = try context.fetch(FetchDescriptor<PostVideo>())
+            postVideos.forEach { context.delete($0) }
+
+            let postFacets = try context.fetch(FetchDescriptor<PostFacet>())
+            postFacets.forEach { context.delete($0) }
+
+            try context.save()
+
+            if let accountDID = client.currentDID {
+                TimelinePositionManager.shared.clearPositionsForAccount(accountDID)
+            }
+
+            feed.loadFromStorage(force: true)
+
+            DevLogger.shared.log("SettingsView.swift - Cleared timeline posts and related SwiftData objects")
+        } catch {
+            DevLogger.shared.log("SettingsView.swift - Failed to clear timeline posts: \(error)")
         }
     }
 }
