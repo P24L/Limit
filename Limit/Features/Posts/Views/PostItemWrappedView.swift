@@ -81,21 +81,21 @@ struct PostItemWrappedView: View {
             // MARK: Top content (avatar + main body)
             HStack(alignment: .top) {
                 if postViewType == .timeline {
+                    let threadRootID = post.rootPost?.uri ?? post.uri
+
                     VStack(spacing: 0) {
                         AvatarView(url: post.authorAvatarURL, size: 50)
                             .overlay(alignment: .top) {
                                 // ThreadLink upward to previous post (using overlay to avoid layout space)
-                                if let threadRootID = post.rootPost?.uri {
-                                    let connectsToPrevious = (threadRootID == previousPostThreadRootID) || 
-                                                            (threadRootID == previousPostID) ||
-                                                            (post.parentPost?.uri == previousPostID)
-                                    
-                                    if connectsToPrevious {
-                                        ThreadLinkView()
-                                            .frame(height: 40)
-                                            .offset(y: -40) // Position above avatar
-                                            .offset(x: 3)
-                                    }
+                                let connectsToPrevious = (threadRootID == previousPostThreadRootID) ||
+                                                        (threadRootID == previousPostID) ||
+                                                        (post.parentPost?.uri == previousPostID)
+
+                                if connectsToPrevious {
+                                    ThreadLinkView()
+                                        .frame(height: 40)
+                                        .offset(y: -40) // Position above avatar
+                                        .offset(x: 3)
                                 }
                             }
                             .onTapGesture {
@@ -103,13 +103,11 @@ struct PostItemWrappedView: View {
                             }
 
                         // ThreadLink downward to next post (existing logic)
-                        if let threadRootID = post.rootPost?.uri  {
-                            if threadRootID == nextPostThreadRootID || threadRootID == nextPostID {
-                                ThreadLinkView()
-                                    //.frame(height: 90) // Set height for GeometryReader
-                                    .offset(y: 20) // Extend down to bridge post gap
-                                    .offset(x: 3)
-                            }
+                        if threadRootID == nextPostThreadRootID || threadRootID == nextPostID {
+                            ThreadLinkView()
+                                //.frame(height: 90) // Set height for GeometryReader
+                                .offset(y: 20) // Extend down to bridge post gap
+                                .offset(x: 3)
                         }
                     }
                 }
