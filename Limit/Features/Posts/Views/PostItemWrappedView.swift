@@ -81,17 +81,21 @@ struct PostItemWrappedView: View {
             // MARK: Top content (avatar + main body)
             HStack(alignment: .top) {
                 if postViewType == .timeline {
-                    let threadRootID = post.rootPost?.uri ?? post.uri
+                    let currentRootID = post.rootPost?.uri
+                    let threadIdentifier = currentRootID ?? post.uri
+                    let connectsToPrevious: Bool = {
+                        guard let previousRootID = previousPostThreadRootID else { return false }
+                        if let currentRootID {
+                            return previousRootID == currentRootID
+                        }
+                        return previousRootID == post.uri
+                    }()
 
                     VStack(spacing: 0) {
                         AvatarView(url: post.authorAvatarURL, size: 50)
                             .overlay(alignment: .top) {
                                 // ThreadLink upward to previous post (using overlay to avoid layout space)
-                                let connectsToPrevious = (threadRootID == previousPostThreadRootID) ||
-                                                        (threadRootID == previousPostID) ||
-                                                        (post.parentPost?.uri == previousPostID)
-
-                                if connectsToPrevious {
+                                if !isThreadView, connectsToPrevious {
                                     ThreadLinkView()
                                         .frame(height: 40)
                                         .offset(y: -40) // Position above avatar
@@ -103,7 +107,8 @@ struct PostItemWrappedView: View {
                             }
 
                         // ThreadLink downward to next post (existing logic)
-                        if threadRootID == nextPostThreadRootID || threadRootID == nextPostID {
+                        if !isThreadView,
+                           (nextPostThreadRootID == threadIdentifier) || (nextPostID == threadIdentifier) {
                             ThreadLinkView()
                                 //.frame(height: 90) // Set height for GeometryReader
                                 .offset(y: 20) // Extend down to bridge post gap
