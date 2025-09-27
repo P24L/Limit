@@ -11,6 +11,7 @@ import SwiftUI
 import SwiftData
 import KeychainSwift
 import StoreKit
+import SDWebImage
 
 
 
@@ -39,6 +40,7 @@ struct SettingsView: View {
     @State private var showLogoutConfirmation = false
     @State private var showClearTimelineConfirmation = false
     @State private var isClearingTimelinePosts = false
+    @State private var isClearingMediaCache = false
     
     var body: some View {
         Form {          
@@ -265,7 +267,20 @@ struct SettingsView: View {
             }
 
             // About Section
-            Section(header: Text("About")) {
+            Section(header: Text("More")) {
+                Button {
+                    clearMediaCache()
+                } label: {
+                    if isClearingMediaCache {
+                        HStack {
+                            ProgressView()
+                            Text("Clearing media cache...")
+                        }
+                    } else {
+                        Text("Clear Media Cache")
+                    }
+                }
+                .disabled(isClearingMediaCache)
                 Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "-"))")
             }
         }
@@ -322,6 +337,19 @@ extension SettingsView {
             DevLogger.shared.log("SettingsView.swift - Cleared timeline posts and related SwiftData objects")
         } catch {
             DevLogger.shared.log("SettingsView.swift - Failed to clear timeline posts: \(error)")
+        }
+    }
+
+    private func clearMediaCache() {
+        guard !isClearingMediaCache else { return }
+
+        isClearingMediaCache = true
+        SDImageCache.shared.clearMemory()
+        SDImageCache.shared.clearDisk {
+            Task { @MainActor in
+                isClearingMediaCache = false
+                DevLogger.shared.log("SettingsView.swift - Cleared SDWebImage cache")
+            }
         }
     }
 }
