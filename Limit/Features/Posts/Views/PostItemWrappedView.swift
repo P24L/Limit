@@ -144,10 +144,12 @@ struct PostItemWrappedView: View {
                             .foregroundStyle(.tertiaryText)
                     }
 
-                    // MARK: Reply context (root + parent) only in main timeline when ThreadLinkView would NOT show
+                    // MARK: Reply context (root + parent) in main timeline
                     if !isThreadView && postViewType == .timeline, let rootPost = post.rootPost {
                         let threadRootID = rootPost.uri
                         let showsThreadLink = (threadRootID == nextPostThreadRootID) || (threadRootID == nextPostID)
+
+                        // Show root context only when ThreadLink is NOT visible
                         if !showsThreadLink {
                             // Root context first
                             let rootAuthorRaw = rootPost.authorDisplayName ?? rootPost.authorHandle
@@ -173,9 +175,20 @@ struct PostItemWrappedView: View {
                             .onTapGesture {
                                 router.navigateTo(.postThreadWrapped(postThread: post))
                             }
+                        }
 
-                            // Then optional parent context, only if different from root
-                            if showDirectReplyContext, let parent = post.parentPost, parent.uri != rootPost.uri {
+                        // Show parent context (Reply to) with expanded conditions
+                        // Show when: ThreadLink is NOT visible OR replying to different author
+                        if showDirectReplyContext,
+                           let parent = post.parentPost,
+                           parent.uri != rootPost.uri {
+
+                            // Show "Reply to" when:
+                            // 1. ThreadLink is NOT visible (existing behavior)
+                            // 2. OR ThreadLink IS visible BUT replying to different author
+                            let shouldShowReplyTo = !showsThreadLink || (parent.authorID != post.authorID)
+
+                            if shouldShowReplyTo {
                                 let parentAuthorRaw = parent.authorDisplayName ?? parent.authorHandle
                                 let parentAuthor = parentAuthorRaw.count > 20 ? String(parentAuthorRaw.prefix(20)) + ".." : parentAuthorRaw
                                 VStack(alignment: .leading, spacing: 2) {
