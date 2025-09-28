@@ -24,13 +24,14 @@ struct ActorView: View {
     ZStack {
       if let actor {
         UserProfileView(actorWrapped: actor)
-          .id(actor.actorDID)
       } else {
         ProgressView()
       }
     }
-    .task {
-      actor = ActorWrapper(client: client, DID: actorDID)
+    .task(id: actorDID) {
+      if actor?.actorDID != actorDID {
+        actor = ActorWrapper(client: client, DID: actorDID)
+      }
     }
   }
 }
