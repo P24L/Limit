@@ -77,6 +77,7 @@ public class UserPreferences {
         @AppStorage("showRepliesToOthers") public var showRepliesToOthers: Bool = true
         @AppStorage("showDirectReplyContext") public var showDirectReplyContext: Bool = true
         @AppStorage("mutedReplyActors") public var mutedReplyActorsData: Data = Data()
+        @AppStorage("autoPlayVideos") public var autoPlayVideos: Bool = true
 
         // Debug Settings
         @AppStorage("debugMode") public var debugMode: Bool = false
@@ -157,6 +158,12 @@ public class UserPreferences {
         }
     }
 
+    public var autoPlayVideos: Bool {
+        didSet {
+            storage.autoPlayVideos = autoPlayVideos
+        }
+    }
+
     // Debug Settings
     public var debugMode: Bool {
         didSet {
@@ -203,6 +210,7 @@ public class UserPreferences {
         appearanceMode = storage.appearanceMode
         showRepliesToOthers = storage.showRepliesToOthers
         showDirectReplyContext = storage.showDirectReplyContext
+        autoPlayVideos = storage.autoPlayVideos
         debugMode = storage.debugMode
         computedTimelineCacheTimeout = storage.computedTimelineCacheTimeout
         bookmarksSyncEnabled = storage.bookmarksSyncEnabled

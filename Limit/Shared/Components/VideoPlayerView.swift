@@ -15,8 +15,10 @@ struct EmbeddedVideoView: View {
     var height: Int? = nil
     var width: Int? = nil
 
+    @Environment(UserPreferences.self) private var preferences
     @State private var isVisible: Bool = false
     @State private var isFullScreen: Bool = false
+    @State private var isPlaying: Bool = false
     @State private var player = AVPlayer()
 
     var computedAspectRatio: CGFloat {
@@ -45,10 +47,12 @@ struct EmbeddedVideoView: View {
                     }
                 }
                 .onChange(of: isVisible) {
-                    if isVisible {
+                    if isVisible && preferences.autoPlayVideos {
                         player.play()
-                    } else {
+                        isPlaying = true
+                    } else if !isVisible {
                         player.pause()
+                        isPlaying = false
                     }
                 }
                 .background(
@@ -63,8 +67,28 @@ struct EmbeddedVideoView: View {
         }
         .aspectRatio(computedAspectRatio, contentMode: .fit)
         .contentShape(Rectangle())
+        .overlay {
+            // Show play button overlay when video is not playing and auto-play is off
+            if !isPlaying && !preferences.autoPlayVideos {
+                ZStack {
+                    Color.black.opacity(0.4)
+
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.white)
+                        .shadow(radius: 8)
+                }
+            }
+        }
         .onTapGesture {
-            isFullScreen = true
+            // If not playing and auto-play is off, start playing
+            if !isPlaying && !preferences.autoPlayVideos {
+                player.play()
+                isPlaying = true
+            } else {
+                // Otherwise open fullscreen
+                isFullScreen = true
+            }
         }
         .fullScreenCover(isPresented: $isFullScreen) {
             FullscreenVideoView(videoURL: playlistURL)

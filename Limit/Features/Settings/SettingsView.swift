@@ -54,6 +54,10 @@ struct SettingsView: View {
                     get: { preferences.showDirectReplyContext },
                     set: { preferences.showDirectReplyContext = $0 }
                 ))
+                Toggle("Auto-play videos", isOn: Binding(
+                    get: { preferences.autoPlayVideos },
+                    set: { preferences.autoPlayVideos = $0 }
+                ))
                 NavigationLink("Muted users") {
                     MutedRepliesSettingsView()
                 }
