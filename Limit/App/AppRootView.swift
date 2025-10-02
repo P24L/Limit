@@ -41,7 +41,6 @@ struct AppRootView: View {
             .tag(tab)
           }
             }
-            //.tint(.mintAccent)
             .background(colors.backgroundCanvas)
             .onAppear {
                 themeManager.updateColorScheme(colorScheme)

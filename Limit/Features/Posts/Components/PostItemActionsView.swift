@@ -15,7 +15,8 @@ struct PostItemActionsView: View {
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(FavoritePostManager.self) private var favoritesPost
     @Environment(UserPreferences.self) private var userPreferences
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var postWrapper: TimelinePostWrapper
     
     let hideMoreActions = false
@@ -40,6 +41,8 @@ struct PostItemActionsView: View {
     }
     
     var body: some View {
+        let colors = themeManager.colors
+
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             
             
@@ -70,7 +73,7 @@ struct PostItemActionsView: View {
                         .labelStyle(.compact())
                 } else {
                     Label("\(postWrapper.repostCount.abbreviatedRounded)", systemImage: postWrapper.isReposted ? "arrow.2.squarepath" : "arrow.2.squarepath")
-                        .foregroundStyle(postWrapper.isReposted ? .mintAccent : .postAction)
+                        .foregroundStyle(postWrapper.isReposted ? colors.accent : .postAction)
                         .lineLimit(1)
                         .font(.callout)
                         .imageScale(.medium)
@@ -122,7 +125,7 @@ struct PostItemActionsView: View {
                 .buttonStyle(.plain)
                 .symbolVariant(favoritesPost.isFavorited(postWrapper.uri) ? .fill : .none)
                 .symbolEffect(.bounce, value: favoritesPost.isFavorited(postWrapper.uri))
-                .foregroundStyle(favoritesPost.isFavorited(postWrapper.uri) ? .mintAccent : .postAction)
+                .foregroundStyle(favoritesPost.isFavorited(postWrapper.uri) ? colors.accent : .postAction)
                 .padding(.vertical, 0)
                 .contentShape(Rectangle())
                 .monospacedDigit()

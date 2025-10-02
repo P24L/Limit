@@ -10,8 +10,10 @@ import SDWebImageSwiftUI
 
 struct ReplyPreview: View {
     let post: TimelinePostWrapper
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         VStack(alignment: .leading, spacing: 8) {
             // Reply indicator
             HStack(spacing: 4) {
@@ -26,7 +28,7 @@ struct ReplyPreview: View {
                 Text("@\(post.authorHandle)")
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.mintAccent)
+                    .foregroundColor(colors.accent)
             }
             
             // Post preview
@@ -53,7 +55,7 @@ struct ReplyPreview: View {
                     
                     // Thread line
                     Rectangle()
-                        .fill(Color.mintInactive.opacity(0.5))
+                        .fill(colors.border)
                         .frame(width: 2)
                         .frame(maxHeight: .infinity)
                 }

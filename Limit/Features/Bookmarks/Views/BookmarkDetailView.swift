@@ -10,9 +10,10 @@ import SDWebImageSwiftUI
 
 struct BookmarkDetailView: View {
     let bookmarkId: String
-    
+
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
     
     var bookmark: BookmarkView? {
         // bookmarkId is the rkey - find bookmark by checking if URI ends with this rkey
@@ -61,7 +62,7 @@ struct BookmarkDetailView: View {
                                         .font(.subheadline)
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .tint(.mintAccent)
+                                .tint(themeManager.colors.accent)
                             }
 
                             Menu {
@@ -184,7 +185,7 @@ struct BookmarkDetailView: View {
                         } label: { Label("Copy Link", systemImage: "link") }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
-                            .foregroundColor(.mintAccent)
+                            .foregroundColor(themeManager.colors.accent)
                     }
                 }
             }

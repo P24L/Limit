@@ -14,7 +14,8 @@ struct ComputedTimelineView: View {
     @Environment(\EnvironmentValues.modelContext) private var context
     @Environment(MultiAccountClient.self) private var client
     @Environment(ComputedTimelineFeed.self) private var feed
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     @State private var isTopbarHidden = false
     @State private var hideDirectionIsUp = true
     
@@ -152,7 +153,7 @@ struct ComputedTimelineView: View {
                             Image(systemName: "arrow.clockwise.circle.fill")
                                 .buttonStyle(.plain)
                                 .symbolEffect(.bounce, value: feed.isLoading)
-                                .foregroundStyle(.mintAccent)
+                                .foregroundStyle(themeManager.colors.accent)
                                 .font(.callout)
                         }
                     }

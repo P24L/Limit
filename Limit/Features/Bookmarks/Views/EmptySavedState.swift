@@ -5,8 +5,10 @@ import SwiftUI
 struct EmptySavedState: View {
     let searchText: String
     let addAction: () -> Void
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         VStack(spacing: 14) {
             Image(systemName: searchText.isEmpty ? "bookmark.slash" : "magnifyingglass")
                 .font(.system(size: 50))
@@ -28,7 +30,7 @@ struct EmptySavedState: View {
                         .font(.footnote)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(Color.mintAccent)
+                        .background(colors.accent)
                         .foregroundColor(.white)
                         .clipShape(Capsule())
                 }

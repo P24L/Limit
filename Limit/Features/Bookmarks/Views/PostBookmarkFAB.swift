@@ -10,9 +10,11 @@ import SwiftUI
 struct PostBookmarkFAB: View {
     @Binding var isPresented: Bool
     @Environment(AppRouter.self) private var router
+    @Environment(ThemeManager.self) private var themeManager
     @State private var buttonsVisible = false
-    
+
     var body: some View {
+        let colors = themeManager.colors
         ZStack {
             // Dim background
             Color.black.opacity(buttonsVisible ? 0.3 : 0)
@@ -38,7 +40,7 @@ struct PostBookmarkFAB: View {
                         VStack(spacing: 8) {
                             ZStack {
                                 Circle()
-                                    .fill(Color.mintAccent)
+                                    .fill(colors.accent)
                                     .frame(width: 60, height: 60)
                                 
                                 Image(systemName: "square.and.pencil")

@@ -10,8 +10,10 @@ import SwiftUI
 struct PostBookmarkOverlay: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     var body: some View {
+        let colors = themeManager.colors
         VStack(spacing: 20) {
             HStack(spacing: 30) {
                 // Post button
@@ -24,7 +26,7 @@ struct PostBookmarkOverlay: View {
                     VStack(spacing: 8) {
                         ZStack {
                             Circle()
-                                .fill(Color.mintAccent)
+                                .fill(colors.accent)
                                 .frame(width: 70, height: 70)
                             
                             Image(systemName: "square.and.pencil")

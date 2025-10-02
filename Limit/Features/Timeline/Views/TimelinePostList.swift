@@ -49,6 +49,11 @@ struct TimelinePostList: View {
             List {
             ForEach(posts) { wrapper in
                 if isVisible(wrapper) {
+                    let currentIndex = posts.firstIndex { $0.id == wrapper.id }
+                    let nextWrapper = currentIndex.flatMap { index in
+                        return nextVisible(after: index)
+                    }
+
                     postItemForList(for: wrapper)
                         .id(wrapper.uri)
                         .listRowInsets(EdgeInsets(
@@ -58,7 +63,7 @@ struct TimelinePostList: View {
                             trailing: 6
                         ))
                         .listRowBackground(colors.backgroundListRow)
-                        .listRowSeparator(.visible, edges: .bottom)
+                        .listRowSeparator(shouldHideSeparator(for: wrapper, next: nextWrapper) ? .hidden : .visible, edges: .bottom)
                         .onAppear {
                             guard positionTrackingEnabled else { return }
                             if viewModel.isRestoringPosition,
@@ -215,6 +220,17 @@ struct TimelinePostList: View {
         )
     }
 
+    // MARK: - Thread Helpers
+    private func getThreadRootID(for wrapper: TimelinePostWrapper) -> String {
+        return wrapper.rootPost?.uri ?? wrapper.uri
+    }
+
+    private func shouldHideSeparator(for current: TimelinePostWrapper, next: TimelinePostWrapper?) -> Bool {
+        guard let next = next else { return false }
+        let currentThreadID = getThreadRootID(for: current)
+        let nextThreadID = getThreadRootID(for: next)
+        return currentThreadID == nextThreadID
+    }
 
     // MARK: - Position Tracking
     private func updateNewPostsIndicator() {

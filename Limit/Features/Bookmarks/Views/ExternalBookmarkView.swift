@@ -17,7 +17,8 @@ struct ExternalBookmarkView: View {
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(MultiAccountClient.self) private var client
     @Environment(AppRouter.self) private var router
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     let bookmarkUri: String
     let isOwner: Bool
     
@@ -118,7 +119,7 @@ struct ExternalBookmarkView: View {
                                             .font(.subheadline)
                                     }
                                     .buttonStyle(.borderedProminent)
-                                    .tint(.mintAccent)
+                                    .tint(themeManager.colors.accent)
                                 }
 
                                 Menu {
@@ -159,7 +160,7 @@ struct ExternalBookmarkView: View {
                                     .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .tint(.mintAccent)
+                                .tint(themeManager.colors.accent)
                                 .disabled(isSaving)
                             }
                         }

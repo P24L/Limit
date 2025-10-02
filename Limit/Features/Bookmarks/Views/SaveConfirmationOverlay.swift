@@ -9,7 +9,8 @@ import SwiftUI
 
 struct SaveConfirmationOverlay: View {
     @Environment(AppRouter.self) private var router
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     let bookmarkId: String?
     let onEdit: (() -> Void)?
     
@@ -50,7 +51,7 @@ struct SaveConfirmationOverlay: View {
                 } label: {
                     Image(systemName: "pencil.circle")
                         .font(.system(size: 20))
-                        .foregroundColor(.mintAccent)
+                        .foregroundColor(themeManager.colors.accent)
                 }
             }
             .padding(.horizontal, 16)
@@ -126,12 +127,13 @@ struct SaveConfirmationModifier: ViewModifier {
 
 struct CustomSaveConfirmationOverlay: View {
     @Environment(AppRouter.self) private var router
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     let bookmarkId: String?
     let text: String
     let icon: String
     let onEdit: (() -> Void)?
-    
+
     @State private var isVisible = true
     @State private var dismissTimer: Timer?
     
@@ -165,7 +167,7 @@ struct CustomSaveConfirmationOverlay: View {
                     } label: {
                         Image(systemName: "pencil.circle")
                             .font(.system(size: 20))
-                            .foregroundColor(.mintAccent)
+                            .foregroundColor(themeManager.colors.accent)
                     }
                 }
             }

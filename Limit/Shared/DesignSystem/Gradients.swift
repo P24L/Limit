@@ -54,12 +54,6 @@ public extension LinearGradient {
       endPoint: .bottomTrailing
     )
   }
-  
-  static let mintAccentGradient = LinearGradient(
-    colors: [Color.mintAccent.opacity(0.8), Color.white],
-    startPoint: .topLeading,
-    endPoint: .bottomTrailing
-  )
 }
 
 public extension ShapeStyle where Self == LinearGradient {
@@ -69,5 +63,4 @@ public extension ShapeStyle where Self == LinearGradient {
     static var redPurple: LinearGradient { .redPurple }
     static var indigoPurpleHorizontal: LinearGradient { .indigoPurpleHorizontal }
     static var indigoPurpleAvatar: LinearGradient { .indigoPurpleAvatar }
-    static var mintAccentGradient: LinearGradient { .mintAccentGradient }
 }

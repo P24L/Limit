@@ -38,11 +38,12 @@ struct ATTimelineView_experimental: View {
         case trendingPosts
         case list(Int)
         case feed(Int)
-        
-        var color: Color {
+
+        @MainActor
+        func color(using themeManager: ThemeManager) -> Color {
             switch self {
             case .timeline:
-                return .mintAccent
+                return themeManager.colors.accent
             case .aline:
                 return .blue
             case .trendingPosts:
@@ -438,7 +439,7 @@ struct ATTimelineView_experimental: View {
         return chip(
             icon: TopbarTab.aline.icon,
             title: "A-line",
-            tint: TopbarTab.aline.color,
+            tint: TopbarTab.aline.color(using: themeManager),
             isSelected: selectedTab == .aline,
             showTitleWhenUnselected: false,
             neutralColor: themeManager.colors.chromeForeground.opacity(0.75),
@@ -475,7 +476,7 @@ struct ATTimelineView_experimental: View {
         chip(
             icon: TopbarTab.trendingPosts.icon,
             title: TopbarTab.trendingPosts.title,
-            tint: TopbarTab.trendingPosts.color,
+            tint: TopbarTab.trendingPosts.color(using: themeManager),
             isSelected: selectedTab == .trendingPosts,
             showTitleWhenUnselected: false,
             neutralColor: themeManager.colors.chromeForeground.opacity(0.75)
@@ -497,7 +498,7 @@ struct ATTimelineView_experimental: View {
         return chip(
             icon: TopbarTab.list(0).icon,
             title: nil,
-            tint: TopbarTab.list(0).color,
+            tint: TopbarTab.list(0).color(using: themeManager),
             isSelected: isSelected,
             showTitleWhenUnselected: false,
             neutralColor: themeManager.colors.chromeForeground.opacity(0.75)
@@ -533,7 +534,7 @@ struct ATTimelineView_experimental: View {
         return chip(
             icon: TopbarTab.feed(0).icon,
             title: nil,
-            tint: TopbarTab.feed(0).color,
+            tint: TopbarTab.feed(0).color(using: themeManager),
             isSelected: isSelected,
             showTitleWhenUnselected: false,
             neutralColor: themeManager.colors.chromeForeground.opacity(0.75)
@@ -562,7 +563,7 @@ struct ATTimelineView_experimental: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(Array(currentUser.lists.enumerated()), id: \.offset) { index, list in
-                    let tint = TopbarTab.list(index).color
+                    let tint = TopbarTab.list(index).color(using: themeManager)
                     secondaryChip(
                         title: truncatedTitle(list.name),
                         tint: tint,
@@ -584,7 +585,7 @@ struct ATTimelineView_experimental: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(Array(currentUser.feeds.enumerated()), id: \.offset) { index, feed in
-                    let tint = TopbarTab.feed(index).color
+                    let tint = TopbarTab.feed(index).color(using: themeManager)
                     secondaryChip(
                         title: truncatedTitle(feed.displayName),
                         tint: tint,

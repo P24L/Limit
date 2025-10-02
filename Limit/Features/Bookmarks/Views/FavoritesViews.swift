@@ -16,7 +16,8 @@ struct FavoritesViews: View {
     @Environment(BookmarkManager.self) private var bookmarkManager
     @Environment(FavoritePostManager.self) private var favoritesPost
     @Environment(NotificationManager.self) private var notificationManager
-    
+    @Environment(ThemeManager.self) private var themeManager
+
     @State private var selectedCategory: FavoriteCategory? = .links
     @State private var posts: [TimelinePostWrapper]? = nil
     @State private var showMarkAllReadButton = false
@@ -63,7 +64,7 @@ struct FavoritesViews: View {
                         }
                     } label: {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.mintAccent)
+                            .foregroundColor(themeManager.colors.accent)
                     }
                 }
             }
@@ -109,7 +110,7 @@ struct FavoritesViews: View {
                     .frame(maxWidth: .infinity)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(selectedCategory == category ? Color.mintAccent : Color.clear)
+                            .fill(selectedCategory == category ? themeManager.colors.accent : Color.clear)
                     )
                 }
                 .buttonStyle(.borderless)
@@ -143,7 +144,7 @@ struct FavoritesViews: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(selectedCategory == category ? Color.mintAccent : Color.clear)
+                                    .fill(selectedCategory == category ? themeManager.colors.accent : Color.clear)
                             )
                         
                         // Badge pro notifikace
