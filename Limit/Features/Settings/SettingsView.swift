@@ -43,15 +43,7 @@ struct SettingsView: View {
     @State private var isClearingMediaCache = false
 
     var body: some View {
-        Form {          
-            // Options Section
-            Section(header: Text("Options")) {
-                Toggle("Dark Mode", isOn: Binding(
-                    get: { preferences.isDarkMode },
-                    set: { preferences.isDarkMode = $0 }
-                ))
-            }
-            
+        Form {
             // Timeline Section
             Section(header: Text("Timeline")) {
                 Toggle("Show replies to others", isOn: Binding(
@@ -295,14 +287,6 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This removes all cached timeline posts, media, link metadata, and actor data stored locally.")
-        }
-        .onAppear {
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .first?
-                .windows
-                .first?
-                .overrideUserInterfaceStyle = preferences.isDarkMode ? .dark : .light
         }
     }
 }

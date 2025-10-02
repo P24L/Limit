@@ -15,46 +15,43 @@ struct ColorThemeView: View {
     @Environment(\.colorScheme) private var systemColorScheme
 
     private var resolvedColorScheme: ColorScheme {
-        userPreferences.isDarkMode ? .dark : systemColorScheme
+        switch userPreferences.appearanceMode {
+        case .system:
+            return systemColorScheme
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
     }
 
     var body: some View {
         Form {
             appearanceSection
-            automaticSection
             palettesSection
             previewSection
         }
         .navigationTitle("Color Theme")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { synchronizeColorScheme() }
-        .onChange(of: userPreferences.isDarkMode) { _, _ in synchronizeColorScheme() }
+        .onChange(of: userPreferences.appearanceMode) { _, _ in synchronizeColorScheme() }
         .onChange(of: systemColorScheme) { _, _ in synchronizeColorScheme() }
     }
 
     private var appearanceSection: some View {
         Section("Appearance Mode") {
-            Toggle("Always Dark Mode", isOn: Binding(
-                get: { userPreferences.isDarkMode },
+            Picker("Mode", selection: Binding(
+                get: { userPreferences.appearanceMode },
                 set: { newValue in
-                    userPreferences.isDarkMode = newValue
+                    userPreferences.appearanceMode = newValue
                     synchronizeColorScheme()
                 }
-            ))
-        }
-    }
-
-    private var automaticSection: some View {
-        Section("Automatic Palette") {
-            Toggle("Match System Palette", isOn: Binding(
-                get: { appTheme.usesSystemPalette },
-                set: { newValue in
-                    appTheme.setFollowSystemPalette(newValue)
-                    synchronizeColorScheme()
-                }
-            ))
-            .disabled(userPreferences.isDarkMode)
-            .foregroundStyle(userPreferences.isDarkMode ? .secondary : .primary)
+            )) {
+                Text("System").tag(AppearanceMode.system)
+                Text("Light").tag(AppearanceMode.light)
+                Text("Dark").tag(AppearanceMode.dark)
+            }
+            .pickerStyle(.segmented)
         }
     }
 

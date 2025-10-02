@@ -9,6 +9,12 @@ import Foundation
 import SwiftUI
 import Observation
 
+public enum AppearanceMode: String, Codable {
+    case system
+    case light
+    case dark
+}
+
 public struct MutedReplyActor: Codable, Identifiable, Equatable {
     public let did: String
     public let handle: String
@@ -60,7 +66,12 @@ public class UserPreferences {
     // MARK: - Storage Class
     class Storage {
         // Visual Preferences
-        @AppStorage("isDarkMode") public var isDarkMode: Bool = false
+        @AppStorage("appearanceMode") public var appearanceModeRaw: String = AppearanceMode.system.rawValue
+
+        public var appearanceMode: AppearanceMode {
+            get { AppearanceMode(rawValue: appearanceModeRaw) ?? .system }
+            set { appearanceModeRaw = newValue.rawValue }
+        }
 
         // Timeline Preferences
         @AppStorage("showRepliesToOthers") public var showRepliesToOthers: Bool = true
@@ -120,9 +131,9 @@ public class UserPreferences {
     // MARK: - Public Properties with Observers
 
     // Visual Preferences
-    public var isDarkMode: Bool {
+    public var appearanceMode: AppearanceMode {
         didSet {
-            storage.isDarkMode = isDarkMode
+            storage.appearanceMode = appearanceMode
             applyThemeChange()
         }
     }
@@ -189,7 +200,7 @@ public class UserPreferences {
     // MARK: - Initialization
     private init() {
         // Load from storage
-        isDarkMode = storage.isDarkMode
+        appearanceMode = storage.appearanceMode
         showRepliesToOthers = storage.showRepliesToOthers
         showDirectReplyContext = storage.showDirectReplyContext
         debugMode = storage.debugMode
@@ -208,19 +219,29 @@ public class UserPreferences {
 
     private func applyThemeChange() {
         Task { @MainActor in
+            let interfaceStyle: UIUserInterfaceStyle
+            switch appearanceMode {
+            case .system:
+                interfaceStyle = .unspecified
+            case .light:
+                interfaceStyle = .light
+            case .dark:
+                interfaceStyle = .dark
+            }
+
             UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
                 .first?
                 .windows
                 .first?
-                .overrideUserInterfaceStyle = isDarkMode ? .dark : .light
+                .overrideUserInterfaceStyle = interfaceStyle
         }
     }
 
     // MARK: - Public Methods
 
     public func resetToDefaults() {
-        isDarkMode = false
+        appearanceMode = .system
         showRepliesToOthers = true
         showDirectReplyContext = true
         debugMode = false
@@ -233,7 +254,7 @@ public class UserPreferences {
 
     public func exportSettings() -> [String: Any] {
         var settings: [String: Any] = [
-            "isDarkMode": isDarkMode,
+            "appearanceMode": appearanceMode.rawValue,
             "showRepliesToOthers": showRepliesToOthers,
             "showDirectReplyContext": showDirectReplyContext,
             "debugMode": debugMode,
@@ -249,8 +270,9 @@ public class UserPreferences {
     }
 
     public func importSettings(_ settings: [String: Any]) {
-        if let value = settings["isDarkMode"] as? Bool {
-            isDarkMode = value
+        if let value = settings["appearanceMode"] as? String,
+           let mode = AppearanceMode(rawValue: value) {
+            appearanceMode = mode
         }
         if let value = settings["showRepliesToOthers"] as? Bool {
             showRepliesToOthers = value

@@ -14,40 +14,23 @@ public final class ThemeManager {
     public static let shared = ThemeManager()
 
     public private(set) var paletteID: ThemePaletteID
-    public private(set) var usesSystemPalette: Bool
     public private(set) var colorScheme: ColorScheme
     public private(set) var tokens: ThemeTokens
 
     private init(
         paletteID: ThemePaletteID = .midnight,
-        usesSystemPalette: Bool = true,
         colorScheme: ColorScheme = .light
     ) {
         self.paletteID = paletteID
-        self.usesSystemPalette = usesSystemPalette
         self.colorScheme = colorScheme
-        let palette = ThemePaletteLibrary.defaultPalette(for: colorScheme)
+        let palette = ThemePaletteLibrary.palette(for: paletteID)
         self.tokens = ThemeTokens(colors: ThemeColors(set: palette.colors(for: colorScheme)))
     }
 
     public var colors: ThemeColors { tokens.colors }
 
-    public func configure(
-        paletteID: ThemePaletteID,
-        usesSystemPalette: Bool
-    ) {
-        self.paletteID = paletteID
-        self.usesSystemPalette = usesSystemPalette
-        refreshTokens()
-    }
-
     public func selectPalette(_ newPaletteID: ThemePaletteID) {
         paletteID = newPaletteID
-        refreshTokens()
-    }
-
-    public func setUsesSystemPalette(_ flag: Bool) {
-        usesSystemPalette = flag
         refreshTokens()
     }
 
@@ -66,18 +49,11 @@ public final class ThemeManager {
     }
 
     public func activePalette() -> ThemePalette {
-        palette(for: resolvedPaletteID(for: colorScheme))
+        palette(for: paletteID)
     }
 
     private func refreshTokens() {
         let palette = activePalette()
         tokens = ThemeTokens(colors: ThemeColors(set: palette.colors(for: colorScheme)))
-    }
-
-    private func resolvedPaletteID(for scheme: ColorScheme) -> ThemePaletteID {
-        if usesSystemPalette {
-            return ThemePaletteLibrary.defaultPalette(for: scheme).id
-        }
-        return paletteID
     }
 }

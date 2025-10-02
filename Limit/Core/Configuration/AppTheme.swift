@@ -15,7 +15,6 @@ public class AppTheme {
     // MARK: - Theme Storage
     class Storage {
         @AppStorage("theme_palette_id") public var paletteID: String = ThemePaletteID.midnight.rawValue
-        @AppStorage("theme_followSystemPalette") public var followSystemPalette: Bool = true
         @AppStorage("theme_cornerRadius") public var cornerRadius: Double = 12.0
         @AppStorage("theme_contentPadding") public var contentPadding: Double = 16.0
         @AppStorage("theme_compactMode") public var compactMode: Bool = false
@@ -33,20 +32,7 @@ public class AppTheme {
     public var selectedPaletteID: ThemePaletteID {
         didSet {
             storage.paletteID = selectedPaletteID.rawValue
-            themeManager.configure(
-                paletteID: selectedPaletteID,
-                usesSystemPalette: usesSystemPalette
-            )
-        }
-    }
-
-    public var usesSystemPalette: Bool {
-        didSet {
-            storage.followSystemPalette = usesSystemPalette
-            themeManager.configure(
-                paletteID: selectedPaletteID,
-                usesSystemPalette: usesSystemPalette
-            )
+            themeManager.selectPalette(selectedPaletteID)
         }
     }
 
@@ -103,22 +89,17 @@ public class AppTheme {
     private init() {
         // Load from storage
         selectedPaletteID = ThemePaletteID(rawValue: storage.paletteID) ?? .midnight
-        usesSystemPalette = storage.followSystemPalette
         cornerRadius = storage.cornerRadius
         contentPadding = storage.contentPadding
         compactMode = storage.compactMode
 
-        themeManager.configure(
-            paletteID: selectedPaletteID,
-            usesSystemPalette: usesSystemPalette
-        )
+        themeManager.selectPalette(selectedPaletteID)
     }
 
     // MARK: - Public Methods
 
     public func resetToDefaults() {
         selectedPaletteID = .midnight
-        usesSystemPalette = true
         cornerRadius = 12.0
         contentPadding = 16.0
         compactMode = false
@@ -127,12 +108,7 @@ public class AppTheme {
     }
 
     public func applyPalette(_ paletteID: ThemePaletteID) {
-        usesSystemPalette = false
         selectedPaletteID = paletteID
-    }
-
-    public func setFollowSystemPalette(_ isEnabled: Bool) {
-        usesSystemPalette = isEnabled
     }
 
     // MARK: - Color Presets

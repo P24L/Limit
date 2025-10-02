@@ -302,12 +302,12 @@ struct PostItemWrappedView: View {
                             FacetLinksView(post: post)
                         }
                     }
-                }
-            }
 
-            // MARK: Full-width action bar at the bottom of the card
-            if depth == 0 {
-                PostItemActionsView(postWrapper: post)
+                    // MARK: Action bar under content
+                    if depth == 0 {
+                        PostItemActionsView(postWrapper: post)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity)
