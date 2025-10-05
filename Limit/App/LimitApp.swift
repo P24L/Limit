@@ -284,7 +284,7 @@ struct LimitApp: App {
             notificationManager.startPeriodicRefresh()
             
             // Start all background tasks without waiting
-            Task.detached { [weak computedFeed, weak bookmarkManager] in
+            Task.detached(priority: .background) { [weak computedFeed, weak bookmarkManager] in
                 // Profile refresh first (needed for UI but don't block on it)
                 await currentUser.refreshProfile(client: client)
                 
@@ -534,7 +534,7 @@ struct LimitApp: App {
             notificationManager.startPeriodicRefresh()
             
             // Start preparing ComputedTimeline cache with 4s delay to allow main timeline to load first
-            Task.detached { [weak computedFeed, weak client] in
+            Task.detached(priority: .background) { [weak computedFeed, weak client] in
                 guard let computedFeed = computedFeed, let client = client else { return }
                 try? await Task.sleep(for: .seconds(4))
                 await computedFeed.prepareSessionCacheInBackground(client: client)
